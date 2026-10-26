@@ -45,6 +45,169 @@ export const DEFAULT_MANNEQUIN_MEASUREMENTS: Record<Gender, MannequinMeasurement
   }
 };
 
+export interface TorsoSpan {
+  /** World Y of the bottom edge of the torso (hip / pelvis level). */
+  yOffset: number;
+  /** Height of the torso tube, from hip level up to the top of the neck. */
+  torsoHeight: number;
+}
+
+/**
+ * Vertical extent of the dress form for a given gender / back length.
+ * Both the mannequin and the garment are built from this span, so a garment
+ * can never drift away from the body it is supposed to sit on.
+ */
+export function getTorsoSpan(gender: Gender, measurements: MannequinMeasurements): TorsoSpan {
+  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+  const lengthScale = (measurements.backLength || ref.backLength) / ref.backLength;
+  const isChild = gender === 'kids' || gender === 'infant';
+  return {
+    yOffset: isChild ? 25 : 45,
+    torsoHeight: (isChild ? 45 : 68) * lengthScale
+  };
+}
+
+export interface TorsoProfile {
+  y: number;      // world Y of this horizontal slice
+  rx: number;     // lateral (side to side) radius
+  rz: number;     // front to back radius (already includes the bust shaping)
+  zCenter: number; // forward offset of the slice (bust projection)
+}
+
+/**
+ * The single source of truth for the dress form silhouette.
+ *
+ * `v` runs from 0 (bottom of the hips) to 1 (top of the neck).
+ * `angle` is measured around the torso: 0 = side (+X), PI/2 = front (+Z).
+ * A point on the body surface is `(rx*cos(angle), y, rz*sin(angle) + zCenter)`.
+ *
+ * The garment generator samples this same function and only inflates it by the
+ * clothing ease, which is what makes the clothes actually sit *on* the body.
+ */
+export function getTorsoProfile(
+  gender: Gender,
+  measurements: MannequinMeasurements,
+  v: number,
+  angle: number = 0
+): TorsoProfile {
+  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+  const bustScale = (measurements.bust || ref.bust) / ref.bust;
+  const waistScale = (measurements.waist || ref.waist) / ref.waist;
+  const hipScale = (measurements.hip || ref.hip) / ref.hip;
+  const shoulderScale = (measurements.shoulder || ref.shoulder) / ref.shoulder;
+
+  const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
+  const y = yOffset + v * torsoHeight;
+
+  let rx = 14; // lateral radius
+  let rz = 10; // depth radius
+  let zCenter = 0;
+
+  if (gender === 'women') {
+    if (v < 0.25) {
+      // Lower pelvis / hips
+      const t = v / 0.25;
+      rx = 18 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
+      rz = 13 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
+    } else if (v < 0.5) {
+      // Waist
+      const t = (v - 0.25) / 0.25;
+      const currentHip = 18 * hipScale;
+      const currentWaist = 11.5 * waistScale;
+      rx = THREE.MathUtils.lerp(currentHip, currentWaist, Math.sin(t * Math.PI * 0.5));
+      rz = THREE.MathUtils.lerp(13 * hipScale, 8.5 * waistScale, Math.sin(t * Math.PI * 0.5));
+    } else if (v < 0.75) {
+      // Bust
+      const t = (v - 0.5) / 0.25;
+      const currentWaist = 11.5 * waistScale;
+      const currentBust = 15.5 * bustScale;
+      rx = THREE.MathUtils.lerp(currentWaist, currentBust, Math.sin(t * Math.PI * 0.5));
+      // Female bust projection in front (+Z)
+      const bustPeak = Math.sin(t * Math.PI);
+      rz = THREE.MathUtils.lerp(8.5 * waistScale, 11 * bustScale, t) + bustPeak * 2.8 * bustScale;
+      zCenter = bustPeak * 1.5;
+    } else if (v < 0.9) {
+      // Shoulders / upper chest
+      const t = (v - 0.75) / 0.15;
+      rx = THREE.MathUtils.lerp(15.5 * bustScale, 17.5 * shoulderScale, t);
+      rz = THREE.MathUtils.lerp(11 * bustScale, 8.5, t);
+    } else {
+      // Neck base to top of neck
+      const t = (v - 0.9) / 0.1;
+      rx = THREE.MathUtils.lerp(17.5 * shoulderScale * 0.45, 6, t);
+      rz = THREE.MathUtils.lerp(8.5 * 0.7, 5.5, t);
+    }
+  } else if (gender === 'men') {
+    if (v < 0.25) {
+      // Hips
+      rx = 16.5 * hipScale;
+      rz = 12 * hipScale;
+    } else if (v < 0.5) {
+      // Waist
+      const t = (v - 0.25) / 0.25;
+      rx = THREE.MathUtils.lerp(16.5 * hipScale, 14.5 * waistScale, t);
+      rz = THREE.MathUtils.lerp(12 * hipScale, 10.5 * waistScale, t);
+    } else if (v < 0.78) {
+      // Broad chest & lats
+      const t = (v - 0.5) / 0.28;
+      rx = THREE.MathUtils.lerp(14.5 * waistScale, 19.5 * shoulderScale, t);
+      rz = THREE.MathUtils.lerp(10.5 * waistScale, 13 * bustScale, t);
+      zCenter = Math.sin(t * Math.PI) * 0.8;
+    } else if (v < 0.9) {
+      // Broad shoulder line
+      const t = (v - 0.78) / 0.12;
+      rx = THREE.MathUtils.lerp(19.5 * shoulderScale, 19 * shoulderScale, t);
+      rz = THREE.MathUtils.lerp(13 * bustScale, 9.5, t);
+    } else {
+      // Neck
+      const t = (v - 0.9) / 0.1;
+      rx = THREE.MathUtils.lerp(19 * shoulderScale * 0.45, 7.5, t);
+      rz = THREE.MathUtils.lerp(9.5 * 0.8, 7, t);
+    }
+  } else {
+    // Kids / Infant
+    if (v < 0.3) {
+      rx = 11 * hipScale;
+      rz = 9.5 * hipScale;
+    } else if (v < 0.6) {
+      // Soft rounded tummy
+      const t = (v - 0.3) / 0.3;
+      rx = THREE.MathUtils.lerp(11 * hipScale, 10.5 * waistScale, t);
+      rz = THREE.MathUtils.lerp(9.5 * hipScale, 10 * waistScale, t);
+      zCenter = Math.sin(t * Math.PI) * 1.2;
+    } else if (v < 0.85) {
+      // Chest
+      const t = (v - 0.6) / 0.25;
+      rx = THREE.MathUtils.lerp(10.5 * waistScale, 12 * shoulderScale, t);
+      rz = THREE.MathUtils.lerp(10 * waistScale, 9 * bustScale, t);
+    } else {
+      // Neck
+      const t = (v - 0.85) / 0.15;
+      rx = THREE.MathUtils.lerp(12 * shoulderScale * 0.5, 5.5, t);
+      rz = THREE.MathUtils.lerp(9 * 0.6, 5, t);
+    }
+  }
+
+  // Bust prominence separation (front volume only), kept angle dependent so
+  // both the mannequin and the garment share exactly the same chest shape.
+  if (gender === 'women' && v > 0.55 && v < 0.75 && Math.sin(angle) > 0) {
+    const bustPeak = Math.sin(((v - 0.55) / 0.2) * Math.PI);
+    const leftRightSpread = Math.abs(Math.cos(angle));
+    if (leftRightSpread > 0.15 && leftRightSpread < 0.85) {
+      rz *= (1 + bustPeak * 0.28);
+    }
+  }
+
+  return { y, rx, rz, zCenter };
+}
+
+/** Ramanujan approximation of an ellipse perimeter, used to convert a
+ *  measurement (a circumference) into the ease a garment needs at that level. */
+export function ellipsePerimeter(a: number, b: number): number {
+  const h = ((a - b) ** 2) / ((a + b) ** 2);
+  return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+}
+
 /**
  * Builds a parametric tailoring dress form mannequin with realistic anatomy,
  * fabric texture, wooden neck topper, and metallic/wood floor stand.
@@ -58,11 +221,10 @@ export function buildParametricMannequin(
 
   // Base scaling relative to canonical reference
   const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const bustScale = (measurements.bust || ref.bust) / ref.bust;
   const waistScale = (measurements.waist || ref.waist) / ref.waist;
-  const hipScale = (measurements.hip || ref.hip) / ref.hip;
   const shoulderScale = (measurements.shoulder || ref.shoulder) / ref.shoulder;
-  const lengthScale = (measurements.backLength || ref.backLength) / ref.backLength;
+
+  const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
 
   // Materials
   const dummyTorsoMaterial = new THREE.MeshStandardMaterial({
@@ -96,130 +258,26 @@ export function buildParametricMannequin(
   // Number of vertical slice levels
   const verticalSegments = 32;
   const radialSegments = 36;
-  const torsoHeight = (gender === 'kids' || gender === 'infant') ? 45 * lengthScale : 68 * lengthScale;
-  const yOffset = (gender === 'kids' || gender === 'infant') ? 25 : 45;
 
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
 
-  // Generate slice heights and radii based on gender archetype
+  // Generate slice heights and radii from the shared body profile
   for (let i = 0; i <= verticalSegments; i++) {
     const v = i / verticalSegments; // 0 = bottom (hip/pelvis), 1 = top (neck)
-    const y = yOffset + v * torsoHeight;
 
-    let rx = 14; // lateral radius
-    let rz = 10; // depth radius
-    let zCenter = 0;
-
-    if (gender === 'women') {
-      if (v < 0.25) {
-        // Lower pelvis / hips
-        const t = v / 0.25;
-        rx = 18 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
-        rz = 13 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
-      } else if (v < 0.5) {
-        // Waist
-        const t = (v - 0.25) / 0.25;
-        const currentHip = 18 * hipScale;
-        const currentWaist = 11.5 * waistScale;
-        rx = THREE.MathUtils.lerp(currentHip, currentWaist, Math.sin(t * Math.PI * 0.5));
-        rz = THREE.MathUtils.lerp(13 * hipScale, 8.5 * waistScale, Math.sin(t * Math.PI * 0.5));
-      } else if (v < 0.75) {
-        // Bust
-        const t = (v - 0.5) / 0.25;
-        const currentWaist = 11.5 * waistScale;
-        const currentBust = 15.5 * bustScale;
-        rx = THREE.MathUtils.lerp(currentWaist, currentBust, Math.sin(t * Math.PI * 0.5));
-        // Female bust projection in front (+Z)
-        const bustPeak = Math.sin(t * Math.PI);
-        rz = THREE.MathUtils.lerp(8.5 * waistScale, 11 * bustScale, t) + bustPeak * 2.8 * bustScale;
-        zCenter = bustPeak * 1.5;
-      } else if (v < 0.9) {
-        // Shoulders / upper chest
-        const t = (v - 0.75) / 0.15;
-        rx = THREE.MathUtils.lerp(15.5 * bustScale, 17.5 * shoulderScale, t);
-        rz = THREE.MathUtils.lerp(11 * bustScale, 8.5, t);
-      } else {
-        // Neck base to top of neck
-        const t = (v - 0.9) / 0.1;
-        rx = THREE.MathUtils.lerp(17.5 * shoulderScale * 0.45, 6, t);
-        rz = THREE.MathUtils.lerp(8.5 * 0.7, 5.5, t);
-      }
-    } else if (gender === 'men') {
-      if (v < 0.25) {
-        // Hips
-        rx = 16.5 * hipScale;
-        rz = 12 * hipScale;
-      } else if (v < 0.5) {
-        // Waist
-        const t = (v - 0.25) / 0.25;
-        rx = THREE.MathUtils.lerp(16.5 * hipScale, 14.5 * waistScale, t);
-        rz = THREE.MathUtils.lerp(12 * hipScale, 10.5 * waistScale, t);
-      } else if (v < 0.78) {
-        // Broad chest & lats
-        const t = (v - 0.5) / 0.28;
-        rx = THREE.MathUtils.lerp(14.5 * waistScale, 19.5 * shoulderScale, t);
-        rz = THREE.MathUtils.lerp(10.5 * waistScale, 13 * bustScale, t);
-        zCenter = Math.sin(t * Math.PI) * 0.8;
-      } else if (v < 0.9) {
-        // Broad shoulder line
-        const t = (v - 0.78) / 0.12;
-        rx = THREE.MathUtils.lerp(19.5 * shoulderScale, 19 * shoulderScale, t);
-        rz = THREE.MathUtils.lerp(13 * bustScale, 9.5, t);
-      } else {
-        // Neck
-        const t = (v - 0.9) / 0.1;
-        rx = THREE.MathUtils.lerp(19 * shoulderScale * 0.45, 7.5, t);
-        rz = THREE.MathUtils.lerp(9.5 * 0.8, 7, t);
-      }
-    } else {
-      // Kids / Infant
-      if (v < 0.3) {
-        rx = 11 * hipScale;
-        rz = 9.5 * hipScale;
-      } else if (v < 0.6) {
-        // Soft rounded tummy
-        const t = (v - 0.3) / 0.3;
-        rx = THREE.MathUtils.lerp(11 * hipScale, 10.5 * waistScale, t);
-        rz = THREE.MathUtils.lerp(9.5 * hipScale, 10 * waistScale, t);
-        zCenter = Math.sin(t * Math.PI) * 1.2;
-      } else if (v < 0.85) {
-        // Chest
-        const t = (v - 0.6) / 0.25;
-        rx = THREE.MathUtils.lerp(10.5 * waistScale, 12 * shoulderScale, t);
-        rz = THREE.MathUtils.lerp(10 * waistScale, 9 * bustScale, t);
-      } else {
-        // Neck
-        const t = (v - 0.85) / 0.15;
-        rx = THREE.MathUtils.lerp(12 * shoulderScale * 0.5, 5.5, t);
-        rz = THREE.MathUtils.lerp(9 * 0.6, 5, t);
-      }
-    }
-
-    // Generate ring of vertices
     for (let j = 0; j <= radialSegments; j++) {
       const u = j / radialSegments;
       const angle = u * Math.PI * 2;
 
-      // Slight anatomical shaping (rib indentation and chest curve)
-      let cosVal = Math.cos(angle);
-      let sinVal = Math.sin(angle);
+      const profile = getTorsoProfile(gender, measurements, v, angle);
 
-      // Add bust prominence separation for women
-      if (gender === 'women' && v > 0.55 && v < 0.75 && sinVal > 0) {
-        const bustPeak = Math.sin(((v - 0.55) / 0.2) * Math.PI);
-        const leftRightSpread = Math.abs(cosVal);
-        if (leftRightSpread > 0.15 && leftRightSpread < 0.85) {
-          sinVal *= (1 + bustPeak * 0.28);
-        }
-      }
-
-      const vx = rx * cosVal;
-      const vz = rz * sinVal + zCenter;
-      const vy = y;
-
-      positions.push(vx, vy, vz);
+      positions.push(
+        profile.rx * Math.cos(angle),
+        profile.y,
+        profile.rz * Math.sin(angle) + profile.zCenter
+      );
       uvs.push(u, v);
     }
   }
@@ -247,6 +305,17 @@ export function buildParametricMannequin(
   torsoMesh.castShadow = true;
   torsoMesh.receiveShadow = true;
   torsoGroup.add(torsoMesh);
+
+  // Close the bottom of the dress form so it is never see-through
+  const bottomRx = getTorsoProfile(gender, measurements, 0, 0).rx;
+  const bottomRz = getTorsoProfile(gender, measurements, 0, Math.PI / 2).rz;
+  const bottomCapGeom = new THREE.CircleGeometry(1, 48);
+  bottomCapGeom.rotateX(Math.PI / 2); // face downwards
+  const bottomCapMesh = new THREE.Mesh(bottomCapGeom, dummyTorsoMaterial);
+  bottomCapMesh.scale.set(bottomRx, 1, bottomRz);
+  bottomCapMesh.position.set(0, yOffset + 0.01, 0);
+  bottomCapMesh.receiveShadow = true;
+  torsoGroup.add(bottomCapMesh);
 
   // Add Tailoring Ribbon Lines (waist tape line & center front / center back lines)
   const waistTapeRadiusX = (gender === 'women' ? 12 * waistScale : 15 * waistScale) + 0.15;
@@ -279,13 +348,15 @@ export function buildParametricMannequin(
   torsoGroup.add(finialMesh);
 
   // Add Shoulder Caps / arm stubs
-  const shoulderY = yOffset + torsoHeight * 0.88;
+  const shoulderY = yOffset + torsoHeight * 0.86;
   const shoulderOffset = (gender === 'women' ? 18 : 20.5) * shoulderScale;
   [-1, 1].forEach(side => {
-    const armStubGeom = new THREE.CylinderGeometry(4.2, 4.8, 3.5, 24);
+    // Short nubs that stay tucked under the shoulder of any garment worn on top
+    const armStubGeom = new THREE.CylinderGeometry(2.8, 3.4, 2.4, 24);
     armStubGeom.rotateZ(Math.PI / 2);
     const armStubMesh = new THREE.Mesh(armStubGeom, woodMaterial);
-    armStubMesh.position.set(side * (shoulderOffset - 1), shoulderY, 0);
+    armStubMesh.name = `ArmStub_${side > 0 ? 'Right' : 'Left'}`;
+    armStubMesh.position.set(side * (shoulderOffset - 3.2), shoulderY, 0);
     torsoGroup.add(armStubMesh);
   });
 

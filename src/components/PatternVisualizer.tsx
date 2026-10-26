@@ -9,7 +9,7 @@ import {
   RotateCw, Undo2, Redo2, Layers2, ArrowLeft, LayoutGrid, Focus, Crosshair,
   Trash2, CornerDownLeft, X, CircleDot, Zap
 } from 'lucide-react';
-import { AppState, getBaseMeasurements } from '../lib/pattern-logic';
+import { AppState, GarmentType, getBaseMeasurements } from '../lib/pattern-logic';
 import {
   CadPiece, CadSegment, CadPoint, CadNotch, CadGrainline,
   WorkFrameConfig, PatternByNumbersInput, DEFAULT_PATTERN_NUMBERS,
@@ -26,9 +26,11 @@ import { CadHistoryModal, HistoryEntry } from './CadHistoryModal';
 interface PatternVisualizerProps {
   state: AppState;
   onBackToCalculator?: () => void;
+  /** Tells the app which garment is being drafted, so the 3D mannequin wears it. */
+  onGarmentChange?: (garment: GarmentType) => void;
 }
 
-export function PatternVisualizer({ state, onBackToCalculator }: PatternVisualizerProps) {
+export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }: PatternVisualizerProps) {
   // Unit setup
   const isInch = state.unit === 'in';
   const unitLabel = isInch ? 'إنش' : 'سم';
@@ -785,6 +787,17 @@ export function PatternVisualizer({ state, onBackToCalculator }: PatternVisualiz
       newInputs.additionalEase = 1.5;
     }
     handleApplyPatternNumbers(newInputs, undefined, tplId);
+
+    // Keep the 3D mannequin dressed with the garment that is being drafted.
+    const garmentByTemplate: Record<string, GarmentType> = {
+      bodice: 'blouse',
+      shirt: 'shirt',
+      dress: 'dress',
+      pants: 'pants',
+      skirt: 'skirt'
+    };
+    const nextGarment = garmentByTemplate[tplId];
+    if (nextGarment) onGarmentChange?.(nextGarment);
   };
 
   // Smart Snapping Locator (find nearest vertex, midpoint, or major grid within 1.2cm threshold)

@@ -39,6 +39,8 @@ export function Pattern3DViewer({
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const sphericalRef = useRef({ radius: 130, theta: Math.PI / 4, phi: Math.PI / 2.3 });
   const targetLookRef = useRef(new THREE.Vector3(0, 50, 0));
+  const userMovedCameraRef = useRef(false);
+  const fitRadiusRef = useRef(130);
 
   // Visual toggles
   const [showMannequin, setShowMannequin] = useState(true);
@@ -59,6 +61,40 @@ export function Pattern3DViewer({
     cameraRef.current.position.set(x, y, z);
     cameraRef.current.lookAt(target);
   }, []);
+
+  /**
+   * Frames the whole scene (mannequin + garment + stand) inside the viewport.
+   * Keeps the model fully visible instead of showing a cropped close-up.
+   */
+  const frameScene = useCallback((force = false) => {
+    if (force) userMovedCameraRef.current = false;
+    if (userMovedCameraRef.current) return;
+
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    if (!scene || !camera) return;
+
+    const box = new THREE.Box3();
+    scene.children.forEach(child => {
+      if (child.visible) box.expandByObject(child);
+    });
+    if (box.isEmpty()) return;
+
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    const vFov = (camera.fov * Math.PI) / 180;
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
+    const distanceForHeight = (size.y / 2) / Math.tan(vFov / 2);
+    const distanceForWidth = (Math.max(size.x, size.z) / 2) / Math.tan(hFov / 2);
+
+    const radius = Math.max(distanceForHeight, distanceForWidth) * 1.18;
+
+    targetLookRef.current.copy(center);
+    fitRadiusRef.current = radius;
+    sphericalRef.current.radius = Math.max(30, Math.min(400, radius));
+    updateCameraPosition();
+  }, [updateCameraPosition]);
 
   // Initialize Three.js Scene
   useEffect(() => {
@@ -159,8 +195,8 @@ export function Pattern3DViewer({
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-    });
-    ro.observe(container);
+      frameScene();
+    });      ro.observe(container);
 
     // Animation Loop
     const animate = () => {
@@ -250,11 +286,15 @@ export function Pattern3DViewer({
     garmentResult.seamLinesGroup.visible = showSeams;
     scene.add(garmentResult.group);
     garmentResultRef.current = garmentResult;
-  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams]);
+
+    // Re-frame only while the user has not taken control of the camera.
+    frameScene();
+  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, frameScene]);
 
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
     isDraggingRef.current = true;
+    userMovedCameraRef.current = true;
     isPanningRef.current = e.button === 2 || e.shiftKey;
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
   };
@@ -280,6 +320,7 @@ export function Pattern3DViewer({
   const prevPinchDistRef = useRef<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    userMovedCameraRef.current = true;
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
       isPanningRef.current = false;
@@ -308,7 +349,7 @@ export function Pattern3DViewer({
       const delta = prevPinchDistRef.current - dist;
       prevPinchDistRef.current = dist;
 
-      sphericalRef.current.radius = Math.max(40, Math.min(260, sphericalRef.current.radius + delta * 0.5));
+      sphericalRef.current.radius = clampRadius(sphericalRef.current.radius + delta * 0.5);
       updateCameraPosition();
     }
   };
@@ -323,8 +364,12 @@ export function Pattern3DViewer({
     prevPinchDistRef.current = null;
   };
 
+  const clampRadius = (r: number) =>
+    Math.max(fitRadiusRef.current * 0.25, Math.min(fitRadiusRef.current * 2.2, r));
+
   const handleWheel = (e: React.WheelEvent) => {
-    sphericalRef.current.radius = Math.max(40, Math.min(260, sphericalRef.current.radius + e.deltaY * 0.1));
+    userMovedCameraRef.current = true;
+    sphericalRef.current.radius = clampRadius(sphericalRef.current.radius + e.deltaY * 0.1);
     updateCameraPosition();
   };
 
@@ -332,19 +377,21 @@ export function Pattern3DViewer({
   const setCameraPreset = (view: 'perspective' | 'front' | 'back' | 'side' | 'top') => {
     setActiveCameraView(view);
     setAutoRotate(false);
+    userMovedCameraRef.current = true;
     targetLookRef.current.set(0, 50, 0);
 
+    const r = fitRadiusRef.current;
     if (view === 'front') {
-      sphericalRef.current = { radius: 130, theta: 0, phi: Math.PI / 2 };
+      sphericalRef.current = { radius: r, theta: 0, phi: Math.PI / 2 };
     } else if (view === 'back') {
-      sphericalRef.current = { radius: 130, theta: Math.PI, phi: Math.PI / 2 };
+      sphericalRef.current = { radius: r, theta: Math.PI, phi: Math.PI / 2 };
     } else if (view === 'side') {
-      sphericalRef.current = { radius: 130, theta: Math.PI / 2, phi: Math.PI / 2 };
+      sphericalRef.current = { radius: r, theta: Math.PI / 2, phi: Math.PI / 2 };
     } else if (view === 'top') {
-      sphericalRef.current = { radius: 140, theta: 0, phi: 0.1 };
+      sphericalRef.current = { radius: r * 1.05, theta: 0, phi: 0.1 };
     } else {
       // Perspective
-      sphericalRef.current = { radius: 130, theta: Math.PI / 4, phi: Math.PI / 2.3 };
+      sphericalRef.current = { radius: r, theta: Math.PI / 4, phi: Math.PI / 2.3 };
     }
     updateCameraPosition();
   };
@@ -496,6 +543,18 @@ export function Pattern3DViewer({
         >
           <Activity className="w-3.5 h-3.5" />
           <span>خريطة الشد والراحة</span>
+        </button>
+
+        <div className="w-px h-5 bg-slate-700/80 mx-0.5" />
+
+        {/* Fit the whole model in view */}
+        <button
+          onClick={() => frameScene(true)}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"
+          title="ملء العرض على المانيكان والثوب كاملين"
+        >
+          <Maximize2 className="w-3.5 h-3.5 text-teal-300" />
+          <span>ملء العرض</span>
         </button>
 
         <div className="w-px h-5 bg-slate-700/80 mx-0.5" />

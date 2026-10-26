@@ -332,7 +332,10 @@ export default function PatternApp() {
         {/* VIEW 1: FULLSCREEN 2D PATTERN CAD (مربع الرسم ثنائي الأبعاد كاملاً) */}
         {activeTab === 'cad2d' && (
           <div className="w-full h-full relative overflow-hidden">
-            <PatternVisualizer state={state} />
+            <PatternVisualizer
+              state={state}
+              onGarmentChange={(garment) => updateState({ garment })}
+            />
           </div>
         )}
 
