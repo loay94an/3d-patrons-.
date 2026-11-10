@@ -271,6 +271,7 @@ export default function PatternApp() {
     <div className="h-screen w-screen overflow-hidden bg-slate-900 text-slate-100 flex flex-col font-['Cairo',sans-serif] select-none" dir="rtl">
       
 {activeTab !== 'cad2d' && (
+      <>
       {/* 1. COMPACT SLEEK TOP BAR (ارتفاع مدروس ومناسب تماماً للهواتف دون مزاحمة) */}
       <header className="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-2">
@@ -326,7 +327,7 @@ export default function PatternApp() {
           </button>
         </div>
       </header>
-
+      </>
       )}
 
       {/* 2. MAIN VIEW AREA (واجهات منفصلة بالكامل - كل واجهة تملأ الشاشة بنسبة 100%) */}
@@ -728,6 +729,7 @@ export default function PatternApp() {
       </main>
 
 {activeTab !== 'cad2d' && (
+      <>
       {/* 3. MODERN MOBILE APP BOTTOM NAVIGATION BAR (شريط تنقل سفلي واضح وبسيط ومريح للإبهام) */}
       <nav className="h-14 bg-slate-950 border-t border-slate-800/90 px-2 flex items-center justify-around shrink-0 z-30">
         {[
@@ -755,7 +757,7 @@ export default function PatternApp() {
           );
         })}
       </nav>
-
+      </>
       )}
 
       {/* PDF Export Modal */}
