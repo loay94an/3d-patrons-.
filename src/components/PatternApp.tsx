@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet,
   FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
-  Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight
+  Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -15,12 +15,13 @@ import {
   FabricCategory, PatternPrintType, FabricDefinition
 } from '../lib/fabric-engine';
 import { PatternVisualizer } from './PatternVisualizer';
+import { PatternCatalog } from './PatternCatalog';
 import { Pattern3DViewer } from './Pattern3DViewer';
 import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { cn } from '../lib/utils';
 
-export type MainViewTab = 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide';
+export type MainViewTab = 'catalog' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide';
 
 const detailedNames = ["عرض الظهر","طول الكتف","طول الظهر","طول الكم","محيط الذراع","محيط الأسوارة","محيط الرقبة","محيط الصدر","محيط الخصر","محيط الورك","المسافة من الخصر إلى الورك","المسافة من الخصر إلى الركبة","طول الساق من الخصر إلى أسفل القدم","طول التنورة","طول الصدر (من أعلى الكتف مروراً فوق الصدر)","محيط الإبط (دوران الإبط)","المسافة من الخصر إلى الإبط","المسافة من أعلى الكتف إلى الثدي","المسافة بين الثديين","محيط الفخذ","محيط الركبة","محيط الكاحل","ارتفاع السرج","طول الجنب"];
 const detailedHelps = ["يقاس أفقياً من منتصف الظهر بين الإبطين.","من نقطة الرقبة إلى طرف الكتف.","من الفقرة السابعة إلى خط الخصر.","من طرف الكتف إلى الرسغ.","حول أوسع نقطة في الذراع.","حول الرسغ.","حول قاعدة الرقبة.","حول أوسع نقطة في الصدر.","حول أضيق نقطة.","حول أوسع نقطة في الأرداف.","عمودياً من الخصر إلى الورك.","عمودياً إلى منتصف الركبة.","من الخصر إلى الأرض.","من الخصر إلى الطول المطلوب.","من الكتف إلى أعلى الصدر.","حول الإبط عند خط الصدر.","عمودياً إلى الإبط.","من الكتف إلى أعلى الصدر.","أفقياً بين نقطتي الصدر.","حول أوسع نقطة في الفخذ.","حول الركبة.","حول الكاحل.","من الخصر إلى المقعد.","من الإبط إلى الخصر."];
@@ -329,6 +330,15 @@ export default function PatternApp() {
       {/* 2. MAIN VIEW AREA (واجهات منفصلة بالكامل - كل واجهة تملأ الشاشة بنسبة 100%) */}
       <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-slate-950">
         
+        {activeTab === 'catalog' && (
+          <div className="w-full h-full">
+            <PatternCatalog onSelect={(garment, gender) => {
+              updateState({ garment, gender });
+              setActiveTab('cad2d');
+            }} />
+          </div>
+        )}
+
         {/* VIEW 1: FULLSCREEN 2D PATTERN CAD (مربع الرسم ثنائي الأبعاد كاملاً) */}
         {activeTab === 'cad2d' && (
           <div className="w-full h-full relative overflow-hidden">
@@ -727,6 +737,7 @@ export default function PatternApp() {
 {/* 3. MODERN MOBILE APP BOTTOM NAVIGATION BAR (شريط تنقل سفلي واضح وبسيط ومريح للإبهام) */}
       <nav className="h-14 bg-slate-950 border-t border-slate-800/90 px-2 flex items-center justify-around shrink-0 z-30">
         {[
+          { id: 'catalog', label: 'الموديلات', icon: <BookOpen className="w-5 h-5" /> },
           { id: 'cad2d', label: 'باترون 2D', icon: <DraftingCompass className="w-5 h-5" /> },
           { id: 'view3d', label: 'محاكاة 3D', icon: <Box className="w-5 h-5" /> },
           { id: 'measurements', label: 'المقاسات', icon: <Ruler className="w-5 h-5" /> },
