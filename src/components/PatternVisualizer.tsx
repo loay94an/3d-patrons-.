@@ -25,6 +25,14 @@ import { PatternByNumbersModal } from './PatternByNumbersModal';
 import { TilePrintModal } from './TilePrintModal';
 import { CadHistoryModal, HistoryEntry } from './CadHistoryModal';
 
+function mapGarmentToCadType(garment: GarmentType): 'bodice' | 'shirt' | 'dress' | 'pants' | 'sleeve' | 'skirt' {
+  if (garment === 'dress') return 'dress';
+  if (garment === 'pants' || garment === 'shorts' || garment === 'culottes') return 'pants';
+  if (garment === 'skirt') return 'skirt';
+  if (garment === 'shirt' || garment === 'tshirt' || garment === 'polo') return 'shirt';
+  return 'bodice';
+}
+
 interface PatternVisualizerProps {
   state: AppState;
   onBackToCalculator?: () => void;
@@ -59,7 +67,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   });
 
   // Active Garment Category
-  const [activeGarmentType, setActiveGarmentType] = useState<'bodice' | 'shirt' | 'dress' | 'pants' | 'sleeve' | 'skirt'>('bodice');
+  const [activeGarmentType, setActiveGarmentType] = useState<'bodice' | 'shirt' | 'dress' | 'pants' | 'sleeve' | 'skirt'>(() => mapGarmentToCadType(state.garment));
 
   // Side Inspector Dock state (Docked on perimeter, collapsed by default on mobile)
   const [isInspectorOpen, setIsInspectorOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 1280 : false);
@@ -129,14 +137,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     };
 
     setPatternInputs(updatedInputs);
-    const result = generatePatternByNumbers(updatedInputs, workFrame);
+    const cadGarmentType = mapGarmentToCadType(state.garment);
+    setActiveGarmentType(cadGarmentType);
+    const result = generatePatternByNumbers(updatedInputs, workFrame, cadGarmentType);
     // Refresh generated garment pieces without discarding user-created freehand geometry.
     setPieces(currentPieces => [
       ...result.pieces,
       ...currentPieces.filter(piece => piece.garmentType === 'custom')
     ]);
     setSummaries(result.summaries);
-  }, [state.gender, state.size, state.customMeasurements]);
+  }, [state.gender, state.size, state.garment, state.customMeasurements]);
 
   // Active CAD Tool & Modes
   const [activeTool, setActiveTool] = useState<CadActiveTool>('select_move');
