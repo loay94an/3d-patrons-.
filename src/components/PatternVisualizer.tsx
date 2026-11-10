@@ -17,6 +17,7 @@ import {
   generatePatternByNumbers, segmentToSvgPath, pieceToClosedSvgPath, PieceSpecSummary,
   distance, angleBetween, midPoint, quadLength, bezierLength
 } from '../lib/pattern-cad-engine';
+import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
 import { CadFloatingProperties } from './CadFloatingProperties';
 import { PatternByNumbersModal } from './PatternByNumbersModal';
@@ -352,28 +353,18 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       };
     };
 
-    // Project the click onto the actual path; sample curves densely, then refine locally.
+    // Use a global coarse scan plus bounded derivative refinement. This is
+    // more stable around tight bends than minimizing distance with ternary search.
     let bestT = 0.5;
-    let bestDistance = Infinity;
-    const samples = original.type === 'line' ? 1 : 80;
-    for (let i = 0; i <= samples; i++) {
-      const t = i / samples;
-      const d = distance(splitPt, pointAt(t));
-      if (d < bestDistance) { bestDistance = d; bestT = t; }
-    }
     if (original.type === 'line') {
       const dx = original.p2.x - original.p1.x;
       const dy = original.p2.y - original.p1.y;
       const denom = dx * dx + dy * dy;
-      bestT = denom ? Math.max(0, Math.min(1, ((splitPt.x-original.p1.x)*dx + (splitPt.y-original.p1.y)*dy) / denom)) : 0.5;
-    } else {
-      let lo = Math.max(0, bestT - 1 / samples), hi = Math.min(1, bestT + 1 / samples);
-      for (let i = 0; i < 18; i++) {
-        const t1 = lo + (hi - lo) / 3, t2 = hi - (hi - lo) / 3;
-        if (distance(splitPt, pointAt(t1)) <= distance(splitPt, pointAt(t2))) hi = t2;
-        else lo = t1;
-      }
-      bestT = (lo + hi) / 2;
+      bestT = denom ? Math.max(0, Math.min(1, ((splitPt.x - original.p1.x) * dx + (splitPt.y - original.p1.y) * dy) / denom)) : 0.5;
+    } else if (original.type === 'quad' && original.cp1) {
+      bestT = closestQuadraticParameter(splitPt, original.p1, original.cp1, original.p2);
+    } else if (original.type === 'bezier' && original.cp1 && original.cp2) {
+      bestT = closestCubicParameter(splitPt, original.p1, original.cp1, original.cp2, original.p2);
     }
     if (bestT < 0.015 || bestT > 0.985) return;
 
