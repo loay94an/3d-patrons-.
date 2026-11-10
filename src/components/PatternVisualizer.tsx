@@ -1287,369 +1287,31 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       dir="rtl"
     >
       
-      {/* 1. TOP PERIMETER HEADER (الشريط العلوي الثابت) */}
-      <div className="bg-slate-900 border-b border-slate-800 p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2.5 text-white z-10 shrink-0">
-        
-        {/* Left Side: Branding & Model Tag */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {onBackToCalculator && (
-            <button
-              onClick={onBackToCalculator}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all active:scale-95"
-              title="العودة لجدول القياسات"
-            >
-              <ArrowLeft className="w-4 h-4 text-blue-400" />
-              <span className="hidden sm:inline">جدول القياسات</span>
-            </button>
-          )}
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-              <Compass className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm font-black text-slate-100">استوديو رسم الباترون (CAD)</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  {state.garment} | {workFrame.widthCm}×{workFrame.heightCm} سم
-                </span>
-              </div>
-            </div>
-          </div>
+      {/* Compact perimeter controls */}
+      <div className="h-11 min-h-11 bg-slate-900/95 border-b border-slate-800 px-2 flex items-center gap-1.5 text-white z-20 shrink-0">
+        {onBackToCalculator && <button onClick={onBackToCalculator} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="العودة إلى المقاسات"><ArrowLeft className="w-4 h-4" /></button>}
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <span className="text-xs font-black whitespace-nowrap">2D CAD</span>
+          <span className="text-[10px] text-slate-400 truncate">{state.garment} · {pieces.length} قطع</span>
+          <select value={selectedPieceId ?? ''} onChange={e => { setSelectedPieceId(e.target.value || null); setSelectedSegmentId(null); }} className="max-w-28 sm:max-w-40 bg-slate-800 border border-slate-700 rounded-md px-1.5 py-1 text-[10px] text-slate-200 outline-none" title="اختيار قطعة الباترون">
+            <option value="">كل القطع</option>
+            {pieces.map(piece => <option key={piece.id} value={piece.id}>{piece.nameAr}</option>)}
+          </select>
         </div>
-
-        {/* Center: Layers Visibility Toolbar (رموز ثابتة للطبقات) */}
-        <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/80 text-xs overflow-x-auto">
-          <button
-            onClick={() => setLayers(l => ({ ...l, grid: !l.grid }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.grid ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="إظهار / إخفاء الشبكة"
-          >
-            <Grid className="w-3.5 h-3.5" />
-            <span className="text-[11px] hidden md:inline">شبكة</span>
-          </button>
-          <button
-            onClick={() => setLayers(l => ({ ...l, rulers: !l.rulers }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.rulers ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="إظهار / إخفاء مساطر القياس"
-          >
-            <Ruler className="w-3.5 h-3.5" />
-            <span className="text-[11px] hidden md:inline">مساطر</span>
-          </button>
-          <button
-            onClick={() => setLayers(l => ({ ...l, cutting: !l.cutting }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.cutting ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="خطوط القص الأساسية"
-          >
-            <Scissors className="w-3.5 h-3.5" />
-            <span className="text-[11px] hidden md:inline">قص</span>
-          </button>
-          <button
-            onClick={() => setLayers(l => ({ ...l, stitch: !l.stitch }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.stitch ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="خطوط الخياطة وسماحات الحواف"
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span className="text-[11px] hidden md:inline">خياطة</span>
-          </button>
-          <button
-            onClick={() => setLayers(l => ({ ...l, notches: !l.notches }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.notches ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="علامات النوتش والتركيب"
-          >
-            <span className="text-[11px] font-mono">V</span>
-            <span className="text-[11px] hidden md:inline">نوتش</span>
-          </button>
-          <button
-            onClick={() => setLayers(l => ({ ...l, dimensions: !l.dimensions }))}
-            className={`p-1.5 px-2 rounded-lg font-bold flex items-center gap-1 transition-all ${layers.dimensions ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            title="بطاقات القياسات الرقمية"
-          >
-            <span className="text-[10px] font-mono font-bold">123</span>
-            <span className="text-[11px] hidden md:inline">قياسات</span>
-          </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button onClick={handleUndo} disabled={historyIndex === 0} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800 disabled:opacity-30" title="تراجع"><Undo2 className="w-4 h-4" /></button>
+          <button onClick={handleRedo} disabled={historyIndex >= historyStack.length - 1} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800 disabled:opacity-30" title="إعادة"><Redo2 className="w-4 h-4" /></button>
+          <button onClick={handleCenterAndFitPattern} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="ملاءمة الرسم"><Crosshair className="w-4 h-4" /></button>
+          <button onClick={() => setZoom(z => Math.max(0.3, z * 0.85))} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="تصغير"><ZoomOut className="w-4 h-4" /></button>
+          <button onClick={() => setZoom(z => Math.min(3.5, z * 1.15))} className="h-8 min-w-8 px-1 grid place-items-center rounded-lg text-[10px] text-slate-300 hover:bg-slate-800" title="تكبير">{Math.round(zoom * 100)}%</button>
+          <button onClick={() => setLayers(l => ({ ...l, grid: !l.grid }))} className={`h-8 w-8 grid place-items-center rounded-lg ${layers.grid ? 'text-blue-300 bg-blue-500/15' : 'text-slate-500 hover:bg-slate-800'}`} title="الشبكة"><Grid className="w-4 h-4" /></button>
+          <button onClick={() => setShowNumbersModal(true)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="إنشاء الباترون بالأرقام"><Sparkles className="w-4 h-4" /></button>
+          <button onClick={() => setIsSidePanelOpen(true)} className={`h-8 w-8 grid place-items-center rounded-lg ${isSidePanelOpen ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`} title="الأدوات والإعدادات"><Sliders className="w-4 h-4" /></button>
+          <button onClick={() => setShowQuickProperties(v => !v)} className={`h-8 w-8 grid place-items-center rounded-lg ${showQuickProperties ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`} title="خصائص العنصر"><Focus className="w-4 h-4" /></button>
+          <button onClick={() => setShowTilePrintModal(true)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="طباعة A4"><Printer className="w-4 h-4" /></button>
+          <button onClick={handleDownloadSVG} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="تصدير SVG"><Download className="w-4 h-4" /></button>
         </div>
-
-        {/* Right Side: Center in View, Zoom, Canvas Sizing, Modals & Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          
-          {/* AUTO-CENTER PATTERN BUTTON (توسيط النمط في وسط الشاشة) */}
-          <button
-            onClick={handleCenterAndFitPattern}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-500/20 active:scale-95 transition-all border border-blue-400/40"
-            title="توسيط وملاءمة النمط في منتصف الشاشة بدون أي حجب"
-          >
-            <Crosshair className="w-3.5 h-3.5 text-amber-300" />
-            <span className="text-xs font-black">توسيط النمط</span>
-          </button>
-
-          {/* Undo / Redo */}
-          <div className="flex items-center bg-slate-800 rounded-xl border border-slate-700 p-0.5">
-            <button
-              onClick={handleUndo}
-              disabled={historyIndex === 0}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              title="تراجع (Ctrl+Z)"
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={historyIndex >= historyStack.length - 1}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors"
-              title="إعادة (Ctrl+Y)"
-            >
-              <Redo2 className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Zoom controls */}
-          <div className="flex items-center bg-slate-800 rounded-xl border border-slate-700 p-0.5">
-            <button
-              onClick={() => setZoom(z => Math.min(z * 1.15, 3.5))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors"
-              title="تكبير"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <span className="text-[10px] font-mono px-1.5 text-slate-300 font-bold min-w-9 text-center">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              onClick={() => setZoom(z => Math.max(z * 0.85, 0.3))}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors"
-              title="تصغير"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleCenterAndFitPattern}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors border-r border-slate-700"
-              title="إعادة ضبط وملاءمة الرؤية"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Canvas Height Resizing Presets */}
-          <div className="hidden lg:flex items-center bg-slate-800 rounded-xl border border-slate-700 p-0.5 text-xs">
-            <button
-              onClick={() => { setCanvasHeightMode('compact'); setTimeout(handleCenterAndFitPattern, 80); }}
-              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors ${canvasHeightMode === 'compact' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              title="مساحة رسم مدمجة (520px)"
-            >
-              مدمج
-            </button>
-            <button
-              onClick={() => { setCanvasHeightMode('medium'); setTimeout(handleCenterAndFitPattern, 80); }}
-              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors ${canvasHeightMode === 'medium' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              title="مساحة رسم قياسية (680px)"
-            >
-              متوسط
-            </button>
-            <button
-              onClick={() => { setCanvasHeightMode('large'); setTimeout(handleCenterAndFitPattern, 80); }}
-              className={`px-2 py-1 rounded-lg font-bold text-[11px] transition-colors ${canvasHeightMode === 'large' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              title="مساحة رسم واسعة (880px)"
-            >
-              كبير
-            </button>
-          </div>
-
-          {/* Fullscreen Toggle */}
-          <button
-            onClick={() => {
-              setCanvasHeightMode(m => m === 'fullscreen' ? 'medium' : 'fullscreen');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`p-1.5 rounded-xl border transition-all flex items-center justify-center ${
-              canvasHeightMode === 'fullscreen'
-                ? 'bg-amber-600 text-white border-amber-400 shadow-md'
-                : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700'
-            }`}
-            title={canvasHeightMode === 'fullscreen' ? 'إنهاء وضع ملء الشاشة (Esc)' : 'تكبير وملء الشاشة بالكامل'}
-          >
-            {canvasHeightMode === 'fullscreen' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-
-          {/* Pattern by Numbers Modal Button */}
-          <button
-            onClick={() => setShowNumbersModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white rounded-xl text-xs font-black shadow-md active:scale-95 transition-all"
-            title="تعديل القياسات بالأرقام"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span className="hidden sm:inline">PatternByNumbers</span>
-          </button>
-
-          {/* Tile Print */}
-          <button
-            onClick={() => setShowTilePrintModal(true)}
-            className="p-1.5 sm:px-2.5 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all flex items-center gap-1"
-            title="طباعة مجزأة A4"
-          >
-            <Printer className="w-4 h-4" />
-            <span className="hidden md:inline">طباعة A4</span>
-          </button>
-
-          {/* Side Panel Drawer Toggle Button */}
-          <button
-            onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm ${
-              isSidePanelOpen
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white border-slate-700'
-            }`}
-            title="فتح/إغلاق صندوق أدوات الرسم والتعديل الشامل"
-          >
-            <Sliders className="w-4 h-4 text-blue-400" />
-            <span className="hidden md:inline">صندوق الأدوات</span>
-          </button>
-
-          {/* Quick Properties Toggle Button */}
-          <button
-            onClick={() => setShowQuickProperties(!showQuickProperties)}
-            className={`p-1.5 px-2.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1 ${
-              showQuickProperties
-                ? 'bg-purple-600 text-white border-purple-400 shadow-purple-500/20'
-                : 'bg-slate-800 text-slate-300 hover:text-white border-slate-700'
-            }`}
-            title="إظهار/إخفاء لوحة الخصائص السريعة"
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">الخصائص</span>
-          </button>
-
-          {/* SVG Download */}
-          <button
-            onClick={handleDownloadSVG}
-            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700 transition-all flex items-center justify-center"
-            title="تحميل كملف SVG هندسي"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-        </div>
-
-      </div>
-
-      {/* PATTERNS & PIECES DEDICATED SELECTION BAR (شريط الأنماط وقطع الباترون السريعة) */}
-      <div className="bg-slate-900 border-b border-slate-800/80 px-3 py-2 flex flex-wrap items-center justify-between gap-2.5 text-xs z-10 shrink-0">
-        
-        {/* Left: Quick Pattern Models (نماذج الأنماط) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          <span className="text-[11px] font-bold text-slate-400 shrink-0 ml-1">الأنماط الجاهزة:</span>
-          
-          <button
-            onClick={() => {
-              handleLoadTemplate('bodice');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm border ${
-              activeGarmentType === 'bodice'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border-slate-700'
-            }`}
-          >
-            <span>👚</span>
-            <span>كورساج أساسي</span>
-          </button>
-
-          <button
-            onClick={() => {
-              handleLoadTemplate('dress');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm border ${
-              activeGarmentType === 'dress'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border-slate-700'
-            }`}
-          >
-            <span>👗</span>
-            <span>فستان نسائي</span>
-          </button>
-
-          <button
-            onClick={() => {
-              handleLoadTemplate('shirt');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm border ${
-              activeGarmentType === 'shirt'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border-slate-700'
-            }`}
-          >
-            <span>👔</span>
-            <span>قميص رجالي</span>
-          </button>
-
-          <button
-            onClick={() => {
-              handleLoadTemplate('pants');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm border ${
-              activeGarmentType === 'pants'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border-slate-700'
-            }`}
-          >
-            <span>👖</span>
-            <span>بنطال</span>
-          </button>
-
-          <button
-            onClick={() => {
-              handleLoadTemplate('skirt');
-              setTimeout(handleCenterAndFitPattern, 100);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm border ${
-              activeGarmentType === 'skirt'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-blue-500/20'
-                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border-slate-700'
-            }`}
-          >
-            <span>✨</span>
-            <span>تنورة كلوش</span>
-          </button>
-        </div>
-
-        {/* Right: Pattern Pieces (قطع الباترون) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          <span className="text-[11px] font-bold text-slate-400 shrink-0 ml-1">قطع الباترون ({pieces.length}):</span>
-          <button
-            onClick={() => {
-              setSelectedPieceId(null);
-              setSelectedSegmentId(null);
-              setTimeout(handleCenterAndFitPattern, 80);
-            }}
-            className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all shrink-0 ${
-              !selectedPieceId
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 ring-1 ring-blue-400'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-            }`}
-          >
-            عرض الكل
-          </button>
-          {pieces.map(p => (
-            <button
-              key={p.id}
-              onClick={() => {
-                setSelectedPieceId(p.id);
-                setTimeout(handleCenterAndFitPattern, 80);
-              }}
-              className={`px-2.5 py-1 rounded-xl font-bold text-xs transition-all shrink-0 ${
-                selectedPieceId === p.id
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 ring-1 ring-blue-400'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
-              }`}
-            >
-              {p.nameAr}
-            </button>
-          ))}
-        </div>
-
       </div>
 
       {/* 2. MAIN CAD WORKSPACE (لوحة العمل المركزية مع أشرطة الأدوات الثابتة على الأطراف) */}
@@ -1658,14 +1320,14 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       >
         
         {/* FIXED PERIMETER TOOLBAR (شريط الأدوات الجانبي الثابت على الطرف - رموز ثابتة) */}
-        <div className="w-14 sm:w-16 bg-slate-900 border-l border-slate-800 flex flex-col items-center py-2 px-1 gap-1.5 z-10 shrink-0 overflow-y-auto">
+        <div className="w-11 sm:w-12 bg-slate-900/95 border-l border-slate-800 flex flex-col items-center py-1.5 px-0.5 gap-1 z-10 shrink-0 overflow-y-auto">
           {perimeterTools.map(tool => {
             const isActive = activeTool === tool.id;
             return (
               <button
                 key={tool.id}
                 onClick={() => setActiveTool(tool.id)}
-                className={`w-11 sm:w-12 h-11 sm:h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-all active:scale-95 group relative ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 group relative ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
                     : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
@@ -1673,7 +1335,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                 title={tool.tooltip}
               >
                 {tool.icon}
-                <span className="scale-90 font-medium">{tool.label}</span>
+
                 
                 {/* Hover Tooltip label */}
                 <div className="absolute right-full mr-2 px-2 py-1 bg-slate-800 text-white text-[11px] font-bold rounded-lg whitespace-nowrap shadow-xl border border-slate-700 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-30">
@@ -1688,7 +1350,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           {/* Smart Snap Toggle */}
           <button
             onClick={() => setSnapEnabled(!snapEnabled)}
-            className={`w-11 sm:w-12 h-11 sm:h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-all active:scale-95 ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 ${
               snapEnabled
                 ? 'bg-emerald-600/30 border border-emerald-500/50 text-emerald-300'
                 : 'text-slate-500 hover:bg-slate-800'
@@ -1696,7 +1358,6 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
             title={snapEnabled ? 'الجذب الذكي مفعّل (Smart Snap ON)' : 'الجذب الذكي معطّل (Smart Snap OFF)'}
           >
             <Magnet className="w-5 h-5" />
-            <span className="scale-85">مغناطيس</span>
           </button>
 
           {/* Axis Lock */}
@@ -1716,11 +1377,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           {/* History Modal Trigger */}
           <button
             onClick={() => setShowHistoryModal(true)}
-            className="w-11 sm:w-12 h-11 sm:h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-all active:scale-95"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-all active:scale-95"
             title="سجل التعديلات والخطوات"
           >
             <RotateCw className="w-5 h-5" />
-            <span className="scale-85">السجل</span>
           </button>
         </div>
 
@@ -2302,153 +1962,32 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
 
       </div>
 
-      {/* 3. BOTTOM PERIMETER STATUS BAR (الشريط السفلي الثابت - يعرض معلومات ومقاييس الباترون خارج مساحة العمل) */}
-      <div className="bg-slate-900 border-t border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 z-10 shrink-0">
-        
-        {/* Left: Active Tool Info & Live Dynamic Measurements */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 text-slate-300 font-bold">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span>
-              {activeTool === 'select_move' && 'أداة التحديد والتحريك: اسحب أي نقطة زرقاء أو خط لتحريكه بدقة'}
-              {activeTool === 'draw_line' && 'أداة رسم الخطوط: انقر لوضع نقاط المسار ثم اضغط Enter لإنهاء الشكل'}
-              {activeTool === 'draw_quad' && 'أداة المنحنى: انقر لتحديد البداية، النهاية، ثم نقطة التقويس'}
-              {activeTool === 'draw_bezier' && 'أداة بيزيه: انقر لتحديد 4 نقاط لتشكيل منحنى دقيق'}
-              {activeTool === 'add_notch' && 'أداة النوتش: انقر على أي حافة لإضافة علامة تركيب'}
-              {activeTool === 'add_grainline' && 'أداة النسيج: انقر لإضافة خط اتجاه النسيج الطولي'}
-              {activeTool === 'measure_tool' && 'أداة القياس: انقر على نقطتين لقياس المسافة بينهما'}
-              {activeTool === 'seam_allowance' && 'سماحات الخياطة: حدد الحافة لتعديل البدل'}
-            </span>
-          </div>
 
-          {/* Active Polyline Drawing Controls in Status Bar */}
-          {drawingPoints.length > 0 && (
-            <div className="flex items-center gap-1.5 bg-blue-950/80 border border-blue-500/50 rounded-lg px-2.5 py-1 text-xs text-white">
-              <span className="font-bold text-blue-300">نقاط مرسومة: {drawingPoints.length}</span>
-              {activeCursorPos && (
-                <span className="text-blue-200 text-[11px] font-mono">
-                  ({fmt(distance(drawingPoints[drawingPoints.length - 1], activeCursorPos))} | {Math.round(angleBetween(drawingPoints[drawingPoints.length - 1], activeCursorPos))}°)
-                </span>
-              )}
-              <button
-                onClick={() => handleFinishPolyline(true)}
-                className="flex items-center gap-1 px-2 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-all text-[11px]"
-                title="إغلاق الشكل وإنشاء قطعة باترون متكاملة"
-              >
-                <CheckCircle2 className="w-3 h-3" />
-                <span>إغلاق القطعة (Enter)</span>
-              </button>
-              {drawingPoints.length >= 2 && (
-                <button
-                  onClick={() => handleFinishPolyline(false)}
-                  className="px-2 py-0.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded text-[11px] font-bold"
-                  title="إنهاء كمسار مفتوح"
-                >
-                  مسار مفتوح
-                </button>
-              )}
-              <button
-                onClick={() => setDrawingPoints([])}
-                className="px-1.5 py-0.5 bg-rose-950 hover:bg-rose-800 text-rose-300 rounded text-[11px]"
-                title="إلغاء الرسم (Esc)"
-              >
-                إلغاء
-              </button>
-            </div>
-          )}
-
-          {/* Active Node Controls when a node is selected */}
-          {selectedNode && (
-            <div className="flex items-center gap-1.5 bg-slate-800 border border-sky-500/50 rounded-lg px-2.5 py-1 text-xs text-white">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span className="font-bold text-sky-300">نقطة ارتكاز محددة:</span>
-              <span className="text-slate-300 text-[11px] hidden sm:inline">اسحب بالماوس أو حرّك بالأسهم (↑ ↓ ← →)</span>
-              <button
-                onClick={handleToggleNodeType}
-                className="flex items-center gap-1 px-2 py-0.5 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold text-[11px]"
-                title="تبديل القطاع بين خط مستقيم ومنحنى"
-              >
-                <Wand2 className="w-3 h-3" />
-                <span>تبديل منحنى/مستقيم</span>
-              </button>
-              <button
-                onClick={handleDeleteSelectedNode}
-                className="flex items-center gap-1 px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white rounded font-bold text-[11px]"
-                title="حذف هذه النقطة ودمج المسار (Delete/Backspace)"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>حذف النقطة</span>
-              </button>
-              <button
-                onClick={() => setSelectedNode(null)}
-                className="text-slate-400 hover:text-white px-1 text-xs"
-                title="إلغاء تحديد النقطة (Esc)"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Free Measure Result outside canvas */}
-          {measureResult !== null && (
-            <div className="flex items-center gap-1.5 bg-purple-900/60 border border-purple-500/40 text-purple-200 px-2.5 py-0.5 rounded-lg font-bold text-[11px]">
-              <Compass className="w-3 h-3" />
-              <span>المسافة المقاسة: {fmt(measureResult)}</span>
-            </div>
-          )}
-
-          {/* Active Segment Quick Editor in Status Bar */}
-          {selectedSegment && (
-            <div className="flex items-center gap-2 bg-slate-800 border border-blue-500/50 rounded-lg px-2 py-0.5 text-xs text-white">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-              <span className="font-bold text-blue-300">{selectedSegment.label || 'المسار المحدد'}:</span>
-              <input
-                type="number"
-                step="0.1"
-                placeholder={`${selectedSegment.lengthCm}`}
-                value={editLengthVal}
-                onChange={(e) => setEditLengthVal(parseFloat(e.target.value) || '')}
-                className="w-14 bg-slate-950 border border-slate-700 rounded px-1.5 py-0.5 font-mono font-bold text-center text-xs outline-none focus:ring-1 focus:ring-blue-400"
-              />
-              <button
-                onClick={() => {
-                  if (typeof editLengthVal === 'number' && editLengthVal > 0) {
-                    handleUpdateSegmentLength(selectedSegment.id, editLengthVal);
-                  }
-                }}
-                className="px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs active:scale-95 transition-all"
-              >
-                تطبيق
-              </button>
-              <button
-                onClick={() => setSelectedSegmentId(null)}
-                className="text-slate-400 hover:text-white px-1"
-                title="إلغاء التحديد"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {activeCursorPos && (
-            <span className="font-mono text-blue-400 text-[11px] bg-slate-800 px-2 py-0.5 rounded-md hidden lg:inline">
-              X: {activeCursorPos.x} سم | Y: {activeCursorPos.y} سم
-            </span>
-          )}
+      <div className="h-10 min-h-10 bg-slate-900/95 border-t border-slate-800 px-2 flex items-center justify-between gap-2 text-[10px] text-slate-300 z-20 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-2 min-w-0 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+          <span>{activeTool === 'select_move' ? 'تحديد' : activeTool === 'draw_line' ? 'رسم خط' : activeTool === 'draw_quad' ? 'منحنى' : activeTool === 'draw_bezier' ? 'بيزيه' : activeTool === 'add_notch' ? 'نوتش' : activeTool === 'add_grainline' ? 'اتجاه النسيج' : activeTool === 'measure_tool' ? 'قياس' : 'سماحة خياطة'}</span>
+          {activeCursorPos && <span className="font-mono text-slate-500 hidden sm:inline">X {activeCursorPos.x} · Y {activeCursorPos.y} سم</span>}
+          {measureResult !== null && <span className="text-purple-300">القياس: {fmt(measureResult)}</span>}
         </div>
-
-        {/* Right: Specs Table Expander Toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSpecsTable(!showSpecsTable)}
-            className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition-all"
-          >
-            <FileText className="w-3.5 h-3.5 text-purple-400" />
-            <span>{showSpecsTable ? 'إخفاء جدول المواصفات' : 'عرض جدول المواصفات الرقمية'}</span>
-            {showSpecsTable ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-          </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {drawingPoints.length > 0 && <>
+            <span className="text-blue-300">{drawingPoints.length} نقاط</span>
+            <button onClick={() => handleFinishPolyline(true)} className="px-2 py-1 rounded bg-emerald-600 text-white" title="إغلاق القطعة">إغلاق</button>
+            {drawingPoints.length >= 2 && <button onClick={() => handleFinishPolyline(false)} className="px-2 py-1 rounded bg-slate-700 text-white" title="إنهاء مسار مفتوح">مفتوح</button>}
+            <button onClick={() => setDrawingPoints([])} className="h-7 w-7 grid place-items-center rounded bg-slate-800 text-rose-300" title="إلغاء الرسم"><X className="w-3.5 h-3.5" /></button>
+          </>}
+          {selectedNode && <>
+            <button onClick={handleToggleNodeType} className="h-7 w-7 grid place-items-center rounded bg-slate-800 text-purple-300" title="تبديل خط/منحنى"><Wand2 className="w-3.5 h-3.5" /></button>
+            <button onClick={handleDeleteSelectedNode} className="h-7 w-7 grid place-items-center rounded bg-slate-800 text-rose-300" title="حذف النقطة"><Trash2 className="w-3.5 h-3.5" /></button>
+          </>}
+          {selectedSegment && <>
+            <span className="text-slate-400 hidden sm:inline">{selectedSegment.label || 'طول الحافة'}</span>
+            <input type="number" step="0.1" value={editLengthVal} onChange={e => setEditLengthVal(parseFloat(e.target.value) || '')} className="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-1 text-center font-mono" aria-label="طول الحافة" />
+            <button onClick={() => { if (typeof editLengthVal === 'number' && editLengthVal > 0) handleUpdateSegmentLength(selectedSegment.id, editLengthVal); }} className="px-2 py-1 rounded bg-blue-600 text-white">تطبيق</button>
+          </>}
+          <button onClick={() => setShowSpecsTable(v => !v)} className="h-7 w-7 grid place-items-center rounded bg-slate-800 text-slate-300" title="جدول مواصفات القطع"><FileText className="w-3.5 h-3.5" /></button>
         </div>
-
       </div>
 
       {/* 4. EXPANDABLE SPECIFICATIONS TABLE (جدول المواصفات الكامل تحت اللوحة) */}
