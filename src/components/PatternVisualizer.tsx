@@ -1289,12 +1289,12 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       
 
       {/* Compact perimeter controls */}
-      <div className="h-11 min-h-11 bg-slate-900/95 border-b border-slate-800 px-2 flex items-center gap-1.5 text-white z-20 shrink-0">
+      <div className="h-11 min-h-11 bg-slate-900/95 border-b border-slate-800 px-2 flex items-center gap-1.5 text-white z-20 shrink-0 overflow-x-auto">
         {onBackToCalculator && <button onClick={onBackToCalculator} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="العودة إلى المقاسات"><ArrowLeft className="w-4 h-4" /></button>}
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <span className="text-xs font-black whitespace-nowrap">2D CAD</span>
           <span className="text-[10px] text-slate-400 truncate">{state.garment} · {pieces.length} قطع</span>
-          <select value={selectedPieceId ?? ''} onChange={e => { setSelectedPieceId(e.target.value || null); setSelectedSegmentId(null); }} className="max-w-28 sm:max-w-40 bg-slate-800 border border-slate-700 rounded-md px-1.5 py-1 text-[10px] text-slate-200 outline-none" title="اختيار قطعة الباترون">
+          <select value={selectedPieceId ?? ''} onChange={e => { setSelectedPieceId(e.target.value || null); setSelectedSegmentId(null); }} className="hidden sm:block max-w-28 sm:max-w-40 bg-slate-800 border border-slate-700 rounded-md px-1.5 py-1 text-[10px] text-slate-200 outline-none" title="اختيار قطعة الباترون">
             <option value="">كل القطع</option>
             {pieces.map(piece => <option key={piece.id} value={piece.id}>{piece.nameAr}</option>)}
           </select>
@@ -1303,13 +1303,13 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           <button onClick={handleUndo} disabled={historyIndex === 0} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800 disabled:opacity-30" title="تراجع"><Undo2 className="w-4 h-4" /></button>
           <button onClick={handleRedo} disabled={historyIndex >= historyStack.length - 1} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800 disabled:opacity-30" title="إعادة"><Redo2 className="w-4 h-4" /></button>
           <button onClick={handleCenterAndFitPattern} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="ملاءمة الرسم"><Crosshair className="w-4 h-4" /></button>
-          <button onClick={() => setZoom(z => Math.max(0.3, z * 0.85))} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="تصغير"><ZoomOut className="w-4 h-4" /></button>
+          <button onClick={() => setZoom(z => Math.max(0.3, z * 0.85))} className="hidden sm:grid h-8 w-8 place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="تصغير"><ZoomOut className="w-4 h-4" /></button>
           <button onClick={() => setZoom(z => Math.min(3.5, z * 1.15))} className="h-8 min-w-8 px-1 grid place-items-center rounded-lg text-[10px] text-slate-300 hover:bg-slate-800" title="تكبير">{Math.round(zoom * 100)}%</button>
           <button onClick={() => setLayers(l => ({ ...l, grid: !l.grid }))} className={`h-8 w-8 grid place-items-center rounded-lg ${layers.grid ? 'text-blue-300 bg-blue-500/15' : 'text-slate-500 hover:bg-slate-800'}`} title="الشبكة"><Grid className="w-4 h-4" /></button>
-          <button onClick={() => setShowNumbersModal(true)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="إنشاء الباترون بالأرقام"><Sparkles className="w-4 h-4" /></button>
+          <button onClick={() => setShowNumbersModal(true)} className="hidden sm:grid h-8 w-8 place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="إنشاء الباترون بالأرقام"><Sparkles className="w-4 h-4" /></button>
           <button onClick={() => setIsSidePanelOpen(true)} className={`h-8 w-8 grid place-items-center rounded-lg ${isSidePanelOpen ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`} title="الأدوات والإعدادات"><Sliders className="w-4 h-4" /></button>
-          <button onClick={() => setShowQuickProperties(v => !v)} className={`h-8 w-8 grid place-items-center rounded-lg ${showQuickProperties ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`} title="خصائص العنصر"><Focus className="w-4 h-4" /></button>
-          <button onClick={() => setShowTilePrintModal(true)} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="طباعة A4"><Printer className="w-4 h-4" /></button>
+          <button onClick={() => setShowQuickProperties(v => !v)} className={`hidden sm:grid h-8 w-8 place-items-center rounded-lg ${showQuickProperties ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-slate-800'}`} title="خصائص العنصر"><Focus className="w-4 h-4" /></button>
+          <button onClick={() => setShowTilePrintModal(true)} className="hidden sm:grid h-8 w-8 place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="طباعة A4"><Printer className="w-4 h-4" /></button>
           <button onClick={handleDownloadSVG} className="h-8 w-8 grid place-items-center rounded-lg text-slate-300 hover:bg-slate-800" title="تصدير SVG"><Download className="w-4 h-4" /></button>
         </div>
       </div>
