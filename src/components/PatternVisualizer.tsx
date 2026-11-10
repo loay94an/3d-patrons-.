@@ -794,17 +794,24 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           maxX = Math.max(maxX, s.p1.x, s.p2.x);
         });
         const midX = (minX + maxX) / 2;
+        const mirrorPoint = (point?: CadPoint): CadPoint | undefined => point
+          ? { ...point, x: +(2 * midX - point.x).toFixed(2) }
+          : undefined;
         const mirroredSegments = piece.segments.map(s => ({
           ...s,
           id: `${s.id}_mir_${Date.now()}`,
-          p1: { x: +(2 * midX - s.p1.x).toFixed(2), y: s.p1.y },
-          p2: { x: +(2 * midX - s.p2.x).toFixed(2), y: s.p2.y },
-          cp1: s.cp1 ? { x: +(2 * midX - s.cp1.x).toFixed(2), y: s.cp1.y } : undefined,
-          cp2: s.cp2 ? { x: +(2 * midX - s.cp2.x).toFixed(2), y: s.cp2.y } : undefined
+          p1: mirrorPoint(s.p1)!,
+          p2: mirrorPoint(s.p2)!,
+          cp1: mirrorPoint(s.cp1),
+          cp2: mirrorPoint(s.cp2),
+          badgePos: mirrorPoint(s.badgePos)
         }));
         return {
           ...piece,
-          segments: mirroredSegments
+          segments: mirroredSegments,
+          notches: piece.notches.map(n => ({ ...n, point: mirrorPoint(n.point)! , angleDeg: (180 - n.angleDeg + 360) % 360 })),
+          grainlines: piece.grainlines.map(g => ({ ...g, p1: mirrorPoint(g.p1)!, p2: mirrorPoint(g.p2)! })),
+          isMirrored: !piece.isMirrored
         };
       }
       return piece;
@@ -829,7 +836,9 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
             return {
               ...s,
               type: 'quad' as const,
-              cp1
+              cp1,
+              cp2: undefined,
+              lengthCm: +quadLength(s.p1, cp1, s.p2).toFixed(2)
             };
           }
           return s;
@@ -953,7 +962,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const snap = applySnap ? getSnapTarget(rawPt) : null;
     if (snap) {
       setActiveSnapTarget(snap);
-      return snap.point;
+      return referenceStartPt ? {
+        x: axisLock === 'y' ? referenceStartPt.x : snap.point.x,
+        y: axisLock === 'x' ? referenceStartPt.y : snap.point.y
+      } : snap.point;
     } else {
       setActiveSnapTarget(null);
       return rawPt;
@@ -1158,7 +1170,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
         const newGrain: CadGrainline = {
           id: `grain_${Date.now()}`,
           p1: pt,
-          p2: { x: pt.x, y: pt.y + 30 },
+          p2: { x: pt.x, y: pt.y + Math.min(30, Math.max(5, workFrame.heightCm - pt.y - 2)) },
           label: 'اتجاه النسيج'
         };
         const targetId = selectedPieceId || pieces[0].id;
@@ -1382,7 +1394,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     { id: 'remove_anchor', label: '- نقطة', icon: <Minus className="w-5 h-5 text-rose-400" />, tooltip: 'حذف نقطة ارتكاز وإعادة وصل المسار' },
     { id: 'split_trim', label: 'تقسيم', icon: <Split className="w-5 h-5 text-indigo-400" />, tooltip: 'قص وتقسيم المسارات عند نقطة محددة' },
     { id: 'smooth_simplify', label: 'تنعيم', icon: <Wand2 className="w-5 h-5 text-cyan-400" />, tooltip: 'تنعيم المنحنيات وإلغاء التعرجات' },
-    { id: 'mirror_dup', label: 'مرآة', icon: <Copy className="w-5 h-5 text-fuchsia-400" />, tooltip: 'عكس المسار بالمرآة أو مضاعفته' },
+    { id: 'mirror_dup', label: 'مرآة', icon: <Copy className="w-5 h-5 text-fuchsia-400" />, tooltip: 'عكس القطعة المحددة أفقياً مع نقاطها وعلاماتها' },
     { id: 'add_notch', label: 'نوتش', icon: <Scissors className="w-5 h-5 text-rose-400" />, tooltip: 'إضافة علامة نوتش للتركيب والتطابق' },
     { id: 'add_grainline', label: 'نسيج', icon: <Compass className="w-5 h-5 text-cyan-400" />, tooltip: 'إضافة سهم اتجاه النسيج الطولي' },
     { id: 'measure_tool', label: 'قياس', icon: <Ruler className="w-5 h-5 text-emerald-400" />, tooltip: 'أداة قياس المسافات الحرة بين نقطتين' },
@@ -2075,6 +2087,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                         markerStart="url(#cadArrowDim)"
                         markerEnd="url(#cadArrowDim)"
                       />
+                      {measureResult !== null && (
+                        <text
+                          x={(measurePoints[0].x + measurePoints[1].x) * 0.5 * pxPerCm}
+                          y={(measurePoints[0].y + measurePoints[1].y) * 0.5 * pxPerCm - 8}
+                          fill="#d8b4fe" textAnchor="middle" fontSize="12" fontWeight="bold"
+                          stroke="#0f172a" strokeWidth="3" paintOrder="stroke"
+                        >
+                          {fmt(measureResult)}
+                        </text>
+                      )}
                     </>
                   )}
                 </g>
