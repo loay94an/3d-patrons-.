@@ -718,14 +718,15 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       const offset = offsetCadContour(cutting, seamAllowanceCm, {
         toleranceCm: 0.02,
         miterLimit: 4,
-        closeToleranceCm: 0.05
+        closeToleranceCm: 0.05,
+        edgeAllowances: piece.edgeSeamAllowances
       });
       if (!offset.valid) {
         errors.push(`${piece.nameAr || piece.name}: ${offset.warnings.join('، ')}`);
         return piece;
       }
-      if (!offset.closed) {
-        errors.push(`${piece.nameAr || piece.name}: المسار مفتوح؛ أُنشئ خط إزاحة أحادي الجانب وليس محيط قص مغلقاً`);
+      if (offset.warnings.length) {
+        errors.push(`${piece.nameAr || piece.name}: ${offset.warnings.join('، ')}`);
       }
 
       return {
