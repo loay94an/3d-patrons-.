@@ -24,7 +24,6 @@ export interface TorsoSpan {
 
 export function getTorsoSpan(gender: Gender, measurements: MannequinMeasurements): TorsoSpan {
   const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const isChild = gender === 'kids' || gender === 'infant';
   const headScale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
   const headAllowance = 20.7 * headScale;
   // The viewer currently supplies a fixed 168 cm placeholder. Use the
@@ -49,6 +48,19 @@ const smooth = (a: number, b: number, t: number) => {
   return x * x * (3 - 2 * x);
 };
 
+function radiiForCircumference(circumference: number, depthRatio: number) {
+  // Solve the ellipse semi-width so the Ramanujan perimeter matches the tape measurement.
+  let low = 0.1;
+  let high = 80;
+  for (let i = 0; i < 48; i++) {
+    const mid = (low + high) / 2;
+    if (ellipsePerimeter(mid, mid * depthRatio) < circumference) low = mid;
+    else high = mid;
+  }
+  const rx = (low + high) / 2;
+  return { rx, rz: rx * depthRatio };
+}
+
 export function getTorsoProfile(
   gender: Gender,
   measurements: MannequinMeasurements,
@@ -56,90 +68,86 @@ export function getTorsoProfile(
   angle = 0
 ): TorsoProfile {
   const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const bust = (measurements.bust || ref.bust) / ref.bust;
-  const waist = (measurements.waist || ref.waist) / ref.waist;
-  const hip = (measurements.hip || ref.hip) / ref.hip;
-  const shoulder = (measurements.shoulder || ref.shoulder) / ref.shoulder;
+  const hip = radiiForCircumference(measurements.hip || ref.hip, gender === 'women' ? 0.72 : 0.76);
+  const waist = radiiForCircumference(measurements.waist || ref.waist, gender === 'women' ? 0.74 : 0.79);
+  const bust = radiiForCircumference(measurements.bust || ref.bust, gender === 'women' ? 0.72 : 0.77);
+  const shoulderRx = (measurements.shoulder || ref.shoulder) * (gender === 'men' ? 1.3 : 1.46);
+  const shoulderRz = gender === 'men' ? 9.5 : 8.5;
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
-  const child = gender === 'kids' || gender === 'infant';
-
   let rx: number;
   let rz: number;
   let zCenter = 0;
 
-  if (gender === 'women') {
-    const pelvisT = smooth(0, 0.25, v);
-    const waistT = smooth(0.25, 0.5, v);
-    const bustT = smooth(0.5, 0.75, v);
-    const shoulderT = smooth(0.75, 0.9, v);
-    if (v < 0.25) {
-      rx = THREE.MathUtils.lerp(15.3 * hip, 18 * hip, pelvisT);
-      rz = THREE.MathUtils.lerp(11.1 * hip, 13 * hip, pelvisT);
-    } else if (v < 0.5) {
-      rx = THREE.MathUtils.lerp(18 * hip, 11.5 * waist, waistT);
-      rz = THREE.MathUtils.lerp(13 * hip, 8.5 * waist, waistT);
-    } else if (v < 0.75) {
-      rx = THREE.MathUtils.lerp(11.5 * waist, 15.5 * bust, bustT);
-      const peak = Math.sin(Math.PI * THREE.MathUtils.clamp((v - 0.5) / 0.25, 0, 1));
-      rz = THREE.MathUtils.lerp(8.5 * waist, 11 * bust, bustT) + peak * 1.7 * bust;
-      // Smooth paired front shaping; avoids the hard angular banding in the old mesh.
-      const lateral = Math.abs(Math.cos(angle));
-      const lobe = Math.exp(-Math.pow((lateral - 0.42) / 0.25, 2));
-      rz += peak * lobe * 0.9 * bust;
-      zCenter = peak * 0.55;
-    } else if (v < 0.9) {
-      rx = THREE.MathUtils.lerp(15.5 * bust, 17.5 * shoulder, shoulderT);
-      rz = THREE.MathUtils.lerp(11 * bust, 8.5, shoulderT);
+  if (child) {
+    const waistV = 0.6;
+    const bustV = 0.85;
+    if (v < 0.3) {
+      const t = smooth(0, 0.3, v);
+      rx = THREE.MathUtils.lerp(hip.rx * 0.9, hip.rx, t);
+      rz = THREE.MathUtils.lerp(hip.rz * 0.9, hip.rz, t);
+    } else if (v < waistV) {
+      const t = smooth(0.3, waistV, v);
+      rx = THREE.MathUtils.lerp(hip.rx, waist.rx, t);
+      rz = THREE.MathUtils.lerp(hip.rz, waist.rz, t);
+      zCenter = Math.sin(Math.PI * t) * 0.55;
+    } else if (v < bustV) {
+      const t = smooth(waistV, bustV, v);
+      rx = THREE.MathUtils.lerp(waist.rx, bust.rx, t);
+      rz = THREE.MathUtils.lerp(waist.rz, bust.rz, t);
     } else {
-      const t = smooth(0.9, 1, v);
-      rx = THREE.MathUtils.lerp(7.9 * shoulder, 6, t);
-      rz = THREE.MathUtils.lerp(6.2, 5.5, t);
+      const t = smooth(bustV, 1, v);
+      rx = THREE.MathUtils.lerp(bust.rx, shoulderRx * 0.5, t);
+      rz = THREE.MathUtils.lerp(bust.rz, shoulderRz * 0.62, t);
     }
-  } else if (gender === 'men') {
+  } else if (gender === 'women') {
     if (v < 0.25) {
-      rx = 16.5 * hip;
-      rz = 12 * hip;
+      const t = smooth(0, 0.25, v);
+      rx = THREE.MathUtils.lerp(hip.rx * 0.87, hip.rx, t);
+      rz = THREE.MathUtils.lerp(hip.rz * 0.87, hip.rz, t);
     } else if (v < 0.5) {
       const t = smooth(0.25, 0.5, v);
-      rx = THREE.MathUtils.lerp(16.5 * hip, 14.5 * waist, t);
-      rz = THREE.MathUtils.lerp(12 * hip, 10.5 * waist, t);
-    } else if (v < 0.78) {
-      const t = smooth(0.5, 0.78, v);
-      rx = THREE.MathUtils.lerp(14.5 * waist, 19.5 * shoulder, t);
-      rz = THREE.MathUtils.lerp(10.5 * waist, 13 * bust, t);
-      zCenter = Math.sin(Math.PI * t) * 0.6;
+      rx = THREE.MathUtils.lerp(hip.rx, waist.rx, t);
+      rz = THREE.MathUtils.lerp(hip.rz, waist.rz, t);
+    } else if (v < 0.75) {
+      const t = smooth(0.5, 0.75, v);
+      rx = THREE.MathUtils.lerp(waist.rx, bust.rx, t);
+      rz = THREE.MathUtils.lerp(waist.rz, bust.rz, t);
+      zCenter = Math.sin(Math.PI * t) * 0.45;
     } else if (v < 0.9) {
-      const t = smooth(0.78, 0.9, v);
-      rx = 19.5 * shoulder;
-      rz = THREE.MathUtils.lerp(13 * bust, 9.5, t);
+      const t = smooth(0.75, 0.9, v);
+      rx = THREE.MathUtils.lerp(bust.rx, shoulderRx, t);
+      rz = THREE.MathUtils.lerp(bust.rz, shoulderRz, t);
     } else {
       const t = smooth(0.9, 1, v);
-      rx = THREE.MathUtils.lerp(8.55 * shoulder, 7.5, t);
-      rz = THREE.MathUtils.lerp(7.6, 7, t);
+      rx = THREE.MathUtils.lerp(shoulderRx * 0.45, 6, t);
+      rz = THREE.MathUtils.lerp(shoulderRz * 0.68, 5.5, t);
     }
   } else {
-    if (v < 0.3) {
-      rx = 11 * hip;
-      rz = 9.5 * hip;
-    } else if (v < 0.6) {
-      const t = smooth(0.3, 0.6, v);
-      rx = THREE.MathUtils.lerp(11 * hip, 10.5 * waist, t);
-      rz = THREE.MathUtils.lerp(9.5 * hip, 10 * waist, t);
-      zCenter = Math.sin(Math.PI * t) * 0.8;
-    } else if (v < 0.85) {
-      const t = smooth(0.6, 0.85, v);
-      rx = THREE.MathUtils.lerp(10.5 * waist, 12 * shoulder, t);
-      rz = THREE.MathUtils.lerp(10 * waist, 9 * bust, t);
+    if (v < 0.25) {
+      rx = THREE.MathUtils.lerp(hip.rx * 0.92, hip.rx, smooth(0, 0.25, v));
+      rz = THREE.MathUtils.lerp(hip.rz * 0.92, hip.rz, smooth(0, 0.25, v));
+    } else if (v < 0.5) {
+      const t = smooth(0.25, 0.5, v);
+      rx = THREE.MathUtils.lerp(hip.rx, waist.rx, t);
+      rz = THREE.MathUtils.lerp(hip.rz, waist.rz, t);
+    } else if (v < 0.78) {
+      const t = smooth(0.5, 0.78, v);
+      rx = THREE.MathUtils.lerp(waist.rx, bust.rx, t);
+      rz = THREE.MathUtils.lerp(waist.rz, bust.rz, t);
+      zCenter = Math.sin(Math.PI * t) * 0.35;
+    } else if (v < 0.9) {
+      const t = smooth(0.78, 0.9, v);
+      rx = THREE.MathUtils.lerp(bust.rx, shoulderRx, t);
+      rz = THREE.MathUtils.lerp(bust.rz, shoulderRz, t);
     } else {
-      const t = smooth(0.85, 1, v);
-      rx = THREE.MathUtils.lerp(6 * shoulder, 5.5, t);
-      rz = THREE.MathUtils.lerp(5.4, 5, t);
+      const t = smooth(0.9, 1, v);
+      rx = THREE.MathUtils.lerp(shoulderRx * 0.45, 7.5, t);
+      rz = THREE.MathUtils.lerp(shoulderRz * 0.8, 7, t);
     }
   }
 
   return { y: yOffset + THREE.MathUtils.clamp(v, 0, 1) * torsoHeight, rx, rz, zCenter };
 }
-
 export function ellipsePerimeter(a: number, b: number): number {
   const h = ((a - b) ** 2) / ((a + b) ** 2);
   return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
@@ -151,9 +159,7 @@ export function buildParametricMannequin(
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'MannequinRoot';
-  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
-  const child = gender === 'kids' || gender === 'infant';
   const scale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
 
   const skin = new THREE.MeshStandardMaterial({
@@ -202,7 +208,8 @@ export function buildParametricMannequin(
   body.add(torso);
 
   // Measurement tape follows the exact waist cross-section used by the garment generator.
-  const waistProfile = getTorsoProfile(gender, measurements, 0.45);
+  const waistV = gender === 'kids' || gender === 'infant' ? 0.6 : 0.5;
+  const waistProfile = getTorsoProfile(gender, measurements, waistV);
   const waistPoints: THREE.Vector3[] = [];
   for (let i = 0; i <= 96; i++) {
     const a = (i / 96) * Math.PI * 2;
@@ -287,7 +294,7 @@ export function buildParametricMannequin(
   });
 
   // Legs now occupy the full height budget instead of the old short 40–45 cm stumps.
-  const hipProfile = getTorsoProfile(gender, measurements, 0.08);
+  const hipProfile = getTorsoProfile(gender, measurements, gender === 'kids' || gender === 'infant' ? 0.3 : 0.25);
   const hipX = Math.min(9 * scale, hipProfile.rx * 0.48);
   const kneeY = yOffset * 0.52;
   const ankleY = Math.max(4 * scale, 4.5);
@@ -320,8 +327,5 @@ export function buildParametricMannequin(
   stand.add(base);
   root.add(stand);
 
-  // Keep unused variables explicit while retaining the public measurements contract.
-  void child;
-  void ref;
   return root;
 }
