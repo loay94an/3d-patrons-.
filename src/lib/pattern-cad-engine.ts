@@ -1,4 +1,4 @@
-// CAD Geometry & Pattern-by-Numbers Engine
+// CAD Geometry & Pattern-by-Numbers Engine\nimport { quadraticBezierLength, cubicBezierLength } from './path-geometry';
 // Computes parametric clothing patterns, layers, notches, seam allowances, and numeric specs.
 
 export type CadLayerType = 'cutting' | 'stitch' | 'seam' | 'notches' | 'notes' | 'dimensions' | 'guideline';
@@ -178,37 +178,14 @@ export function midPoint(p1: CadPoint, p2: CadPoint): CadPoint {
   };
 }
 
-// Approximate length of quadratic bezier curve
+// Adaptive curve lengths: subdivision continues until the control polygon
+// and chord converge, avoiding the error of fixed 16/20-step sampling.
 export function quadLength(p1: CadPoint, cp: CadPoint, p2: CadPoint): number {
-  const steps = 16;
-  let len = 0;
-  let prev = p1;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const x = Math.pow(1 - t, 2) * p1.x + 2 * (1 - t) * t * cp.x + Math.pow(t, 2) * p2.x;
-    const y = Math.pow(1 - t, 2) * p1.y + 2 * (1 - t) * t * cp.y + Math.pow(t, 2) * p2.y;
-    const curr = { x, y };
-    len += distance(prev, curr);
-    prev = curr;
-  }
-  return len;
+  return quadraticBezierLength(p1, cp, p2);
 }
 
-// Approximate length of cubic bezier curve
 export function bezierLength(p1: CadPoint, cp1: CadPoint, cp2: CadPoint, p2: CadPoint): number {
-  const steps = 20;
-  let len = 0;
-  let prev = p1;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const it = 1 - t;
-    const x = it * it * it * p1.x + 3 * it * it * t * cp1.x + 3 * it * t * t * cp2.x + t * t * t * p2.x;
-    const y = it * it * it * p1.y + 3 * it * it * t * cp1.y + 3 * it * t * t * cp2.y + t * t * t * p2.y;
-    const curr = { x, y };
-    len += distance(prev, curr);
-    prev = curr;
-  }
-  return len;
+  return cubicBezierLength(p1, cp1, cp2, p2);
 }
 
 // Evaluate Drafting Rule formulas safely
