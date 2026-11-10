@@ -2,495 +2,326 @@ import * as THREE from 'three';
 import { Gender } from './pattern-logic';
 
 export interface MannequinMeasurements {
-  bust: number;       // cm (e.g. 88)
-  waist: number;      // cm (e.g. 70)
-  hip: number;        // cm (e.g. 94)
-  shoulder: number;   // cm (e.g. 12)
-  backLength: number; // cm (e.g. 40)
-  height: number;     // cm (e.g. 168)
+  bust: number;
+  waist: number;
+  hip: number;
+  shoulder: number;
+  backLength: number;
+  height: number;
 }
 
 export const DEFAULT_MANNEQUIN_MEASUREMENTS: Record<Gender, MannequinMeasurements> = {
-  women: {
-    bust: 88,
-    waist: 70,
-    hip: 94,
-    shoulder: 12,
-    backLength: 40,
-    height: 168
-  },
-  men: {
-    bust: 98, // chest
-    waist: 82,
-    hip: 98,
-    shoulder: 15,
-    backLength: 44,
-    height: 178
-  },
-  kids: {
-    bust: 62,
-    waist: 56,
-    hip: 66,
-    shoulder: 8.5,
-    backLength: 29,
-    height: 120
-  },
-  infant: {
-    bust: 48,
-    waist: 46,
-    hip: 50,
-    shoulder: 6.5,
-    backLength: 19.5,
-    height: 70
-  }
+  women: { bust: 88, waist: 70, hip: 94, shoulder: 12, backLength: 40, height: 168 },
+  men: { bust: 98, waist: 82, hip: 98, shoulder: 15, backLength: 44, height: 178 },
+  kids: { bust: 62, waist: 56, hip: 66, shoulder: 8.5, backLength: 29, height: 120 },
+  infant: { bust: 48, waist: 46, hip: 50, shoulder: 6.5, backLength: 19.5, height: 70 }
 };
 
 export interface TorsoSpan {
-  /** World Y of the bottom edge of the torso (hip / pelvis level). */
   yOffset: number;
-  /** Height of the torso tube, from hip level up to the top of the neck. */
   torsoHeight: number;
 }
 
-/**
- * Vertical extent of the dress form for a given gender / back length.
- * Both the mannequin and the garment are built from this span, so a garment
- * can never drift away from the body it is supposed to sit on.
- */
 export function getTorsoSpan(gender: Gender, measurements: MannequinMeasurements): TorsoSpan {
-  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const lengthScale = (measurements.backLength || ref.backLength) / ref.backLength;
+  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
   const isChild = gender === 'kids' || gender === 'infant';
+  const headScale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
+  const headAllowance = 20.7 * headScale;
+  // The viewer currently supplies a fixed 168 cm placeholder. Use the
+  // gender-specific reference height until a real height control is wired in.
+  const targetHeight = ref.height;
+  const torsoHeight = Math.max(1, (measurements.backLength || ref.backLength) * 1.7);
   return {
-    yOffset: isChild ? 25 : 45,
-    torsoHeight: (isChild ? 45 : 68) * lengthScale
+    yOffset: Math.max(1, targetHeight - torsoHeight - headAllowance),
+    torsoHeight
   };
 }
 
 export interface TorsoProfile {
-  y: number;      // world Y of this horizontal slice
-  rx: number;     // lateral (side to side) radius
-  rz: number;     // front to back radius (already includes the bust shaping)
-  zCenter: number; // forward offset of the slice (bust projection)
+  y: number;
+  rx: number;
+  rz: number;
+  zCenter: number;
 }
 
-/**
- * The single source of truth for the dress form silhouette.
- *
- * `v` runs from 0 (bottom of the hips) to 1 (top of the neck).
- * `angle` is measured around the torso: 0 = side (+X), PI/2 = front (+Z).
- * A point on the body surface is `(rx*cos(angle), y, rz*sin(angle) + zCenter)`.
- *
- * The garment generator samples this same function and only inflates it by the
- * clothing ease, which is what makes the clothes actually sit *on* the body.
- */
+const smooth = (a: number, b: number, t: number) => {
+  const x = THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
+  return x * x * (3 - 2 * x);
+};
+
 export function getTorsoProfile(
   gender: Gender,
   measurements: MannequinMeasurements,
   v: number,
-  angle: number = 0
+  angle = 0
 ): TorsoProfile {
-  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const bustScale = (measurements.bust || ref.bust) / ref.bust;
-  const waistScale = (measurements.waist || ref.waist) / ref.waist;
-  const hipScale = (measurements.hip || ref.hip) / ref.hip;
-  const shoulderScale = (measurements.shoulder || ref.shoulder) / ref.shoulder;
-
+  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+  const bust = (measurements.bust || ref.bust) / ref.bust;
+  const waist = (measurements.waist || ref.waist) / ref.waist;
+  const hip = (measurements.hip || ref.hip) / ref.hip;
+  const shoulder = (measurements.shoulder || ref.shoulder) / ref.shoulder;
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
-  const y = yOffset + v * torsoHeight;
+  const child = gender === 'kids' || gender === 'infant';
 
-  let rx = 14; // lateral radius
-  let rz = 10; // depth radius
+  let rx: number;
+  let rz: number;
   let zCenter = 0;
 
   if (gender === 'women') {
+    const pelvisT = smooth(0, 0.25, v);
+    const waistT = smooth(0.25, 0.5, v);
+    const bustT = smooth(0.5, 0.75, v);
+    const shoulderT = smooth(0.75, 0.9, v);
     if (v < 0.25) {
-      // Lower pelvis / hips
-      const t = v / 0.25;
-      rx = 18 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
-      rz = 13 * hipScale * (0.85 + 0.15 * Math.sin(t * Math.PI));
+      rx = THREE.MathUtils.lerp(15.3 * hip, 18 * hip, pelvisT);
+      rz = THREE.MathUtils.lerp(11.1 * hip, 13 * hip, pelvisT);
     } else if (v < 0.5) {
-      // Waist
-      const t = (v - 0.25) / 0.25;
-      const currentHip = 18 * hipScale;
-      const currentWaist = 11.5 * waistScale;
-      rx = THREE.MathUtils.lerp(currentHip, currentWaist, Math.sin(t * Math.PI * 0.5));
-      rz = THREE.MathUtils.lerp(13 * hipScale, 8.5 * waistScale, Math.sin(t * Math.PI * 0.5));
+      rx = THREE.MathUtils.lerp(18 * hip, 11.5 * waist, waistT);
+      rz = THREE.MathUtils.lerp(13 * hip, 8.5 * waist, waistT);
     } else if (v < 0.75) {
-      // Bust
-      const t = (v - 0.5) / 0.25;
-      const currentWaist = 11.5 * waistScale;
-      const currentBust = 15.5 * bustScale;
-      rx = THREE.MathUtils.lerp(currentWaist, currentBust, Math.sin(t * Math.PI * 0.5));
-      // Female bust projection in front (+Z)
-      const bustPeak = Math.sin(t * Math.PI);
-      rz = THREE.MathUtils.lerp(8.5 * waistScale, 11 * bustScale, t) + bustPeak * 2.8 * bustScale;
-      zCenter = bustPeak * 1.5;
+      rx = THREE.MathUtils.lerp(11.5 * waist, 15.5 * bust, bustT);
+      const peak = Math.sin(Math.PI * THREE.MathUtils.clamp((v - 0.5) / 0.25, 0, 1));
+      rz = THREE.MathUtils.lerp(8.5 * waist, 11 * bust, bustT) + peak * 1.7 * bust;
+      // Smooth paired front shaping; avoids the hard angular banding in the old mesh.
+      const lateral = Math.abs(Math.cos(angle));
+      const lobe = Math.exp(-Math.pow((lateral - 0.42) / 0.25, 2));
+      rz += peak * lobe * 0.9 * bust;
+      zCenter = peak * 0.55;
     } else if (v < 0.9) {
-      // Shoulders / upper chest
-      const t = (v - 0.75) / 0.15;
-      rx = THREE.MathUtils.lerp(15.5 * bustScale, 17.5 * shoulderScale, t);
-      rz = THREE.MathUtils.lerp(11 * bustScale, 8.5, t);
+      rx = THREE.MathUtils.lerp(15.5 * bust, 17.5 * shoulder, shoulderT);
+      rz = THREE.MathUtils.lerp(11 * bust, 8.5, shoulderT);
     } else {
-      // Neck base to top of neck
-      const t = (v - 0.9) / 0.1;
-      rx = THREE.MathUtils.lerp(17.5 * shoulderScale * 0.45, 6, t);
-      rz = THREE.MathUtils.lerp(8.5 * 0.7, 5.5, t);
+      const t = smooth(0.9, 1, v);
+      rx = THREE.MathUtils.lerp(7.9 * shoulder, 6, t);
+      rz = THREE.MathUtils.lerp(6.2, 5.5, t);
     }
   } else if (gender === 'men') {
     if (v < 0.25) {
-      // Hips
-      rx = 16.5 * hipScale;
-      rz = 12 * hipScale;
+      rx = 16.5 * hip;
+      rz = 12 * hip;
     } else if (v < 0.5) {
-      // Waist
-      const t = (v - 0.25) / 0.25;
-      rx = THREE.MathUtils.lerp(16.5 * hipScale, 14.5 * waistScale, t);
-      rz = THREE.MathUtils.lerp(12 * hipScale, 10.5 * waistScale, t);
+      const t = smooth(0.25, 0.5, v);
+      rx = THREE.MathUtils.lerp(16.5 * hip, 14.5 * waist, t);
+      rz = THREE.MathUtils.lerp(12 * hip, 10.5 * waist, t);
     } else if (v < 0.78) {
-      // Broad chest & lats
-      const t = (v - 0.5) / 0.28;
-      rx = THREE.MathUtils.lerp(14.5 * waistScale, 19.5 * shoulderScale, t);
-      rz = THREE.MathUtils.lerp(10.5 * waistScale, 13 * bustScale, t);
-      zCenter = Math.sin(t * Math.PI) * 0.8;
+      const t = smooth(0.5, 0.78, v);
+      rx = THREE.MathUtils.lerp(14.5 * waist, 19.5 * shoulder, t);
+      rz = THREE.MathUtils.lerp(10.5 * waist, 13 * bust, t);
+      zCenter = Math.sin(Math.PI * t) * 0.6;
     } else if (v < 0.9) {
-      // Broad shoulder line
-      const t = (v - 0.78) / 0.12;
-      rx = THREE.MathUtils.lerp(19.5 * shoulderScale, 19 * shoulderScale, t);
-      rz = THREE.MathUtils.lerp(13 * bustScale, 9.5, t);
+      const t = smooth(0.78, 0.9, v);
+      rx = 19.5 * shoulder;
+      rz = THREE.MathUtils.lerp(13 * bust, 9.5, t);
     } else {
-      // Neck
-      const t = (v - 0.9) / 0.1;
-      rx = THREE.MathUtils.lerp(19 * shoulderScale * 0.45, 7.5, t);
-      rz = THREE.MathUtils.lerp(9.5 * 0.8, 7, t);
+      const t = smooth(0.9, 1, v);
+      rx = THREE.MathUtils.lerp(8.55 * shoulder, 7.5, t);
+      rz = THREE.MathUtils.lerp(7.6, 7, t);
     }
   } else {
-    // Kids / Infant
     if (v < 0.3) {
-      rx = 11 * hipScale;
-      rz = 9.5 * hipScale;
+      rx = 11 * hip;
+      rz = 9.5 * hip;
     } else if (v < 0.6) {
-      // Soft rounded tummy
-      const t = (v - 0.3) / 0.3;
-      rx = THREE.MathUtils.lerp(11 * hipScale, 10.5 * waistScale, t);
-      rz = THREE.MathUtils.lerp(9.5 * hipScale, 10 * waistScale, t);
-      zCenter = Math.sin(t * Math.PI) * 1.2;
+      const t = smooth(0.3, 0.6, v);
+      rx = THREE.MathUtils.lerp(11 * hip, 10.5 * waist, t);
+      rz = THREE.MathUtils.lerp(9.5 * hip, 10 * waist, t);
+      zCenter = Math.sin(Math.PI * t) * 0.8;
     } else if (v < 0.85) {
-      // Chest
-      const t = (v - 0.6) / 0.25;
-      rx = THREE.MathUtils.lerp(10.5 * waistScale, 12 * shoulderScale, t);
-      rz = THREE.MathUtils.lerp(10 * waistScale, 9 * bustScale, t);
+      const t = smooth(0.6, 0.85, v);
+      rx = THREE.MathUtils.lerp(10.5 * waist, 12 * shoulder, t);
+      rz = THREE.MathUtils.lerp(10 * waist, 9 * bust, t);
     } else {
-      // Neck
-      const t = (v - 0.85) / 0.15;
-      rx = THREE.MathUtils.lerp(12 * shoulderScale * 0.5, 5.5, t);
-      rz = THREE.MathUtils.lerp(9 * 0.6, 5, t);
+      const t = smooth(0.85, 1, v);
+      rx = THREE.MathUtils.lerp(6 * shoulder, 5.5, t);
+      rz = THREE.MathUtils.lerp(5.4, 5, t);
     }
   }
 
-  // Bust prominence separation (front volume only), kept angle dependent so
-  // both the mannequin and the garment share exactly the same chest shape.
-  if (gender === 'women' && v > 0.55 && v < 0.75 && Math.sin(angle) > 0) {
-    const bustPeak = Math.sin(((v - 0.55) / 0.2) * Math.PI);
-    const leftRightSpread = Math.abs(Math.cos(angle));
-    if (leftRightSpread > 0.15 && leftRightSpread < 0.85) {
-      rz *= (1 + bustPeak * 0.28);
-    }
-  }
-
-  return { y, rx, rz, zCenter };
+  return { y: yOffset + THREE.MathUtils.clamp(v, 0, 1) * torsoHeight, rx, rz, zCenter };
 }
 
-/** Ramanujan approximation of an ellipse perimeter, used to convert a
- *  measurement (a circumference) into the ease a garment needs at that level. */
 export function ellipsePerimeter(a: number, b: number): number {
   const h = ((a - b) ** 2) / ((a + b) ** 2);
   return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
 }
 
-/**
- * Builds a parametric tailoring dress form mannequin with realistic anatomy,
- * fabric texture, wooden neck topper, and metallic/wood floor stand.
- */
 export function buildParametricMannequin(
   gender: Gender,
   measurements: MannequinMeasurements
 ): THREE.Group {
   const root = new THREE.Group();
   root.name = 'MannequinRoot';
-
-  // Base scaling relative to canonical reference
-  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-  const waistScale = (measurements.waist || ref.waist) / ref.waist;
-  const shoulderScale = (measurements.shoulder || ref.shoulder) / ref.shoulder;
-
+  const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
+  const child = gender === 'kids' || gender === 'infant';
+  const scale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
 
-  // Materials
-  // Unified skin material keeps the torso, limbs, hands and head visually coherent.
-  const dummyTorsoMaterial = new THREE.MeshStandardMaterial({
-    color: gender === 'women' ? 0xc99578 : 0xb98265,
-    roughness: 0.78,
-    metalness: 0,
-    bumpScale: 0.015
+  const skin = new THREE.MeshStandardMaterial({
+    color: 0xc99a80, roughness: 0.82, metalness: 0,
+    side: THREE.DoubleSide
   });
-  const featureMaterial = new THREE.MeshStandardMaterial({ color: 0x38251f, roughness: 0.62 });
-  const eyeWhiteMaterial = new THREE.MeshStandardMaterial({ color: 0xf2e9df, roughness: 0.35 });
-  const irisMaterial = new THREE.MeshStandardMaterial({ color: 0x514033, roughness: 0.28 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x49301f, roughness: 0.58 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0xb58a42, roughness: 0.32, metalness: 0.65 });
+  const tape = new THREE.LineBasicMaterial({ color: 0xb7a58d });
 
-  const seamLineMaterial = new THREE.LineBasicMaterial({
-    color: 0xa89984,
-    linewidth: 1
-  });
+  const body = new THREE.Group();
+  body.name = 'MannequinBody';
 
-  const woodMaterial = new THREE.MeshStandardMaterial({
-    color: 0x3d2314, // Dark walnut wood
-    roughness: 0.4,
-    metalness: 0.1
-  });
-
-  const brassMaterial = new THREE.MeshStandardMaterial({
-    color: 0xc89b3c, // Antique brass
-    roughness: 0.3,
-    metalness: 0.75
-  });
-
-  // Construct Torso Mesh via Lofted Profiles
-  const torsoGroup = new THREE.Group();
-  torsoGroup.name = 'MannequinTorso';
-
-  // Number of vertical slice levels
-  const verticalSegments = 32;
-  const radialSegments = 36;
-
+  // Higher tessellation and shared profile sampling remove the visibly faceted torso.
+  const verticalSegments = 100;
+  const radialSegments = 64;
   const positions: number[] = [];
   const uvs: number[] = [];
   const indices: number[] = [];
-
-  // Generate slice heights and radii from the shared body profile
   for (let i = 0; i <= verticalSegments; i++) {
-    const v = i / verticalSegments; // 0 = bottom (hip/pelvis), 1 = top (neck)
-
+    const v = i / verticalSegments;
     for (let j = 0; j <= radialSegments; j++) {
       const u = j / radialSegments;
-      const angle = u * Math.PI * 2;
-
-      const profile = getTorsoProfile(gender, measurements, v, angle);
-
-      positions.push(
-        profile.rx * Math.cos(angle),
-        profile.y,
-        profile.rz * Math.sin(angle) + profile.zCenter
-      );
+      const a = u * Math.PI * 2;
+      const p = getTorsoProfile(gender, measurements, v, a);
+      positions.push(p.rx * Math.cos(a), p.y, p.rz * Math.sin(a) + p.zCenter);
       uvs.push(u, v);
     }
   }
-
-  // Generate grid indices
   for (let i = 0; i < verticalSegments; i++) {
     for (let j = 0; j < radialSegments; j++) {
       const a = i * (radialSegments + 1) + j;
-      const b = (i + 1) * (radialSegments + 1) + j;
-      const c = (i + 1) * (radialSegments + 1) + (j + 1);
-      const d = i * (radialSegments + 1) + (j + 1);
-
-      indices.push(a, b, d);
-      indices.push(b, c, d);
+      const b = a + radialSegments + 1;
+      indices.push(a, b, a + 1, b, b + 1, a + 1);
     }
   }
+  const torsoGeometry = new THREE.BufferGeometry();
+  torsoGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  torsoGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  torsoGeometry.setIndex(indices);
+  torsoGeometry.computeVertexNormals();
+  const torso = new THREE.Mesh(torsoGeometry, skin);
+  torso.name = 'TorsoSurface';
+  torso.castShadow = true;
+  torso.receiveShadow = true;
+  body.add(torso);
 
-  const torsoGeom = new THREE.BufferGeometry();
-  torsoGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  torsoGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  torsoGeom.setIndex(indices);
-  torsoGeom.computeVertexNormals();
-
-  const torsoMesh = new THREE.Mesh(torsoGeom, dummyTorsoMaterial);
-  torsoMesh.castShadow = true;
-  torsoMesh.receiveShadow = true;
-  torsoGroup.add(torsoMesh);
-
-  // Close the bottom of the dress form so it is never see-through
-  const bottomRx = getTorsoProfile(gender, measurements, 0, 0).rx;
-  const bottomRz = getTorsoProfile(gender, measurements, 0, Math.PI / 2).rz;
-  const bottomCapGeom = new THREE.CircleGeometry(1, 48);
-  bottomCapGeom.rotateX(Math.PI / 2); // face downwards
-  const bottomCapMesh = new THREE.Mesh(bottomCapGeom, dummyTorsoMaterial);
-  bottomCapMesh.scale.set(bottomRx, 1, bottomRz);
-  bottomCapMesh.position.set(0, yOffset + 0.01, 0);
-  bottomCapMesh.receiveShadow = true;
-  torsoGroup.add(bottomCapMesh);
-
-  // Add Tailoring Ribbon Lines (waist tape line & center front / center back lines)
-  const waistTapeRadiusX = (gender === 'women' ? 12 * waistScale : 15 * waistScale) + 0.15;
-  const waistTapeRadiusZ = (gender === 'women' ? 9 * waistScale : 11 * waistScale) + 0.15;
-  const waistY = yOffset + torsoHeight * 0.45;
-
+  // Measurement tape follows the exact waist cross-section used by the garment generator.
+  const waistProfile = getTorsoProfile(gender, measurements, 0.45);
   const waistPoints: THREE.Vector3[] = [];
-  for (let i = 0; i <= 36; i++) {
-    const a = (i / 36) * Math.PI * 2;
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
     waistPoints.push(new THREE.Vector3(
-      Math.cos(a) * waistTapeRadiusX,
-      waistY,
-      Math.sin(a) * waistTapeRadiusZ
+      Math.cos(a) * (waistProfile.rx + 0.18),
+      waistProfile.y,
+      Math.sin(a) * (waistProfile.rz + 0.18) + waistProfile.zCenter
     ));
   }
-  const waistTapeGeom = new THREE.BufferGeometry().setFromPoints(waistPoints);
-  const waistTapeLine = new THREE.Line(waistTapeGeom, seamLineMaterial);
-  torsoGroup.add(waistTapeLine);
-
-  // Full anatomical head, arms, hands, legs and feet.
-  // The proportions follow the same adult/child scale as the existing torso profile.
-  const neckTopY = yOffset + torsoHeight;
-  const isChild = gender === 'kids' || gender === 'infant';
-  const bodyScale = isChild ? (gender === 'infant' ? 0.48 : 0.68) : 1;
-  const shoulderY = yOffset + torsoHeight * 0.86;
-  const shoulderOffset = (gender === 'women' ? 18 : 20.5) * shoulderScale;
+  body.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(waistPoints), tape
+  ));
 
   const addEllipsoid = (
-    name: string,
-    x: number, y: number, z: number,
-    sx: number, sy: number, sz: number,
-    material: THREE.Material = dummyTorsoMaterial
+    name: string, x: number, y: number, z: number,
+    sx: number, sy: number, sz: number
   ) => {
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), material);
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), skin);
     mesh.name = name;
     mesh.position.set(x, y, z);
     mesh.scale.set(sx, sy, sz);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    torsoGroup.add(mesh);
+    body.add(mesh);
     return mesh;
   };
 
-  const addLimbSegment = (
-    name: string,
-    start: THREE.Vector3,
-    end: THREE.Vector3,
-    radius: number,
-    material: THREE.Material = dummyTorsoMaterial
-  ) => {
+  const addSegment = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number) => {
     const direction = new THREE.Vector3().subVectors(end, start);
     const length = direction.length();
     const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(radius, Math.max(0.1, length - radius * 1.25), 8, 16),
-      material
+      new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 12, 24),
+      skin
     );
     mesh.name = name;
     mesh.position.copy(start).add(end).multiplyScalar(0.5);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    torsoGroup.add(mesh);
+    body.add(mesh);
     return mesh;
   };
 
-  // Head and neck transition: oval cranium, jaw, ears and readable facial features.
-  const headCenterY = neckTopY + 10.5 * bodyScale;
-  addEllipsoid('Head_Cranium', 0, headCenterY + 1.1 * bodyScale, 0,
-    7.2 * bodyScale, 9.1 * bodyScale, 6.6 * bodyScale);
-  addEllipsoid('Head_Jaw', 0, headCenterY - 4.0 * bodyScale, 1.0 * bodyScale,
-    5.4 * bodyScale, 4.7 * bodyScale, 5.7 * bodyScale);
+  // A neutral, featureless head reads as a fitting mannequin rather than a toy face.
+  const neckTop = yOffset + torsoHeight;
+  const headY = neckTop + 10.5 * scale;
+  addEllipsoid('Head', 0, headY + 1.1 * scale, 0,
+    7.0 * scale, 9.2 * scale, 6.5 * scale);
+  addEllipsoid('Neck', 0, neckTop - 1.0 * scale, 0,
+    4.3 * scale, 4.6 * scale, 4.0 * scale);
   [-1, 1].forEach(side => {
-    addEllipsoid(`Ear_${side}`, side * 7.0 * bodyScale, headCenterY - 0.2 * bodyScale, 0,
-      1.35 * bodyScale, 2.35 * bodyScale, 1.0 * bodyScale);
-    // Eye socket, eyeball and iris are placed on the front (+Z) plane.
-    addEllipsoid(`Eye_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
-      5.65 * bodyScale, 1.35 * bodyScale, 0.82 * bodyScale, 0.58 * bodyScale, eyeWhiteMaterial);
-    addEllipsoid(`Iris_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
-      6.16 * bodyScale, 0.48 * bodyScale, 0.52 * bodyScale, 0.22 * bodyScale, irisMaterial);
-    addEllipsoid(`Pupil_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
-      6.34 * bodyScale, 0.21 * bodyScale, 0.28 * bodyScale, 0.12 * bodyScale, featureMaterial);
-    addEllipsoid(`Brow_${side}`, side * 2.55 * bodyScale, headCenterY + 2.0 * bodyScale,
-      5.75 * bodyScale, 1.55 * bodyScale, 0.28 * bodyScale, 0.35 * bodyScale, featureMaterial);
+    addEllipsoid('Ear_' + side, side * 6.8 * scale, headY, 0,
+      1.15 * scale, 2.1 * scale, 0.85 * scale);
   });
-  addEllipsoid('Nose_Bridge', 0, headCenterY - 0.8 * bodyScale, 6.0 * bodyScale,
-    0.85 * bodyScale, 1.8 * bodyScale, 1.05 * bodyScale);
-  addEllipsoid('Nose_Tip', 0, headCenterY - 1.8 * bodyScale, 6.8 * bodyScale,
-    1.0 * bodyScale, 0.75 * bodyScale, 0.85 * bodyScale);
-  addEllipsoid('Mouth_Upper', 0, headCenterY - 3.0 * bodyScale, 5.95 * bodyScale,
-    1.35 * bodyScale, 0.28 * bodyScale, 0.25 * bodyScale, featureMaterial);
-  addEllipsoid('Mouth_Lower', 0, headCenterY - 3.45 * bodyScale, 5.9 * bodyScale,
-    1.1 * bodyScale, 0.2 * bodyScale, 0.22 * bodyScale, featureMaterial);
 
-  // Arms: shoulder caps, upper arms, elbows, forearms, wrists, palms and five fingers.
+  // Shoulder position comes from the measured torso silhouette, not a hard-coded width.
+  const shoulderProfile = getTorsoProfile(gender, measurements, 0.86);
+  const shoulderX = shoulderProfile.rx * 0.92;
+  const shoulderY = yOffset + torsoHeight * 0.86;
   [-1, 1].forEach(side => {
-    const shoulder = new THREE.Vector3(side * shoulderOffset, shoulderY, 0);
-    const elbow = new THREE.Vector3(side * (shoulderOffset + 5.0 * bodyScale), yOffset + torsoHeight * 0.55, 0.8 * bodyScale);
-    const wrist = new THREE.Vector3(side * (shoulderOffset + 5.5 * bodyScale), yOffset + 13 * bodyScale, 1.0 * bodyScale);
-    const palm = new THREE.Vector3(side * (shoulderOffset + 5.8 * bodyScale), yOffset + 8.8 * bodyScale, 1.35 * bodyScale);
-    addEllipsoid(`Shoulder_${side}`, shoulder.x, shoulder.y, shoulder.z,
-      4.4 * bodyScale, 4.7 * bodyScale, 4.2 * bodyScale);
-    addLimbSegment(`UpperArm_${side}`, shoulder, elbow, 3.35 * bodyScale);
-    addEllipsoid(`Elbow_${side}`, elbow.x, elbow.y, elbow.z, 2.8 * bodyScale, 2.8 * bodyScale, 2.8 * bodyScale);
-    addLimbSegment(`Forearm_${side}`, elbow, wrist, 2.65 * bodyScale);
-    addEllipsoid(`Wrist_${side}`, wrist.x, wrist.y, wrist.z, 1.9 * bodyScale, 1.8 * bodyScale, 1.8 * bodyScale);
-    addEllipsoid(`Palm_${side}`, palm.x, palm.y, palm.z, 2.15 * bodyScale, 3.0 * bodyScale, 1.0 * bodyScale);
-    for (let finger = 0; finger < 4; finger++) {
-      const offset = (finger - 1.5) * 0.88 * bodyScale;
-      const start = new THREE.Vector3(palm.x + offset, palm.y - 1.4 * bodyScale, palm.z + 0.05 * bodyScale);
-      const end = new THREE.Vector3(palm.x + offset * 1.12, palm.y - (4.1 + (finger === 1 || finger === 2 ? 0.35 : 0)) * bodyScale,
-        palm.z + 0.12 * bodyScale);
-      addLimbSegment(`Finger_${side}_${finger}`, start, end, 0.48 * bodyScale);
-      addEllipsoid(`Fingertip_${side}_${finger}`, end.x, end.y, end.z,
-        0.48 * bodyScale, 0.55 * bodyScale, 0.48 * bodyScale);
+    const shoulder = new THREE.Vector3(side * shoulderX, shoulderY, 0);
+    const elbow = new THREE.Vector3(side * (shoulderX + 5.2 * scale), yOffset + torsoHeight * 0.57, 0.6 * scale);
+    const wrist = new THREE.Vector3(side * (shoulderX + 7.2 * scale), yOffset + 13.5 * scale, 0.8 * scale);
+    const palm = new THREE.Vector3(side * (shoulderX + 7.5 * scale), yOffset + 8.8 * scale, 1.0 * scale);
+    addEllipsoid('Shoulder_' + side, shoulder.x, shoulder.y, shoulder.z,
+      4.0 * scale, 4.1 * scale, 3.8 * scale);
+    addSegment('UpperArm_' + side, shoulder, elbow, 3.0 * scale);
+    addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.35 * scale, 2.35 * scale);
+    addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale);
+    addEllipsoid('Wrist_' + side, wrist.x, wrist.y, wrist.z, 1.5 * scale, 1.45 * scale, 1.5 * scale);
+    addEllipsoid('Palm_' + side, palm.x, palm.y, palm.z, 1.8 * scale, 2.8 * scale, 0.9 * scale);
+    for (let finger = 0; finger < 5; finger++) {
+      const offset = (finger - 2) * 0.72 * scale;
+      const fingerLength = (finger === 1 || finger === 2 ? 4.1 : 3.55) * scale;
+      const start = new THREE.Vector3(palm.x + offset, palm.y - 1.2 * scale, palm.z + 0.08 * scale);
+      const end = new THREE.Vector3(palm.x + offset * 1.08, palm.y - fingerLength, palm.z + 0.1 * scale);
+      addSegment('Finger_' + side + '_' + finger, start, end, 0.34 * scale);
     }
-    const thumbStart = new THREE.Vector3(palm.x - side * 1.6 * bodyScale, palm.y + 0.1 * bodyScale, palm.z + 0.1 * bodyScale);
-    const thumbEnd = new THREE.Vector3(palm.x - side * 3.0 * bodyScale, palm.y - 2.0 * bodyScale, palm.z + 0.25 * bodyScale);
-    addLimbSegment(`Thumb_${side}`, thumbStart, thumbEnd, 0.65 * bodyScale);
+    const thumbStart = new THREE.Vector3(palm.x - side * 1.25 * scale, palm.y + 0.1 * scale, palm.z + 0.1 * scale);
+    const thumbEnd = new THREE.Vector3(palm.x - side * 2.8 * scale, palm.y - 1.8 * scale, palm.z + 0.15 * scale);
+    addSegment('Thumb_' + side, thumbStart, thumbEnd, 0.48 * scale);
   });
 
-  // Legs: anatomical thighs, knees, calves, ankles and feet. The central stand
-  // remains behind the body and no longer substitutes for the lower limbs.
+  // Legs now occupy the full height budget instead of the old short 40–45 cm stumps.
+  const hipProfile = getTorsoProfile(gender, measurements, 0.08);
+  const hipX = Math.min(9 * scale, hipProfile.rx * 0.48);
+  const kneeY = yOffset * 0.52;
+  const ankleY = Math.max(4 * scale, 4.5);
   [-1, 1].forEach(side => {
-    const hip = new THREE.Vector3(side * 9.0 * bodyScale, yOffset + 2.0 * bodyScale, 0);
-    const knee = new THREE.Vector3(side * 9.6 * bodyScale, yOffset * 0.52, 0.2 * bodyScale);
-    const ankle = new THREE.Vector3(side * 10.0 * bodyScale, 5.0 * bodyScale, 0.15 * bodyScale);
-    addEllipsoid(`HipJoint_${side}`, hip.x, hip.y, hip.z, 5.2 * bodyScale, 6.0 * bodyScale, 5.5 * bodyScale);
-    addLimbSegment(`Thigh_${side}`, hip, knee, 5.0 * bodyScale);
-    addEllipsoid(`Knee_${side}`, knee.x, knee.y, knee.z, 3.8 * bodyScale, 3.8 * bodyScale, 3.7 * bodyScale);
-    addLimbSegment(`Calf_${side}`, knee, ankle, 3.45 * bodyScale);
-    addEllipsoid(`Ankle_${side}`, ankle.x, ankle.y, ankle.z, 2.35 * bodyScale, 2.5 * bodyScale, 2.5 * bodyScale);
-    addEllipsoid(`Foot_${side}`, side * 10.0 * bodyScale, 2.5 * bodyScale, 4.0 * bodyScale,
-      3.4 * bodyScale, 2.2 * bodyScale, 6.8 * bodyScale);
-    addEllipsoid(`Heel_${side}`, side * 10.0 * bodyScale, 2.3 * bodyScale, -1.2 * bodyScale,
-      2.6 * bodyScale, 2.2 * bodyScale, 2.8 * bodyScale);
+    const hip = new THREE.Vector3(side * hipX, yOffset + 1.5 * scale, 0);
+    const knee = new THREE.Vector3(side * hipX * 1.05, kneeY, 0.35 * scale);
+    const ankle = new THREE.Vector3(side * hipX * 1.08, ankleY, 0.1 * scale);
+    addEllipsoid('HipJoint_' + side, hip.x, hip.y, hip.z,
+      4.7 * scale, 5.2 * scale, 4.9 * scale);
+    addSegment('Thigh_' + side, hip, knee, 4.35 * scale);
+    addEllipsoid('Knee_' + side, knee.x, knee.y, knee.z, 3.0 * scale, 3.1 * scale, 3.0 * scale);
+    addSegment('Calf_' + side, knee, ankle, 2.8 * scale);
+    addEllipsoid('Ankle_' + side, ankle.x, ankle.y, ankle.z, 1.8 * scale, 2.0 * scale, 1.8 * scale);
+    addEllipsoid('Foot_' + side, side * hipX * 1.08, 2.2 * scale, 4.0 * scale,
+      2.7 * scale, 1.9 * scale, 5.7 * scale);
   });
 
-  root.add(torsoGroup);
+  root.add(body);
 
-  // Construct Stand Assembly
-  const standGroup = new THREE.Group();
-  standGroup.name = 'MannequinStand';
+  // Rear support: shifted behind the body so it no longer pierces the torso or legs.
+  const stand = new THREE.Group();
+  stand.name = 'MannequinStand';
+  const poleHeight = Math.max(8, yOffset + 1);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, poleHeight, 20), brass);
+  pole.position.set(0, poleHeight / 2 + 1.5, -13);
+  stand.add(pole);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(15, 17, 3, 40), wood);
+  base.position.set(0, 1.5, -13);
+  base.receiveShadow = true;
+  stand.add(base);
+  root.add(stand);
 
-  // Chrome / Brass Central Pole
-  const poleHeight = yOffset + 10;
-  const poleGeom = new THREE.CylinderGeometry(1.4, 1.4, poleHeight, 24);
-  const poleMesh = new THREE.Mesh(poleGeom, brassMaterial);
-  poleMesh.position.set(0, poleHeight / 2, 0);
-  standGroup.add(poleMesh);
-
-  // Height Adjustment Turn-Knob
-  const knobGeom = new THREE.TorusGeometry(2.6, 0.6, 16, 24);
-  knobGeom.rotateX(Math.PI / 2);
-  const knobMesh = new THREE.Mesh(knobGeom, brassMaterial);
-  knobMesh.position.set(0, poleHeight * 0.55, 0);
-  standGroup.add(knobMesh);
-
-  // Circular Pedestal Base or Tripod
-  const baseGeom = new THREE.CylinderGeometry(16, 18, 3.5, 36);
-  const baseMesh = new THREE.Mesh(baseGeom, woodMaterial);
-  baseMesh.position.set(0, 1.75, 0);
-  baseMesh.receiveShadow = true;
-  standGroup.add(baseMesh);
-
-  const baseRimGeom = new THREE.TorusGeometry(17.8, 0.6, 16, 36);
-  baseRimGeom.rotateX(Math.PI / 2);
-  const baseRimMesh = new THREE.Mesh(baseRimGeom, brassMaterial);
-  baseRimMesh.position.set(0, 3.5, 0);
-  standGroup.add(baseRimMesh);
-
-  root.add(standGroup);
-
+  // Keep unused variables explicit while retaining the public measurements contract.
+  void child;
+  void ref;
   return root;
 }
