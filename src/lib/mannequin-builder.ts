@@ -227,12 +227,16 @@ export function buildParametricMannequin(
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
 
   // Materials
+  // Unified skin material keeps the torso, limbs, hands and head visually coherent.
   const dummyTorsoMaterial = new THREE.MeshStandardMaterial({
-    color: 0xede4d3, // Ecru / linen tailoring dummy color
-    roughness: 0.85,
-    metalness: 0.05,
-    bumpScale: 0.03
+    color: gender === 'women' ? 0xc99578 : 0xb98265,
+    roughness: 0.78,
+    metalness: 0,
+    bumpScale: 0.015
   });
+  const featureMaterial = new THREE.MeshStandardMaterial({ color: 0x38251f, roughness: 0.62 });
+  const eyeWhiteMaterial = new THREE.MeshStandardMaterial({ color: 0xf2e9df, roughness: 0.35 });
+  const irisMaterial = new THREE.MeshStandardMaterial({ color: 0x514033, roughness: 0.28 });
 
   const seamLineMaterial = new THREE.LineBasicMaterial({
     color: 0xa89984,
@@ -335,29 +339,122 @@ export function buildParametricMannequin(
   const waistTapeLine = new THREE.Line(waistTapeGeom, seamLineMaterial);
   torsoGroup.add(waistTapeLine);
 
-  // Add Wooden Neck Cap & Finial
+  // Full anatomical head, arms, hands, legs and feet.
+  // The proportions follow the same adult/child scale as the existing torso profile.
   const neckTopY = yOffset + torsoHeight;
-  const neckCapGeom = new THREE.CylinderGeometry(5.8, 6.2, 2.5, 32);
-  const neckCapMesh = new THREE.Mesh(neckCapGeom, woodMaterial);
-  neckCapMesh.position.set(0, neckTopY + 1.25, 0);
-  torsoGroup.add(neckCapMesh);
-
-  const finialGeom = new THREE.SphereGeometry(3.2, 24, 24);
-  const finialMesh = new THREE.Mesh(finialGeom, woodMaterial);
-  finialMesh.position.set(0, neckTopY + 4.5, 0);
-  torsoGroup.add(finialMesh);
-
-  // Add Shoulder Caps / arm stubs
+  const isChild = gender === 'kids' || gender === 'infant';
+  const bodyScale = isChild ? (gender === 'infant' ? 0.48 : 0.68) : 1;
   const shoulderY = yOffset + torsoHeight * 0.86;
   const shoulderOffset = (gender === 'women' ? 18 : 20.5) * shoulderScale;
+
+  const addEllipsoid = (
+    name: string,
+    x: number, y: number, z: number,
+    sx: number, sy: number, sz: number,
+    material: THREE.Material = dummyTorsoMaterial
+  ) => {
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 18), material);
+    mesh.name = name;
+    mesh.position.set(x, y, z);
+    mesh.scale.set(sx, sy, sz);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    torsoGroup.add(mesh);
+    return mesh;
+  };
+
+  const addLimbSegment = (
+    name: string,
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+    radius: number,
+    material: THREE.Material = dummyTorsoMaterial
+  ) => {
+    const direction = new THREE.Vector3().subVectors(end, start);
+    const length = direction.length();
+    const mesh = new THREE.Mesh(
+      new THREE.CapsuleGeometry(radius, Math.max(0.1, length - radius * 1.25), 8, 16),
+      material
+    );
+    mesh.name = name;
+    mesh.position.copy(start).add(end).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    torsoGroup.add(mesh);
+    return mesh;
+  };
+
+  // Head and neck transition: oval cranium, jaw, ears and readable facial features.
+  const headCenterY = neckTopY + 10.5 * bodyScale;
+  addEllipsoid('Head_Cranium', 0, headCenterY + 1.1 * bodyScale, 0,
+    7.2 * bodyScale, 9.1 * bodyScale, 6.6 * bodyScale);
+  addEllipsoid('Head_Jaw', 0, headCenterY - 4.0 * bodyScale, 1.0 * bodyScale,
+    5.4 * bodyScale, 4.7 * bodyScale, 5.7 * bodyScale);
   [-1, 1].forEach(side => {
-    // Short nubs that stay tucked under the shoulder of any garment worn on top
-    const armStubGeom = new THREE.CylinderGeometry(2.8, 3.4, 2.4, 24);
-    armStubGeom.rotateZ(Math.PI / 2);
-    const armStubMesh = new THREE.Mesh(armStubGeom, woodMaterial);
-    armStubMesh.name = `ArmStub_${side > 0 ? 'Right' : 'Left'}`;
-    armStubMesh.position.set(side * (shoulderOffset - 3.2), shoulderY, 0);
-    torsoGroup.add(armStubMesh);
+    addEllipsoid(`Ear_${side}`, side * 7.0 * bodyScale, headCenterY - 0.2 * bodyScale, 0,
+      1.35 * bodyScale, 2.35 * bodyScale, 1.0 * bodyScale);
+    // Eye socket, eyeball and iris are placed on the front (+Z) plane.
+    addEllipsoid(`Eye_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
+      5.65 * bodyScale, 1.35 * bodyScale, 0.82 * bodyScale, 0.58 * bodyScale, eyeWhiteMaterial);
+    addEllipsoid(`Iris_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
+      6.16 * bodyScale, 0.48 * bodyScale, 0.52 * bodyScale, 0.22 * bodyScale, irisMaterial);
+    addEllipsoid(`Pupil_${side}`, side * 2.55 * bodyScale, headCenterY + 0.7 * bodyScale,
+      6.34 * bodyScale, 0.21 * bodyScale, 0.28 * bodyScale, 0.12 * bodyScale, featureMaterial);
+    addEllipsoid(`Brow_${side}`, side * 2.55 * bodyScale, headCenterY + 2.0 * bodyScale,
+      5.75 * bodyScale, 1.55 * bodyScale, 0.28 * bodyScale, 0.35 * bodyScale, featureMaterial);
+  });
+  addEllipsoid('Nose_Bridge', 0, headCenterY - 0.8 * bodyScale, 6.0 * bodyScale,
+    0.85 * bodyScale, 1.8 * bodyScale, 1.05 * bodyScale);
+  addEllipsoid('Nose_Tip', 0, headCenterY - 1.8 * bodyScale, 6.8 * bodyScale,
+    1.0 * bodyScale, 0.75 * bodyScale, 0.85 * bodyScale);
+  addEllipsoid('Mouth_Upper', 0, headCenterY - 3.0 * bodyScale, 5.95 * bodyScale,
+    1.35 * bodyScale, 0.28 * bodyScale, 0.25 * bodyScale, featureMaterial);
+  addEllipsoid('Mouth_Lower', 0, headCenterY - 3.45 * bodyScale, 5.9 * bodyScale,
+    1.1 * bodyScale, 0.2 * bodyScale, 0.22 * bodyScale, featureMaterial);
+
+  // Arms: shoulder caps, upper arms, elbows, forearms, wrists, palms and five fingers.
+  [-1, 1].forEach(side => {
+    const shoulder = new THREE.Vector3(side * shoulderOffset, shoulderY, 0);
+    const elbow = new THREE.Vector3(side * (shoulderOffset + 5.0 * bodyScale), yOffset + torsoHeight * 0.55, 0.8 * bodyScale);
+    const wrist = new THREE.Vector3(side * (shoulderOffset + 5.5 * bodyScale), yOffset + 13 * bodyScale, 1.0 * bodyScale);
+    const palm = new THREE.Vector3(side * (shoulderOffset + 5.8 * bodyScale), yOffset + 8.8 * bodyScale, 1.35 * bodyScale);
+    addEllipsoid(`Shoulder_${side}`, shoulder.x, shoulder.y, shoulder.z,
+      4.4 * bodyScale, 4.7 * bodyScale, 4.2 * bodyScale);
+    addLimbSegment(`UpperArm_${side}`, shoulder, elbow, 3.35 * bodyScale);
+    addEllipsoid(`Elbow_${side}`, elbow.x, elbow.y, elbow.z, 2.8 * bodyScale, 2.8 * bodyScale, 2.8 * bodyScale);
+    addLimbSegment(`Forearm_${side}`, elbow, wrist, 2.65 * bodyScale);
+    addEllipsoid(`Wrist_${side}`, wrist.x, wrist.y, wrist.z, 1.9 * bodyScale, 1.8 * bodyScale, 1.8 * bodyScale);
+    addEllipsoid(`Palm_${side}`, palm.x, palm.y, palm.z, 2.15 * bodyScale, 3.0 * bodyScale, 1.0 * bodyScale);
+    for (let finger = 0; finger < 4; finger++) {
+      const offset = (finger - 1.5) * 0.88 * bodyScale;
+      const start = new THREE.Vector3(palm.x + offset, palm.y - 1.4 * bodyScale, palm.z + 0.05 * bodyScale);
+      const end = new THREE.Vector3(palm.x + offset * 1.12, palm.y - (4.1 + (finger === 1 || finger === 2 ? 0.35 : 0)) * bodyScale,
+        palm.z + 0.12 * bodyScale);
+      addLimbSegment(`Finger_${side}_${finger}`, start, end, 0.48 * bodyScale);
+      addEllipsoid(`Fingertip_${side}_${finger}`, end.x, end.y, end.z,
+        0.48 * bodyScale, 0.55 * bodyScale, 0.48 * bodyScale);
+    }
+    const thumbStart = new THREE.Vector3(palm.x - side * 1.6 * bodyScale, palm.y + 0.1 * bodyScale, palm.z + 0.1 * bodyScale);
+    const thumbEnd = new THREE.Vector3(palm.x - side * 3.0 * bodyScale, palm.y - 2.0 * bodyScale, palm.z + 0.25 * bodyScale);
+    addLimbSegment(`Thumb_${side}`, thumbStart, thumbEnd, 0.65 * bodyScale);
+  });
+
+  // Legs: anatomical thighs, knees, calves, ankles and feet. The central stand
+  // remains behind the body and no longer substitutes for the lower limbs.
+  [-1, 1].forEach(side => {
+    const hip = new THREE.Vector3(side * 9.0 * bodyScale, yOffset + 2.0 * bodyScale, 0);
+    const knee = new THREE.Vector3(side * 9.6 * bodyScale, yOffset * 0.52, 0.2 * bodyScale);
+    const ankle = new THREE.Vector3(side * 10.0 * bodyScale, 5.0 * bodyScale, 0.15 * bodyScale);
+    addEllipsoid(`HipJoint_${side}`, hip.x, hip.y, hip.z, 5.2 * bodyScale, 6.0 * bodyScale, 5.5 * bodyScale);
+    addLimbSegment(`Thigh_${side}`, hip, knee, 5.0 * bodyScale);
+    addEllipsoid(`Knee_${side}`, knee.x, knee.y, knee.z, 3.8 * bodyScale, 3.8 * bodyScale, 3.7 * bodyScale);
+    addLimbSegment(`Calf_${side}`, knee, ankle, 3.45 * bodyScale);
+    addEllipsoid(`Ankle_${side}`, ankle.x, ankle.y, ankle.z, 2.35 * bodyScale, 2.5 * bodyScale, 2.5 * bodyScale);
+    addEllipsoid(`Foot_${side}`, side * 10.0 * bodyScale, 2.5 * bodyScale, 4.0 * bodyScale,
+      3.4 * bodyScale, 2.2 * bodyScale, 6.8 * bodyScale);
+    addEllipsoid(`Heel_${side}`, side * 10.0 * bodyScale, 2.3 * bodyScale, -1.2 * bodyScale,
+      2.6 * bodyScale, 2.2 * bodyScale, 2.8 * bodyScale);
   });
 
   root.add(torsoGroup);
