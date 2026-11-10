@@ -320,114 +320,144 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     setActiveCursorPos(null);
   }, []);
 
-  // Split segment at specific point (Insert new vertex node)
+  // Split a line or Bezier curve at the closest point without changing its shape.
   const handleSplitSegmentAtPoint = useCallback((pieceId: string, segId: string, splitPt: CadPoint) => {
-    const updated = pieces.map(piece => {
-      if (piece.id !== pieceId) return piece;
+    const piece = pieces.find(p => p.id === pieceId);
+    const original = piece?.segments.find(s => s.id === segId);
+    if (!piece || !original) return;
 
-      const segIdx = piece.segments.findIndex(s => s.id === segId);
-      if (segIdx === -1) return piece;
-
-      const origSeg = piece.segments[segIdx];
-      const ptSnap: CadPoint = { x: +splitPt.x.toFixed(2), y: +splitPt.y.toFixed(2) };
-
-      const seg1: CadSegment = {
-        ...origSeg,
-        id: `seg_split_a_${Date.now()}`,
-        p1: origSeg.p1,
-        p2: ptSnap,
-        type: 'line',
-        cp1: undefined,
-        cp2: undefined,
-        lengthCm: +distance(origSeg.p1, ptSnap).toFixed(1),
-        label: `قسم 1 (${+distance(origSeg.p1, ptSnap).toFixed(1)} سم)`
+    const pointAt = (t: number): CadPoint => {
+      const u = 1 - t;
+      if (original.type === 'quad' && original.cp1) {
+        return {
+          x: u * u * original.p1.x + 2 * u * t * original.cp1.x + t * t * original.p2.x,
+          y: u * u * original.p1.y + 2 * u * t * original.cp1.y + t * t * original.p2.y
+        };
+      }
+      if (original.type === 'bezier' && original.cp1 && original.cp2) {
+        return {
+          x: u ** 3 * original.p1.x + 3 * u * u * t * original.cp1.x + 3 * u * t * t * original.cp2.x + t ** 3 * original.p2.x,
+          y: u ** 3 * original.p1.y + 3 * u * u * t * original.cp1.y + 3 * u * t * t * original.cp2.y + t ** 3 * original.p2.y
+        };
+      }
+      return {
+        x: original.p1.x + (original.p2.x - original.p1.x) * t,
+        y: original.p1.y + (original.p2.y - original.p1.y) * t
       };
+    };
 
-      const seg2: CadSegment = {
-        ...origSeg,
-        id: `seg_split_b_${Date.now()}`,
-        p1: ptSnap,
-        p2: origSeg.p2,
-        type: 'line',
-        cp1: undefined,
-        cp2: undefined,
-        lengthCm: +distance(ptSnap, origSeg.p2).toFixed(1),
-        label: `قسم 2 (${+distance(ptSnap, origSeg.p2).toFixed(1)} سم)`
-      };
+    // Project the click onto the actual path; sample curves densely, then refine locally.
+    let bestT = 0.5;
+    let bestDistance = Infinity;
+    const samples = original.type === 'line' ? 1 : 80;
+    for (let i = 0; i <= samples; i++) {
+      const t = i / samples;
+      const d = distance(splitPt, pointAt(t));
+      if (d < bestDistance) { bestDistance = d; bestT = t; }
+    }
+    if (original.type === 'line') {
+      const dx = original.p2.x - original.p1.x;
+      const dy = original.p2.y - original.p1.y;
+      const denom = dx * dx + dy * dy;
+      bestT = denom ? Math.max(0, Math.min(1, ((splitPt.x-original.p1.x)*dx + (splitPt.y-original.p1.y)*dy) / denom)) : 0.5;
+    } else {
+      let lo = Math.max(0, bestT - 1 / samples), hi = Math.min(1, bestT + 1 / samples);
+      for (let i = 0; i < 18; i++) {
+        const t1 = lo + (hi - lo) / 3, t2 = hi - (hi - lo) / 3;
+        if (distance(splitPt, pointAt(t1)) <= distance(splitPt, pointAt(t2))) hi = t2;
+        else lo = t1;
+      }
+      bestT = (lo + hi) / 2;
+    }
+    if (bestT < 0.015 || bestT > 0.985) return;
 
-      const newSegs = [...piece.segments];
-      newSegs.splice(segIdx, 1, seg1, seg2);
-      return { ...piece, segments: newSegs };
+    const lerp = (a: CadPoint, b: CadPoint, t: number): CadPoint => ({
+      x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t
     });
+    let first: CadSegment;
+    let second: CadSegment;
+    const splitPoint = pointAt(bestT);
+    if (original.type === 'quad' && original.cp1) {
+      const a = lerp(original.p1, original.cp1, bestT);
+      const b = lerp(original.cp1, original.p2, bestT);
+      first = { ...original, id: `${segId}_a_${Date.now()}`, p2: splitPoint, cp1: a, lengthCm: +quadLength(original.p1, a, splitPoint).toFixed(2) };
+      second = { ...original, id: `${segId}_b_${Date.now()}`, p1: splitPoint, cp1: b, lengthCm: +quadLength(splitPoint, b, original.p2).toFixed(2) };
+    } else if (original.type === 'bezier' && original.cp1 && original.cp2) {
+      const a = lerp(original.p1, original.cp1, bestT);
+      const b = lerp(original.cp1, original.cp2, bestT);
+      const c = lerp(original.cp2, original.p2, bestT);
+      const d = lerp(a, b, bestT);
+      const e = lerp(b, c, bestT);
+      first = { ...original, id: `${segId}_a_${Date.now()}`, p2: splitPoint, cp1: a, cp2: d, lengthCm: +bezierLength(original.p1, a, d, splitPoint).toFixed(2) };
+      second = { ...original, id: `${segId}_b_${Date.now()}`, p1: splitPoint, cp1: e, cp2: c, lengthCm: +bezierLength(splitPoint, e, c, original.p2).toFixed(2) };
+    } else {
+      first = { ...original, id: `${segId}_a_${Date.now()}`, p2: splitPoint, lengthCm: +distance(original.p1, splitPoint).toFixed(2) };
+      second = { ...original, id: `${segId}_b_${Date.now()}`, p1: splitPoint, lengthCm: +distance(splitPoint, original.p2).toFixed(2) };
+    }
 
+    const updated = pieces.map(p => p.id !== pieceId ? p : {
+      ...p,
+      segments: p.segments.flatMap(s => s.id === segId ? [first, second] : [s])
+    });
     setPieces(updated);
-    pushHistory('إضافة نقطة ارتكاز جديدة (تقسيم الخط)', updated);
+    setSelectedPieceId(pieceId);
+    setSelectedSegmentId(second.id);
+    setSelectedNode(null);
+    pushHistory('تقسيم المسار مع الحفاظ على شكله', updated);
   }, [pieces]);
 
-  // Delete selected node
-  const handleDeleteSelectedNode = useCallback(() => {
-    if (!selectedNode) return;
-    const { pieceId, segId, pointKey } = selectedNode;
-
+  // Delete a selected endpoint/control handle. Accept explicit target so click handlers never read stale state.
+  const handleDeleteNodeAt = useCallback((target: { pieceId: string; segId: string; pointKey: 'p1' | 'p2' | 'cp1' | 'cp2' }) => {
+    const { pieceId, segId, pointKey } = target;
+    let changed = false;
     const updated = pieces.map(piece => {
       if (piece.id !== pieceId) return piece;
+      const segIdx = piece.segments.findIndex(s => s.id === segId);
+      if (segIdx < 0) return piece;
+      const current = piece.segments[segIdx];
 
       if (pointKey === 'cp1' || pointKey === 'cp2') {
-        const updatedSegs = piece.segments.map(s => {
-          if (s.id === segId) {
-            return {
-              ...s,
-              type: 'line' as const,
-              cp1: undefined,
-              cp2: undefined,
-              lengthCm: +distance(s.p1, s.p2).toFixed(1)
-            };
-          }
-          return s;
-        });
-        return { ...piece, segments: updatedSegs };
+        if (current.type === 'line') return piece;
+        changed = true;
+        const segments = piece.segments.map(s => s.id !== segId ? s : ({
+          ...s, type: 'line' as const, cp1: undefined, cp2: undefined,
+          lengthCm: +distance(s.p1, s.p2).toFixed(2)
+        }));
+        return { ...piece, segments };
       }
 
-      const segIdx = piece.segments.findIndex(s => s.id === segId);
-      if (segIdx === -1) return piece;
       if (piece.segments.length <= 2) return piece;
-
-      const curSeg = piece.segments[segIdx];
-      const targetPoint = curSeg[pointKey];
-
-      const otherIdx = piece.segments.findIndex((s, idx) => 
-        idx !== segIdx && (distance(s.p1, targetPoint) < 0.3 || distance(s.p2, targetPoint) < 0.3)
+      const targetPoint = current[pointKey];
+      const otherIdx = piece.segments.findIndex((s, idx) =>
+        idx !== segIdx && (distance(s.p1, targetPoint) < 0.01 || distance(s.p2, targetPoint) < 0.01)
       );
+      if (otherIdx < 0) return piece;
 
-      if (otherIdx !== -1) {
-        const otherSeg = piece.segments[otherIdx];
-        const mergedP1 = distance(otherSeg.p1, targetPoint) < 0.3 ? otherSeg.p2 : otherSeg.p1;
-        const mergedP2 = distance(curSeg.p1, targetPoint) < 0.3 ? curSeg.p2 : curSeg.p1;
-
-        const mergedSeg: CadSegment = {
-          ...curSeg,
-          id: `seg_merged_${Date.now()}`,
-          p1: mergedP1,
-          p2: mergedP2,
-          type: 'line',
-          cp1: undefined,
-          cp2: undefined,
-          lengthCm: +distance(mergedP1, mergedP2).toFixed(1),
-          label: `مدمج: ${+distance(mergedP1, mergedP2).toFixed(1)} سم`
-        };
-
-        const newSegs = piece.segments.filter((_, idx) => idx !== segIdx && idx !== otherIdx);
-        newSegs.splice(Math.min(segIdx, otherIdx), 0, mergedSeg);
-        return { ...piece, segments: newSegs };
-      }
-
-      return piece;
+      const other = piece.segments[otherIdx];
+      const otherAtP1 = distance(other.p1, targetPoint) < 0.01;
+      const currentAtP1 = distance(current.p1, targetPoint) < 0.01;
+      const mergedP1 = otherAtP1 ? other.p2 : other.p1;
+      const mergedP2 = currentAtP1 ? current.p2 : current.p1;
+      const merged: CadSegment = {
+        ...current, id: `seg_merged_${Date.now()}`, p1: mergedP1, p2: mergedP2,
+        type: 'line', cp1: undefined, cp2: undefined,
+        lengthCm: +distance(mergedP1, mergedP2).toFixed(2),
+        label: `مدمج: ${distance(mergedP1, mergedP2).toFixed(1)} سم`
+      };
+      const segments = piece.segments.filter((_, idx) => idx !== segIdx && idx !== otherIdx);
+      segments.splice(Math.min(segIdx, otherIdx), 0, merged);
+      changed = true;
+      return { ...piece, segments };
     });
-
+    if (!changed) return;
     setPieces(updated);
     setSelectedNode(null);
     pushHistory('حذف نقطة ارتكاز ودمج المسارات', updated);
-  }, [selectedNode, pieces]);
+  }, [pieces]);
+
+  const handleDeleteSelectedNode = useCallback(() => {
+    if (selectedNode) handleDeleteNodeAt(selectedNode);
+  }, [selectedNode, handleDeleteNodeAt]);
 
   // Toggle segment curvature (Line <-> Quad curve)
   const handleToggleNodeType = useCallback(() => {
@@ -844,7 +874,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   };
 
   // Convert client cursor to CAD coordinates with axis lock & snapping
-  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent, referenceStartPt?: CadPoint | null): CadPoint | null => {
+  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent, referenceStartPt?: CadPoint | null, applySnap: boolean = true): CadPoint | null => {
     if (!svgRef.current) return null;
     const rect = svgRef.current.getBoundingClientRect();
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -865,7 +895,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const rawPt = { x: +svgX.toFixed(2), y: +svgY.toFixed(2) };
 
     // Apply smart snapping
-    const snap = getSnapTarget(rawPt);
+    const snap = applySnap ? getSnapTarget(rawPt) : null;
     if (snap) {
       setActiveSnapTarget(snap);
       return snap.point;
@@ -948,23 +978,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           label: `منحنى: ${len} سم`,
           lengthCm: len
         };
-        const updated = [...pieces];
-        if (updated.length > 0) {
-          updated[0].segments.push(newSeg);
-        } else {
-          updated.push({
-            id: `piece_custom_${Date.now()}`,
-            name: 'Custom Piece',
-            nameAr: 'قطعة هندسية مخصصة',
-            garmentType: 'custom',
-            segments: [newSeg],
-            notches: [],
-            grainlines: [],
-            seamAllowanceCm: 1.5,
-            notes: 'رسم منحنى قياسي'
-          });
-        }
+        const newPiece: CadPiece = {
+          id: `piece_custom_quad_${Date.now()}`,
+          name: 'Custom Curve', nameAr: 'منحنى مخصص',
+          garmentType: 'custom', segments: [newSeg], notches: [], grainlines: [],
+          seamAllowanceCm: 1.5, notes: 'رسم منحنى قياسي'
+        };
+        const updated = [...pieces, newPiece];
         setPieces(updated);
+        setSelectedPieceId(newPiece.id);
+        setSelectedSegmentId(newSeg.id);
         pushHistory('رسم منحنى قياسي (QuadCurve)', updated);
         setDrawingPoints([]);
       }
@@ -992,23 +1015,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           label: `منحنى بيزيه: ${len} سم`,
           lengthCm: len
         };
-        const updated = [...pieces];
-        if (updated.length > 0) {
-          updated[0].segments.push(newSeg);
-        } else {
-          updated.push({
-            id: `piece_custom_${Date.now()}`,
-            name: 'Custom Piece',
-            nameAr: 'قطعة هندسية مخصصة',
-            garmentType: 'custom',
-            segments: [newSeg],
-            notches: [],
-            grainlines: [],
-            seamAllowanceCm: 1.5,
-            notes: 'رسم منحنى بيزيه'
-          });
-        }
+        const newPiece: CadPiece = {
+          id: `piece_custom_bezier_${Date.now()}`,
+          name: 'Custom Bezier', nameAr: 'منحنى بيزيه مخصص',
+          garmentType: 'custom', segments: [newSeg], notches: [], grainlines: [],
+          seamAllowanceCm: 1.5, notes: 'رسم منحنى بيزيه'
+        };
+        const updated = [...pieces, newPiece];
         setPieces(updated);
+        setSelectedPieceId(newPiece.id);
+        setSelectedSegmentId(newSeg.id);
         pushHistory('رسم منحنى بيزيه احترافي (Bezier)', updated);
         setDrawingPoints([]);
       }
@@ -1039,13 +1055,11 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       for (const piece of pieces) {
         for (const seg of piece.segments) {
           if (distance(pt, seg.p1) < 2.0) {
-            setSelectedNode({ pieceId: piece.id, segId: seg.id, pointKey: 'p1' });
-            handleDeleteSelectedNode();
+            handleDeleteNodeAt({ pieceId: piece.id, segId: seg.id, pointKey: 'p1' });
             return;
           }
           if (distance(pt, seg.p2) < 2.0) {
-            setSelectedNode({ pieceId: piece.id, segId: seg.id, pointKey: 'p2' });
-            handleDeleteSelectedNode();
+            handleDeleteNodeAt({ pieceId: piece.id, segId: seg.id, pointKey: 'p2' });
             return;
           }
         }
@@ -1075,8 +1089,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           depthCm: 0.6,
           label: 'نوتش مخصص'
         };
-        const updated = [...pieces];
-        updated[0].notches.push(newNotch);
+        const updated = pieces.map((piece, index) => index === 0 ? { ...piece, notches: [...piece.notches, newNotch] } : piece);
         setPieces(updated);
         pushHistory('إضافة علامة نوتش', updated);
       }
@@ -1092,8 +1105,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           p2: { x: pt.x, y: pt.y + 30 },
           label: 'اتجاه النسيج'
         };
-        const updated = [...pieces];
-        updated[0].grainlines.push(newGrain);
+        const updated = pieces.map((piece, index) => index === 0 ? { ...piece, grainlines: [...piece.grainlines, newGrain] } : piece);
         setPieces(updated);
         pushHistory('إضافة خط اتجاه النسيج', updated);
       }
@@ -1121,7 +1133,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
     const refPt = drawingPoints.length > 0 ? drawingPoints[0] : null;
-    const pt = getCanvasCoords(e, refPt);
+    const pt = getCanvasCoords(e, refPt, !isDraggingNode);
     if (pt) setActiveCursorPos(pt);
 
     if (selectedNode && isDraggingNode) {
@@ -1209,8 +1221,18 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    setZoom(z => Math.max(0.3, Math.min(3.5, z * zoomFactor)));
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const factor = e.deltaY < 0 ? 1.12 : 0.88;
+    const nextZoom = Math.max(0.3, Math.min(3.5, zoom * factor));
+    const ratio = nextZoom / zoom;
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+    setPan(current => ({
+      x: cursorX - (cursorX - current.x) * ratio,
+      y: cursorY - (cursorY - current.y) * ratio
+    }));
+    setZoom(nextZoom);
   };
 
   const handleDoubleTap = () => {
@@ -1364,10 +1386,12 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           onMouseDown={handlePointerDown}
           onMouseMove={handlePointerMove}
           onMouseUp={handlePointerUp}
+          onMouseLeave={handlePointerUp}
           onWheel={handleWheel}
           onTouchStart={handlePointerDown}
           onTouchMove={handlePointerMove}
           onTouchEnd={handlePointerUp}
+          onTouchCancel={handlePointerUp}
           onDoubleClick={handleDoubleTap}
           className="flex-1 h-full bg-slate-950 overflow-hidden cursor-crosshair relative touch-none"
         >
