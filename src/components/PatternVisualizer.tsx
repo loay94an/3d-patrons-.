@@ -128,7 +128,11 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
 
     setPatternInputs(updatedInputs);
     const result = generatePatternByNumbers(updatedInputs, workFrame);
-    setPieces(result.pieces);
+    // Refresh generated garment pieces without discarding user-created freehand geometry.
+    setPieces(currentPieces => [
+      ...result.pieces,
+      ...currentPieces.filter(piece => piece.garmentType === 'custom')
+    ]);
     setSummaries(result.summaries);
   }, [state.gender, state.size, state.customMeasurements]);
 
