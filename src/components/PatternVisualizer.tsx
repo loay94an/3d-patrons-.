@@ -18,6 +18,7 @@ import {
   distance, angleBetween, midPoint, quadLength, bezierLength
 } from '../lib/pattern-cad-engine';
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
+import { offsetCadContour } from '../lib/offset-geometry';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
 import { CadFloatingProperties } from './CadFloatingProperties';
 import { PatternByNumbersModal } from './PatternByNumbersModal';
@@ -702,9 +703,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     pushHistory(`تحديث بدل خياطة ${edgeType} إلى ${allowanceCm} سم`, updated);
   };
 
-  // Build a visible parallel seam contour from the cutting segments.
+  // Build a constant-distance cutting contour using the geometry engine.
   const handleApplySeamAllowance = () => {
     const targetId = selectedPieceId;
+    const errors: string[] = [];
     const updated = pieces.map(piece => {
       if (targetId && piece.id !== targetId) return piece;
       const cutting = piece.segments.filter(seg => seg.layer === 'cutting');
@@ -713,71 +715,38 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
         return { ...piece, seamAllowanceCm: 0, segments: piece.segments.filter(seg => seg.layer !== 'seam') };
       }
 
-      const vertices = cutting.map(seg => seg.p1);
-      const area = vertices.reduce((sum, point, index) => {
-        const next = vertices[(index + 1) % vertices.length];
-        return sum + point.x * next.y - next.x * point.y;
-      }, 0) / 2;
-      const orientation = area >= 0 ? 1 : -1;
-      const unitNormal = (seg: CadSegment, atStart: boolean): CadPoint => {
-        let dx = seg.p2.x - seg.p1.x, dy = seg.p2.y - seg.p1.y;
-        if (seg.type === 'quad' && seg.cp1) {
-          dx = atStart ? seg.cp1.x - seg.p1.x : seg.p2.x - seg.cp1.x;
-          dy = atStart ? seg.cp1.y - seg.p1.y : seg.p2.y - seg.cp1.y;
-        } else if (seg.type === 'bezier' && seg.cp1 && seg.cp2) {
-          dx = atStart ? seg.cp1.x - seg.p1.x : seg.p2.x - seg.cp2.x;
-          dy = atStart ? seg.cp1.y - seg.p1.y : seg.p2.y - seg.cp2.y;
-        }
-        const length = Math.hypot(dx, dy) || 1;
-        return { x: orientation * -dy / length, y: orientation * dx / length };
-      };
-      const offsetVertex = (point: CadPoint, current: CadSegment, atStart: boolean): CadPoint => {
-        const own = unitNormal(current, atStart);
-        const adjacent = cutting.find(seg => seg.id !== current.id && (
-          distance(seg.p1, point) < 0.02 || distance(seg.p2, point) < 0.02
-        ));
-        if (!adjacent) return { x: point.x + own.x * seamAllowanceCm, y: point.y + own.y * seamAllowanceCm };
-        const other = unitNormal(adjacent, distance(adjacent.p1, point) < 0.02);
-        const sumX = own.x + other.x, sumY = own.y + other.y;
-        const sumLength = Math.hypot(sumX, sumY);
-        if (sumLength < 0.001) return { x: point.x + own.x * seamAllowanceCm, y: point.y + own.y * seamAllowanceCm };
-        const mx = sumX / sumLength, my = sumY / sumLength;
-        const scale = Math.min(seamAllowanceCm * 4, seamAllowanceCm / Math.max(0.25, mx * own.x + my * own.y));
-        return { x: point.x + mx * scale, y: point.y + my * scale };
-      };
-      const seamSegments: CadSegment[] = cutting.map(seg => {
-        const p1 = offsetVertex(seg.p1, seg, true);
-        const p2 = offsetVertex(seg.p2, seg, false);
-        const shiftControl = (control: CadPoint | undefined, t: number): CadPoint | undefined => {
-          if (!control) return undefined;
-          const dx = seg.p2.x - seg.p1.x, dy = seg.p2.y - seg.p1.y;
-          const len = Math.hypot(dx, dy) || 1;
-          const normal = { x: orientation * -dy / len, y: orientation * dx / len };
-          return { x: control.x + normal.x * seamAllowanceCm, y: control.y + normal.y * seamAllowanceCm };
-        };
-        const cp1 = shiftControl(seg.cp1, 0.25);
-        const cp2 = shiftControl(seg.cp2, 0.75);
-        const shifted: CadSegment = {
-          ...seg, id: `seam_${seg.id}`, layer: 'seam', p1, p2, cp1, cp2,
-          label: `سماحة خياطة ${seamAllowanceCm} سم`
-        };
-        shifted.lengthCm = shifted.type === 'line'
-          ? distance(p1, p2)
-          : shifted.type === 'quad' && cp1
-          ? quadLength(p1, cp1, p2)
-          : shifted.type === 'bezier' && cp1 && cp2
-          ? bezierLength(p1, cp1, cp2, p2)
-          : distance(p1, p2);
-        return shifted;
+      const offset = offsetCadContour(cutting, seamAllowanceCm, {
+        toleranceCm: 0.02,
+        miterLimit: 4,
+        closeToleranceCm: 0.05,
+        edgeAllowances: piece.edgeSeamAllowances
       });
+      if (!offset.valid) {
+        errors.push(`${piece.nameAr || piece.name}: ${offset.warnings.join('، ')}`);
+        return piece;
+      }
+      if (offset.warnings.length) {
+        errors.push(`${piece.nameAr || piece.name}: ${offset.warnings.join('، ')}`);
+      }
+
       return {
         ...piece,
         seamAllowanceCm,
-        segments: [...piece.segments.filter(seg => seg.layer !== 'seam'), ...seamSegments]
+        segments: [
+          ...piece.segments.filter(seg => seg.layer !== 'seam'),
+          ...offset.segments.map((segment, index) => ({
+            ...segment,
+            id: `seam_${piece.id}_${index}`,
+            label: `سماحة خياطة ${seamAllowanceCm} سم`
+          }))
+        ]
       };
     });
     setPieces(updated);
-    pushHistory(`تطبيق سماحة خياطة ${seamAllowanceCm} سم`, updated);
+    pushHistory(`تطبيق سماحة خياطة هندسية ${seamAllowanceCm} سم`, updated);
+    if (errors.length) {
+      window.alert(errors.join('\n'));
+    }
   };
 
   // Mirror Piece along horizontal/vertical center
