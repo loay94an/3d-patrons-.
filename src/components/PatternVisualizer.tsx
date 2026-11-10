@@ -65,6 +65,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
   const [showQuickProperties, setShowQuickProperties] = useState(false);
   const [showSpecsTable, setShowSpecsTable] = useState(false);
+  const [showSeamAllowanceControl, setShowSeamAllowanceControl] = useState(false);
 
   // Pattern By Numbers Data State (16 fields)
   const [patternInputs, setPatternInputs] = useState<PatternByNumbersInput>(() => {
@@ -706,26 +707,79 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     pushHistory(`تحديث بدل خياطة ${edgeType} إلى ${allowanceCm} سم`, updated);
   };
 
-  // Seam Allowance Global Applicator
+  // Build a visible parallel seam contour from the cutting segments.
   const handleApplySeamAllowance = () => {
+    const targetId = selectedPieceId;
     const updated = pieces.map(piece => {
-      const updatedSegments = piece.segments.map(seg => {
-        if (seg.layer === 'stitch') {
-          return {
-            ...seg,
-            label: `خط الخياطة (بدل ${seamAllowanceCm} سم)`
-          };
+      if (targetId && piece.id !== targetId) return piece;
+      const cutting = piece.segments.filter(seg => seg.layer === 'cutting');
+      if (cutting.length < 2) return piece;
+
+      const vertices = cutting.map(seg => seg.p1);
+      const area = vertices.reduce((sum, point, index) => {
+        const next = vertices[(index + 1) % vertices.length];
+        return sum + point.x * next.y - next.x * point.y;
+      }, 0) / 2;
+      const orientation = area >= 0 ? 1 : -1;
+      const unitNormal = (seg: CadSegment, atStart: boolean): CadPoint => {
+        let dx = seg.p2.x - seg.p1.x, dy = seg.p2.y - seg.p1.y;
+        if (seg.type === 'quad' && seg.cp1) {
+          dx = atStart ? seg.cp1.x - seg.p1.x : seg.p2.x - seg.cp1.x;
+          dy = atStart ? seg.cp1.y - seg.p1.y : seg.p2.y - seg.cp1.y;
+        } else if (seg.type === 'bezier' && seg.cp1 && seg.cp2) {
+          dx = atStart ? seg.cp1.x - seg.p1.x : seg.p2.x - seg.cp2.x;
+          dy = atStart ? seg.cp1.y - seg.p1.y : seg.p2.y - seg.cp2.y;
         }
-        return seg;
+        const length = Math.hypot(dx, dy) || 1;
+        return { x: orientation * -dy / length, y: orientation * dx / length };
+      };
+      const offsetVertex = (point: CadPoint, current: CadSegment, atStart: boolean): CadPoint => {
+        const own = unitNormal(current, atStart);
+        const adjacent = cutting.find(seg => seg.id !== current.id && (
+          distance(seg.p1, point) < 0.02 || distance(seg.p2, point) < 0.02
+        ));
+        if (!adjacent) return { x: point.x + own.x * seamAllowanceCm, y: point.y + own.y * seamAllowanceCm };
+        const other = unitNormal(adjacent, distance(adjacent.p1, point) < 0.02);
+        const sumX = own.x + other.x, sumY = own.y + other.y;
+        const sumLength = Math.hypot(sumX, sumY);
+        if (sumLength < 0.001) return { x: point.x + own.x * seamAllowanceCm, y: point.y + own.y * seamAllowanceCm };
+        const mx = sumX / sumLength, my = sumY / sumLength;
+        const scale = Math.min(seamAllowanceCm * 4, seamAllowanceCm / Math.max(0.25, mx * own.x + my * own.y));
+        return { x: point.x + mx * scale, y: point.y + my * scale };
+      };
+      const seamSegments: CadSegment[] = cutting.map(seg => {
+        const p1 = offsetVertex(seg.p1, seg, true);
+        const p2 = offsetVertex(seg.p2, seg, false);
+        const shiftControl = (control: CadPoint | undefined, t: number): CadPoint | undefined => {
+          if (!control) return undefined;
+          const dx = seg.p2.x - seg.p1.x, dy = seg.p2.y - seg.p1.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const normal = { x: orientation * -dy / len, y: orientation * dx / len };
+          return { x: control.x + normal.x * seamAllowanceCm, y: control.y + normal.y * seamAllowanceCm };
+        };
+        const cp1 = shiftControl(seg.cp1, 0.25);
+        const cp2 = shiftControl(seg.cp2, 0.75);
+        const shifted: CadSegment = {
+          ...seg, id: `seam_${seg.id}`, layer: 'seam', p1, p2, cp1, cp2,
+          label: `سماحة خياطة ${seamAllowanceCm} سم`
+        };
+        shifted.lengthCm = shifted.type === 'line'
+          ? distance(p1, p2)
+          : shifted.type === 'quad' && cp1
+          ? quadLength(p1, cp1, p2)
+          : shifted.type === 'bezier' && cp1 && cp2
+          ? bezierLength(p1, cp1, cp2, p2)
+          : distance(p1, p2);
+        return shifted;
       });
       return {
         ...piece,
-        seamAllowanceCm: seamAllowanceCm,
-        segments: updatedSegments
+        seamAllowanceCm,
+        segments: [...piece.segments.filter(seg => seg.layer !== 'seam'), ...seamSegments]
       };
     });
     setPieces(updated);
-    pushHistory(`تطبيق سماحة خياطة عامة ${seamAllowanceCm} سم`, updated);
+    pushHistory(`تطبيق سماحة خياطة ${seamAllowanceCm} سم`, updated);
   };
 
   // Mirror Piece along horizontal/vertical center
@@ -1354,7 +1408,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
             return (
               <button
                 key={tool.id}
-                onClick={() => setActiveTool(tool.id)}
+                onClick={() => {
+                  setActiveTool(tool.id);
+                  setShowSeamAllowanceControl(tool.id === 'seam_allowance' ? value => !value : false);
+                }}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 group relative ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
@@ -1411,6 +1468,24 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
             <RotateCw className="w-5 h-5" />
           </button>
         </div>
+
+        {showSeamAllowanceControl && (
+          <div className="absolute right-14 top-3 z-30 w-56 rounded-xl border border-slate-700 bg-slate-900 p-3 text-white shadow-2xl" dir="rtl">
+            <div className="mb-2 flex items-center justify-between text-xs font-bold">
+              <span>سماحة الخياطة</span>
+              <span className="font-mono text-amber-300">{seamAllowanceCm.toFixed(2)} سم</span>
+            </div>
+            <input
+              type="range" min="0" max="4" step="0.25" value={seamAllowanceCm}
+              onChange={e => setSeamAllowanceCm(Number(e.target.value))}
+              className="mb-3 w-full accent-amber-500"
+              aria-label="مقدار سماحة الخياطة بالسنتيمتر"
+            />
+            <button onClick={handleApplySeamAllowance} className="w-full rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold hover:bg-amber-500">
+              تطبيق على {selectedPieceId ? 'القطعة المحددة' : 'كل القطع'}
+            </button>
+          </div>
+        )}
 
         {/* CENTER UNOBSTRUCTED CANVAS (مساحة عرض الباترون الصافية والنظيفة تماماً) */}
         <div
@@ -1538,7 +1613,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                     )}
 
                     {/* 1. Path Segments */}
-                    {piece.segments.map(seg => {
+                    {piece.segments.filter(seg => seg.layer === 'cutting').map(seg => {
                       const isVisible = (seg.layer === 'cutting' && layers.cutting) ||
                                         (seg.layer === 'stitch' && layers.stitch) ||
                                         (seg.layer === 'seam' && layers.seam);
