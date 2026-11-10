@@ -68,6 +68,7 @@ export function getTorsoProfile(
   angle = 0
 ): TorsoProfile {
   const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+  const child = gender === 'kids' || gender === 'infant';
   const hip = radiiForCircumference(measurements.hip || ref.hip, gender === 'women' ? 0.72 : 0.76);
   const waist = radiiForCircumference(measurements.waist || ref.waist, gender === 'women' ? 0.74 : 0.79);
   const bust = radiiForCircumference(measurements.bust || ref.bust, gender === 'women' ? 0.72 : 0.77);
