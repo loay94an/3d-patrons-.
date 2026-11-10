@@ -718,6 +718,9 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       if (targetId && piece.id !== targetId) return piece;
       const cutting = piece.segments.filter(seg => seg.layer === 'cutting');
       if (cutting.length < 2) return piece;
+      if (seamAllowanceCm <= 0) {
+        return { ...piece, seamAllowanceCm: 0, segments: piece.segments.filter(seg => seg.layer !== 'seam') };
+      }
 
       const vertices = cutting.map(seg => seg.p1);
       const area = vertices.reduce((sum, point, index) => {
