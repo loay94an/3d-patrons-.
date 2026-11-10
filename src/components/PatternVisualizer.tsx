@@ -148,6 +148,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     pointKey: 'p1' | 'p2' | 'cp1' | 'cp2';
   } | null>(null);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
+  const [draggingPiece, setDraggingPiece] = useState<{ pieceId: string; start: CadPoint; original: CadPiece } | null>(null);
   const [hoveredNode, setHoveredNode] = useState<{
     pieceId: string;
     segId: string;
@@ -1089,7 +1090,8 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           depthCm: 0.6,
           label: 'نوتش مخصص'
         };
-        const updated = pieces.map((piece, index) => index === 0 ? { ...piece, notches: [...piece.notches, newNotch] } : piece);
+        const targetId = selectedPieceId || pieces[0].id;
+        const updated = pieces.map(piece => piece.id === targetId ? { ...piece, notches: [...piece.notches, newNotch] } : piece);
         setPieces(updated);
         pushHistory('إضافة علامة نوتش', updated);
       }
@@ -1105,7 +1107,8 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           p2: { x: pt.x, y: pt.y + 30 },
           label: 'اتجاه النسيج'
         };
-        const updated = pieces.map((piece, index) => index === 0 ? { ...piece, grainlines: [...piece.grainlines, newGrain] } : piece);
+        const targetId = selectedPieceId || pieces[0].id;
+        const updated = pieces.map(piece => piece.id === targetId ? { ...piece, grainlines: [...piece.grainlines, newGrain] } : piece);
         setPieces(updated);
         pushHistory('إضافة خط اتجاه النسيج', updated);
       }
@@ -1135,6 +1138,30 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const refPt = drawingPoints.length > 0 ? drawingPoints[0] : null;
     const pt = getCanvasCoords(e, refPt, !isDraggingNode);
     if (pt) setActiveCursorPos(pt);
+
+    if (draggingPiece && pt) {
+      const dx = pt.x - draggingPiece.start.x;
+      const dy = pt.y - draggingPiece.start.y;
+      const movePoint = (point?: CadPoint): CadPoint | undefined => point ? ({
+        ...point, x: +(point.x + dx).toFixed(2), y: +(point.y + dy).toFixed(2)
+      }) : undefined;
+      const original = draggingPiece.original;
+      const moved: CadPiece = {
+        ...original,
+        segments: original.segments.map(seg => ({
+          ...seg,
+          p1: movePoint(seg.p1)!,
+          p2: movePoint(seg.p2)!,
+          cp1: movePoint(seg.cp1),
+          cp2: movePoint(seg.cp2),
+          badgePos: movePoint(seg.badgePos)
+        })),
+        notches: original.notches.map(notch => ({ ...notch, point: movePoint(notch.point)! })),
+        grainlines: original.grainlines.map(line => ({ ...line, p1: movePoint(line.p1)!, p2: movePoint(line.p2)! }))
+      };
+      setPieces(current => current.map(piece => piece.id === draggingPiece.pieceId ? moved : piece));
+      return;
+    }
 
     if (selectedNode && isDraggingNode) {
       if (pt) {
@@ -1214,6 +1241,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       setIsDraggingNode(false);
       setAlignmentGuide(null);
       pushHistory('تحريك نقطة ارتكاز', pieces);
+    }
+    if (draggingPiece) {
+      setDraggingPiece(null);
+      pushHistory('تحريك قطعة كاملة', pieces);
     }
     setIsPanning(false);
     setTouchDistance(null);
@@ -1532,10 +1563,29 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                       return (
                         <g
                           key={seg.id}
+                          onMouseDown={(e) => {
+                            if (activeTool !== 'select_move' || e.button !== 0) return;
+                            e.stopPropagation();
+                            const start = getCanvasCoords(e);
+                            if (!start) return;
+                            setSelectedPieceId(piece.id);
+                            setSelectedSegmentId(seg.id);
+                            setDraggingPiece({ pieceId: piece.id, start, original: piece });
+                          }}
+                          onTouchStart={(e) => {
+                            if (activeTool !== 'select_move') return;
+                            e.stopPropagation();
+                            const start = getCanvasCoords(e);
+                            if (!start) return;
+                            setSelectedPieceId(piece.id);
+                            setSelectedSegmentId(seg.id);
+                            setDraggingPiece({ pieceId: piece.id, start, original: piece });
+                          }}
                           onMouseEnter={() => setHoveredSegment(seg)}
                           onMouseLeave={() => setHoveredSegment(null)}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (draggingPiece) return;
                             setSelectedSegmentId(seg.id);
                             setSelectedPieceId(piece.id);
                             setEditLengthVal(seg.lengthCm || '');
