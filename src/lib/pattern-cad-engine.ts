@@ -1676,7 +1676,10 @@ export function pieceToClosedSvgPath(piece: CadPiece, pxPerCm: number): string {
     }
   });
 
-  return path + 'Z';
+  // Only close genuinely closed contours; open paths must not get an artificial fill edge.
+  const first = cuttingSegs[0].p1;
+  const last = cuttingSegs[cuttingSegs.length - 1].p2;
+  return distance(first, last) < 0.05 ? path + 'Z' : path;
 }
 
 // Helper to convert CAD segment to SVG path string
