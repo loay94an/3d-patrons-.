@@ -10,6 +10,37 @@ import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '..
 import { buildParametricMannequin, MannequinMeasurements, DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 
+/**
+ * Releases GPU-backed resources owned by a Three.js subtree.
+ * Canvas textures (fabric color and bump maps) must be disposed separately
+ * from their materials or repeated garment edits accumulate GPU memory.
+ */
+function disposeObjectResources(root: THREE.Object3D) {
+  const geometries = new Set<THREE.BufferGeometry>();
+  const materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>();
+
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+
+    geometries.add(object.geometry);
+    const objectMaterials = Array.isArray(object.material)
+      ? object.material
+      : [object.material];
+
+    objectMaterials.forEach((material) => {
+      materials.add(material);
+      Object.values(material).forEach((value) => {
+        if (value instanceof THREE.Texture) textures.add(value);
+      });
+    });
+  });
+
+  textures.forEach((texture) => texture.dispose());
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+}
+
 interface Pattern3DViewerProps {
   state: AppState;
   fabricState: FabricCustomState;
@@ -214,7 +245,14 @@ export function Pattern3DViewer({
     return () => {
       if (reqIdRef.current) cancelAnimationFrame(reqIdRef.current);
       ro.disconnect();
+      disposeObjectResources(scene);
+      scene.clear();
       renderer.dispose();
+      renderer.domElement.remove();
+      if (sceneRef.current === scene) sceneRef.current = null;
+      if (rendererRef.current === renderer) rendererRef.current = null;
+      if (cameraRef.current === camera) cameraRef.current = null;
+      reqIdRef.current = null;
     };
   }, []);
 
@@ -226,13 +264,7 @@ export function Pattern3DViewer({
     // 1. Rebuild or Update Mannequin
     if (mannequinGroupRef.current) {
       scene.remove(mannequinGroupRef.current);
-      mannequinGroupRef.current.traverse(obj => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry.dispose();
-          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeObjectResources(mannequinGroupRef.current);
     }
 
     const meas = state.customMeasurements;
@@ -255,13 +287,7 @@ export function Pattern3DViewer({
     // 2. Rebuild Garment Mesh
     if (garmentResultRef.current) {
       scene.remove(garmentResultRef.current.group);
-      garmentResultRef.current.group.traverse(obj => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry.dispose();
-          if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
-          else obj.material.dispose();
-        }
-      });
+      disposeObjectResources(garmentResultRef.current.group);
     }
 
     const fabricMat = createFabricThreeMaterial(fabricState);
