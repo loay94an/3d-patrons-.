@@ -148,7 +148,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     pointKey: 'p1' | 'p2' | 'cp1' | 'cp2';
   } | null>(null);
   const [isDraggingNode, setIsDraggingNode] = useState(false);
-  const [draggingPiece, setDraggingPiece] = useState<{ pieceId: string; start: CadPoint; original: CadPiece } | null>(null);
+  const [draggingPiece, setDraggingPiece] = useState<{ pieceId: string; start: CadPoint; original: CadPiece; moved: boolean } | null>(null);
   const [hoveredNode, setHoveredNode] = useState<{
     pieceId: string;
     segId: string;
@@ -1136,7 +1136,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
     const refPt = drawingPoints.length > 0 ? drawingPoints[0] : null;
-    const pt = getCanvasCoords(e, refPt, !isDraggingNode);
+    const pt = getCanvasCoords(e, refPt, !isDraggingNode && !draggingPiece);
     if (pt) setActiveCursorPos(pt);
 
     if (draggingPiece && pt) {
@@ -1160,6 +1160,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
         grainlines: original.grainlines.map(line => ({ ...line, p1: movePoint(line.p1)!, p2: movePoint(line.p2)! }))
       };
       setPieces(current => current.map(piece => piece.id === draggingPiece.pieceId ? moved : piece));
+      if (!draggingPiece.moved && (Math.abs(dx) > 0.02 || Math.abs(dy) > 0.02)) setDraggingPiece(current => current ? { ...current, moved: true } : null);
       return;
     }
 
@@ -1244,7 +1245,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     }
     if (draggingPiece) {
       setDraggingPiece(null);
-      pushHistory('تحريك قطعة كاملة', pieces);
+      if (draggingPiece.moved) pushHistory('تحريك قطعة كاملة', pieces);
     }
     setIsPanning(false);
     setTouchDistance(null);
@@ -1570,7 +1571,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                             if (!start) return;
                             setSelectedPieceId(piece.id);
                             setSelectedSegmentId(seg.id);
-                            setDraggingPiece({ pieceId: piece.id, start, original: piece });
+                            setDraggingPiece({ pieceId: piece.id, start, original: piece, moved: false });
                           }}
                           onTouchStart={(e) => {
                             if (activeTool !== 'select_move') return;
