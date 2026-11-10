@@ -34,7 +34,7 @@ jobs:
       - name: Save production build
         uses: actions/upload-artifact@v4
         with:
-          name: built-site
+          name: built-site-${{ github.run_attempt }}
           path: ./dist
           if-no-files-found: error
           retention-days: 1
@@ -58,7 +58,7 @@ jobs:
       - name: Download production build
         uses: actions/download-artifact@v4
         with:
-          name: built-site
+          name: built-site-${{ github.run_attempt }}
           path: ./dist
 
       - name: Configure GitHub Pages
@@ -67,8 +67,11 @@ jobs:
       - name: Upload built site
         uses: actions/upload-pages-artifact@v3
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: ./dist
 
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
