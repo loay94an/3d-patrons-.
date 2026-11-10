@@ -1580,7 +1580,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                             if (!start) return;
                             setSelectedPieceId(piece.id);
                             setSelectedSegmentId(seg.id);
-                            setDraggingPiece({ pieceId: piece.id, start, original: piece });
+                            setDraggingPiece({ pieceId: piece.id, start, original: piece, moved: false });
                           }}
                           onMouseEnter={() => setHoveredSegment(seg)}
                           onMouseLeave={() => setHoveredSegment(null)}
