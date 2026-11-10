@@ -268,11 +268,9 @@ export default function PatternApp() {
     : FABRIC_PRESETS.filter(f => f.category === selectedFabricCategory);
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-900 text-slate-100 flex flex-col font-['Cairo',sans-serif] select-none" dir="rtl">
+    <div className="app-shell h-screen w-screen overflow-hidden bg-slate-900 text-slate-100 flex flex-col font-['Cairo',sans-serif] select-none" dir="rtl">
       
-{activeTab !== 'cad2d' && (
-      <>
-      {/* 1. COMPACT SLEEK TOP BAR (ارتفاع مدروس ومناسب تماماً للهواتف دون مزاحمة) */}
+{/* 1. COMPACT SLEEK TOP BAR (ارتفاع مدروس ومناسب تماماً للهواتف دون مزاحمة) */}
       <header className="h-12 bg-slate-950 border-b border-slate-800 px-3 flex items-center justify-between shrink-0 z-30">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow">
@@ -327,11 +325,9 @@ export default function PatternApp() {
           </button>
         </div>
       </header>
-      </>
-      )}
 
       {/* 2. MAIN VIEW AREA (واجهات منفصلة بالكامل - كل واجهة تملأ الشاشة بنسبة 100%) */}
-      <main className={activeTab === 'cad2d' ? "flex-1 w-full h-full min-h-0 relative overflow-hidden bg-slate-950" : "flex-1 w-full h-[calc(100vh-104px)] relative overflow-hidden bg-slate-950"}>
+      <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-slate-950">
         
         {/* VIEW 1: FULLSCREEN 2D PATTERN CAD (مربع الرسم ثنائي الأبعاد كاملاً) */}
         {activeTab === 'cad2d' && (
@@ -728,9 +724,7 @@ export default function PatternApp() {
         )}
       </main>
 
-{activeTab !== 'cad2d' && (
-      <>
-      {/* 3. MODERN MOBILE APP BOTTOM NAVIGATION BAR (شريط تنقل سفلي واضح وبسيط ومريح للإبهام) */}
+{/* 3. MODERN MOBILE APP BOTTOM NAVIGATION BAR (شريط تنقل سفلي واضح وبسيط ومريح للإبهام) */}
       <nav className="h-14 bg-slate-950 border-t border-slate-800/90 px-2 flex items-center justify-around shrink-0 z-30">
         {[
           { id: 'cad2d', label: 'باترون 2D', icon: <DraftingCompass className="w-5 h-5" /> },
@@ -757,8 +751,6 @@ export default function PatternApp() {
           );
         })}
       </nav>
-      </>
-      )}
 
       {/* PDF Export Modal */}
       <PdfExportModal

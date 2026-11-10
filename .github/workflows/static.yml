@@ -41,6 +41,9 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
+    concurrency:
+      group: pages-deployment
+      cancel-in-progress: true
     if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
