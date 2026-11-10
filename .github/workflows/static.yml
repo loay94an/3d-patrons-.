@@ -52,7 +52,7 @@ jobs:
       pages: write
       id-token: write
     environment:
-      name: github-pages-${{ github.run_attempt }}
+      name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Download production build
@@ -72,3 +72,5 @@ jobs:
       - name: Deploy site
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
