@@ -1,4 +1,5 @@
-// CAD Geometry & Pattern-by-Numbers Engine\nimport { quadraticBezierLength, cubicBezierLength } from './path-geometry';
+// CAD Geometry & Pattern-by-Numbers Engine
+import { quadraticBezierLength, cubicBezierLength } from './path-geometry';
 // Computes parametric clothing patterns, layers, notches, seam allowances, and numeric specs.
 
 export type CadLayerType = 'cutting' | 'stitch' | 'seam' | 'notches' | 'notes' | 'dimensions' | 'guideline';
