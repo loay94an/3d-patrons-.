@@ -80,6 +80,35 @@ function segmentsIntersect(a: CadPoint, b: CadPoint, c: CadPoint, d: CadPoint): 
     && ((o3 > 1e-8 && o4 < -1e-8) || (o3 < -1e-8 && o4 > 1e-8));
 }
 
+function pointToSegmentDistance(point: CadPoint, a: CadPoint, b: CadPoint): number {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared < 1e-16) return distance(point, a);
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
+}
+
+function resolveOutputEdgeType(
+  a: CadPoint,
+  b: CadPoint,
+  sourcePoints: CadPoint[],
+  sourceEdgeTypes: Array<CadSegment['edgeType']>,
+  closed: boolean
+): CadSegment['edgeType'] {
+  const midpoint = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  let bestDistance = Infinity;
+  let bestType: CadSegment['edgeType'];
+  const edgeCount = closed ? sourcePoints.length : sourcePoints.length - 1;
+  for (let i = 0; i < edgeCount; i++) {
+    const d = pointToSegmentDistance(midpoint, sourcePoints[i], sourcePoints[(i + 1) % sourcePoints.length]);
+    if (d < bestDistance) {
+      bestDistance = d;
+      bestType = sourceEdgeTypes[i];
+    }
+  }
+  return bestType;
+}
+
 /**
  * Creates a constant-distance contour from an ordered CAD boundary.
  * Curves are adaptively flattened; adjacent offset lines are intersected to
@@ -212,23 +241,41 @@ export function offsetCadContour(
       p1: { ...p1 },
       p2: { ...p2 },
       layer: 'seam',
-      edgeType: edgeTypes[Math.min(i, edgeTypes.length - 1)] ?? input[0].edgeType,
+      edgeType: resolveOutputEdgeType(p1, p2, points, edgeTypes, closed) ?? input[0].edgeType,
       lengthCm: distance(p1, p2),
       label: `إزاحة هندسية ${offsetCm} سم`
     });
   }
 
+  // Sweep by minimum X: most distant edge pairs are discarded by their
+  // bounding boxes before the exact segment-intersection predicate is run.
   const count = result.length;
-  for (let i = 0; i < count; i++) {
-    for (let j = i + 1; j < count; j++) {
+  const ordered = result.map((segment, index) => ({
+    index,
+    minX: Math.min(segment.p1.x, segment.p2.x),
+    maxX: Math.max(segment.p1.x, segment.p2.x),
+    minY: Math.min(segment.p1.y, segment.p2.y),
+    maxY: Math.max(segment.p1.y, segment.p2.y)
+  })).sort((a, b) => a.minX - b.minX);
+  const active: typeof ordered = [];
+  for (const current of ordered) {
+    for (let k = active.length - 1; k >= 0; k--) {
+      if (active[k].maxX < current.minX - 1e-8) active.splice(k, 1);
+    }
+    for (const candidate of active) {
+      const i = Math.min(candidate.index, current.index);
+      const j = Math.max(candidate.index, current.index);
       if (j === i + 1 || (closed && i === 0 && j === count - 1)) continue;
-      if (segmentsIntersect(result[i].p1, result[i].p2, result[j].p1, result[j].p2)) {
+      if (candidate.maxY < current.minY - 1e-8 || current.maxY < candidate.minY - 1e-8) continue;
+      const first = result[i], second = result[j];
+      if (segmentsIntersect(first.p1, first.p2, second.p1, second.p2)) {
         return {
           segments: [], closed, valid: false,
-          warnings: ['الإزاحة أدت إلى تقاطع ذاتي؛ قلّل سماحة الخياطة أو راجع شكل القطعة']
+          warnings: [`الإزاحة أدت إلى تقاطع ذاتي بين الحافتين ${i + 1} و${j + 1}؛ قلّل السماحة أو راجع شكل القطعة`]
         };
       }
     }
+    active.push(current);
   }
 
   if (result.length < (closed ? 3 : 1)) {
