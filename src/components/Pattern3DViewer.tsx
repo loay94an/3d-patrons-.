@@ -82,6 +82,13 @@ export function Pattern3DViewer({
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
   const [annyFileName, setAnnyFileName] = useState('');
   const [annyLoadError, setAnnyLoadError] = useState('');
+  const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
+  const [annyApiPanelOpen, setAnnyApiPanelOpen] = useState(false);
+  const [annyApiBusy, setAnnyApiBusy] = useState(false);
+  const [annyApiMessage, setAnnyApiMessage] = useState('');
+  const [annyPhenotypeLabels, setAnnyPhenotypeLabels] = useState<string[]>([]);
+  const [annyPhenotypes, setAnnyPhenotypes] = useState<Record<string, number>>({});
+  const [annyApiConnected, setAnnyApiConnected] = useState(false);
   const [glbExportError, setGlbExportError] = useState('');
   const [showSeams, setShowSeams] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -435,6 +442,107 @@ export function Pattern3DViewer({
     updateCameraPosition();
   };
 
+  // Install a generated or locally selected Anny mesh in the existing Three.js scene.
+  // Display scaling only normalizes the preview height; it is not measurement calibration.
+  const installAnnyScene = (bodyScene: THREE.Object3D, sourceName: string) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (annyGroupRef.current) {
+      scene.remove(annyGroupRef.current);
+      disposeObjectResources(annyGroupRef.current);
+      annyGroupRef.current = null;
+    }
+    const group = new THREE.Group();
+    group.name = 'AnnyBodyPreview';
+    group.add(bodyScene);
+    // Anny's native mesh is Z-up. Convert it to this viewer's Y-up world.
+    group.rotation.x = -Math.PI / 2;
+    const bounds = new THREE.Box3().setFromObject(group);
+    const size = bounds.getSize(new THREE.Vector3());
+    if (!Number.isFinite(size.y) || size.y <= 0) {
+      disposeObjectResources(group);
+      throw new Error('ملف Anny لا يحتوي على مجسم صالح.');
+    }
+    group.scale.setScalar(168 / size.y);
+    const scaledBounds = new THREE.Box3().setFromObject(group);
+    const center = scaledBounds.getCenter(new THREE.Vector3());
+    group.position.set(-center.x, -scaledBounds.min.y, -center.z);
+    group.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    scene.add(group);
+    annyGroupRef.current = group;
+    setAnnyFileName(sourceName);
+    setAnnyPreviewEnabled(true);
+    requestAnimationFrame(() => frameScene(true));
+  };
+
+  const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
+
+  const readAnnyApiError = async (response: Response) => {
+    const payload = await response.json().catch(() => null) as { detail?: unknown } | null;
+    return typeof payload?.detail === 'string' ? payload.detail : `HTTP ${response.status}: تعذر تنفيذ طلب Anny.`;
+  };
+
+  const handleConnectAnnyApi = async () => {
+    const baseUrl = getAnnyApiBaseUrl();
+    if (!baseUrl) {
+      setAnnyApiMessage('أدخل عنوان خدمة Anny أولاً.');
+      return;
+    }
+    setAnnyApiBusy(true);
+    setAnnyApiMessage('جارٍ الاتصال بخدمة Anny وتحميل معاملات النموذج...');
+    try {
+      const response = await fetch(`${baseUrl}/v1/anny/phenotypes`);
+      if (!response.ok) throw new Error(await readAnnyApiError(response));
+      const payload = await response.json() as { labels?: unknown; measurement_status?: string };
+      if (!Array.isArray(payload.labels) || !payload.labels.every(label => typeof label === 'string')) {
+        throw new Error('استجابة خدمة Anny لا تحتوي قائمة معاملات صالحة.');
+      }
+      const labels = payload.labels as string[];
+      if (!labels.length) throw new Error('لم يُرجع النموذج أي معاملات شكل.');
+      setAnnyPhenotypeLabels(labels);
+      setAnnyPhenotypes(Object.fromEntries(labels.map(label => [label, 0.5])));
+      setAnnyApiConnected(true);
+      setAnnyApiMessage(`تم الاتصال. تم تحميل ${labels.length} معاملاً حقيقياً من النموذج. القيم الحالية افتراضية وليست قياسات خياطة.`);
+    } catch (error) {
+      setAnnyApiConnected(false);
+      setAnnyApiMessage(error instanceof Error ? error.message : 'تعذر الاتصال بخدمة Anny.');
+    } finally {
+      setAnnyApiBusy(false);
+    }
+  };
+
+  const handleGenerateAnnyFromApi = async () => {
+    const baseUrl = getAnnyApiBaseUrl();
+    if (!baseUrl || !annyApiConnected) {
+      setAnnyApiMessage('اتصل بخدمة Anny وحمّل قائمة المعاملات أولاً.');
+      return;
+    }
+    setAnnyApiBusy(true);
+    setAnnyApiMessage('جارٍ توليد الجسم باستخدام Anny. قد يستغرق التشغيل الأول وقتاً أطول...');
+    try {
+      const response = await fetch(`${baseUrl}/v1/anny/generate/glb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phenotypes: Object.fromEntries(Object.entries(annyPhenotypes).filter(([, value]) => Math.abs(value - 0.5) > 1e-9)) })
+      });
+      if (!response.ok) throw new Error(await readAnnyApiError(response));
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength < 20) throw new Error('استجابة GLB فارغة أو غير مكتملة.');
+      const gltf = await new GLTFLoader().parseAsync(buffer, '');
+      installAnnyScene(gltf.scene, 'Anny API • ' + new Date().toLocaleString());
+      setAnnyApiMessage('اكتمل التوليد وعُرض جسم Anny في المشهد. لا تزال القياسات غير معايرة.');
+    } catch (error) {
+      setAnnyApiMessage(error instanceof Error ? error.message : 'فشل توليد جسم Anny.');
+    } finally {
+      setAnnyApiBusy(false);
+    }
+  };
+
   // Load a locally generated Anny GLB as a body-only reference preview.
   // Height normalization is visual only; it does not calibrate measurements.
   const handleAnnyFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -445,39 +553,12 @@ export function Pattern3DViewer({
     const loader = new GLTFLoader();
     loader.load(objectUrl, (gltf) => {
       URL.revokeObjectURL(objectUrl);
-      const scene = sceneRef.current;
-      if (!scene) return;
-      if (annyGroupRef.current) {
-        scene.remove(annyGroupRef.current);
-        disposeObjectResources(annyGroupRef.current);
-        annyGroupRef.current = null;
+      try {
+        installAnnyScene(gltf.scene, file.name);
+        setAnnyLoadError('');
+      } catch (error) {
+        setAnnyLoadError(error instanceof Error ? error.message : 'ملف GLB لا يحتوي على مجسم صالح.');
       }
-      const group = new THREE.Group();
-      group.name = 'AnnyBodyPreview';
-      group.add(gltf.scene);
-      // Anny's native mesh is Z-up. Convert it to this viewer's Y-up world
-      // before measuring bounds, centering, and applying display-only scaling.
-      // This matches the -90 degree X scene transform used by Anny's own demo.
-      group.rotation.x = -Math.PI / 2;
-      const bounds = new THREE.Box3().setFromObject(group);
-      const size = bounds.getSize(new THREE.Vector3());
-      if (!Number.isFinite(size.y) || size.y <= 0) {
-        disposeObjectResources(group);
-        setAnnyLoadError('ملف GLB لا يحتوي على مجسم صالح.');
-        return;
-      }
-      group.scale.setScalar(168 / size.y);
-      const scaledBounds = new THREE.Box3().setFromObject(group);
-      const center = scaledBounds.getCenter(new THREE.Vector3());
-      group.position.set(-center.x, -scaledBounds.min.y, -center.z);
-      group.traverse((object) => {
-        if (object instanceof THREE.Mesh) { object.castShadow = true; object.receiveShadow = true; }
-      });
-      scene.add(group);
-      annyGroupRef.current = group;
-      setAnnyFileName(file.name);
-      setAnnyPreviewEnabled(true);
-      requestAnimationFrame(() => frameScene(true));
     }, undefined, () => {
       URL.revokeObjectURL(objectUrl);
       setAnnyLoadError('تعذر فتح ملف GLB. تأكد من سلامة الملف.');
@@ -649,8 +730,44 @@ export function Pattern3DViewer({
 
       <input ref={annyFileInputRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={handleAnnyFileChange} aria-label="تحميل مجسم Anny بصيغة GLB" />
 
+      {annyApiPanelOpen && <section className="absolute top-16 right-3 z-30 w-[min(25rem,calc(100vw-1.5rem))] max-h-[68vh] overflow-y-auto rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 text-right text-xs text-white shadow-2xl backdrop-blur-md" dir="rtl">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="font-bold text-sm text-cyan-200">ربط نموذج Anny مباشرة</div>
+            <div className="text-[10px] text-slate-400 mt-1">خدمة Python منفصلة عن استضافة GitHub Pages</div>
+          </div>
+          <button onClick={() => setAnnyApiPanelOpen(false)} className="rounded-lg px-2 py-1 bg-slate-800 text-slate-300">إغلاق</button>
+        </div>
+        <label className="block mt-3 mb-1 text-slate-300">عنوان خدمة Anny API</label>
+        <input value={annyApiUrl} onChange={event => { setAnnyApiUrl(event.target.value); setAnnyApiConnected(false); }} placeholder="https://your-anny-api.example" className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-left text-xs text-white" dir="ltr" />
+        <div className="flex gap-2 mt-2">
+          <button disabled={annyApiBusy} onClick={() => void handleConnectAnnyApi()} className="flex-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 px-3 py-2 font-bold">اتصال وتحميل المعاملات</button>
+          <button disabled={annyApiBusy || !annyApiConnected} onClick={() => void handleGenerateAnnyFromApi()} className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-3 py-2 font-bold">توليد الجسم وعرضه</button>
+        </div>
+        {annyApiMessage && <div role="status" className="mt-2 rounded-lg bg-slate-900 border border-slate-700 p-2 leading-5 text-slate-300">{annyApiMessage}</div>}
+        {annyApiConnected && <div className="mt-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-cyan-200">معاملات Anny الأصلية</span>
+            <span className="text-[10px] text-slate-400">{annyPhenotypeLabels.length} معاملاً</span>
+          </div>
+          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+            {annyPhenotypeLabels.map(label => <label key={label} className="block rounded-lg bg-slate-900/80 border border-slate-800 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <code className="text-[10px] text-slate-300" dir="ltr">{label}</code>
+                <span className="tabular-nums text-cyan-200">{(annyPhenotypes[label] ?? 0.5).toFixed(2)}</span>
+              </div>
+              <input aria-label={`قيمة معامل ${label}`} className="w-full mt-1 accent-cyan-400" type="range" min="0" max="1" step="0.01" value={annyPhenotypes[label] ?? 0.5} onChange={event => setAnnyPhenotypes(previous => ({ ...previous, [label]: Number(event.target.value) }))} />
+            </label>)}
+          </div>
+          <p className="mt-2 text-[10px] leading-4 text-amber-200">هذه معاملات شكل داخل نموذج Anny وليست محيطات بالسنتيمتر. لا تستخدمها كبديل عن معايرة قياسات الخياطة.</p>
+        </div>}
+      </section>}
+
       {/* Floating Bottom Toolbar (Toggles & Export) */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md px-2 sm:px-3 py-1.5 rounded-2xl border border-slate-700/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+        <button onClick={() => setAnnyApiPanelOpen(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${annyApiPanelOpen ? 'bg-indigo-600/30 text-indigo-100 border-indigo-500/50' : 'text-indigo-200 hover:bg-indigo-900/40 border-indigo-700/40'}`} title="الاتصال بخدمة Anny وتوليد جسم مباشر">
+          <Activity className="w-3.5 h-3.5" /><span>Anny API</span>
+        </button>
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>

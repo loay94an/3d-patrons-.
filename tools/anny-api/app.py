@@ -142,6 +142,65 @@ def _generate_archive(phenotypes: dict[str, float]) -> str:
         raise
 
 
+def _generate_glb_file(phenotypes: dict[str, float]) -> str:
+    """Generate a standalone GLB file for browser clients."""
+    workdir = tempfile.mkdtemp(prefix="anny-glb-job-")
+    output = Path(workdir) / "body.glb"
+    command = [sys.executable, str(GENERATOR), "--device", "cpu", "--output", str(output)]
+    for label, value in phenotypes.items():
+        command.extend(["--phenotype", f"{label}={value}"])
+    try:
+        subprocess.run(
+            command,
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=GENERATION_TIMEOUT_SECONDS,
+        )
+        if not output.is_file() or output.stat().st_size < 20:
+            raise RuntimeError("Anny generator did not produce a valid GLB file")
+        return str(output)
+    except subprocess.TimeoutExpired as exc:
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
+        raise TimeoutError("Anny generation exceeded the configured time limit") from exc
+    except subprocess.CalledProcessError as exc:
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
+        message = (exc.stderr or exc.stdout or "Anny generation failed")[-3000:]
+        raise RuntimeError(message) from exc
+    except Exception:
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
+        raise
+
+
+@app.post("/v1/anny/generate/glb")
+async def generate_body_glb(request: GenerateRequest, background_tasks: BackgroundTasks) -> FileResponse:
+    """Return the generated body directly as model/gltf-binary for Three.js."""
+    try:
+        phenotypes = normalize_phenotypes(request.phenotypes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        glb_path = await run_in_threadpool(_generate_glb_file, phenotypes)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=f"Anny generation failed: {exc}") from exc
+
+    import shutil
+    background_tasks.add_task(shutil.rmtree, str(Path(glb_path).parent), ignore_errors=True)
+    return FileResponse(
+        glb_path,
+        media_type="model/gltf-binary",
+        filename="anny-body.glb",
+        background=background_tasks,
+    )
+
+
 @app.post("/v1/anny/generate")
 async def generate_body(request: GenerateRequest, background_tasks: BackgroundTasks) -> FileResponse:
     try:
