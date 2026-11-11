@@ -22,6 +22,7 @@ import { Pattern3DViewer } from './Pattern3DViewer';
 import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ProjectWorkspace } from './ProjectWorkspace';
+import { createMeasurementProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 
 export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
@@ -374,7 +375,22 @@ export default function PatternApp() {
           </div>
         )}
 
-        {activeTab === 'projects' && <ProjectWorkspace />}
+        {activeTab === 'projects' && <ProjectWorkspace onOpenCad={(project) => {
+          const profile = createMeasurementProfile(project.measurements);
+          updateState({
+            garment: project.garment,
+            useCustomMode: true,
+            measurementProfile: profile,
+            customMeasurements: {
+              bust: project.measurements.bust, waist: project.measurements.waist,
+              hip: project.measurements.hip, backLength: project.measurements.backLength,
+              sleeveLength: project.measurements.sleeveLength, armCirc: project.measurements.upperArm,
+              bustEase: project.ease.bust, waistEase: project.ease.waist,
+              hipEase: project.ease.hip, upperArmEase: project.ease.upperArm
+            }
+          });
+          setActiveTab('cad2d');
+        }} />}
 
         {activeTab === 'encyclopedia' && (
           <div className="w-full h-full">
