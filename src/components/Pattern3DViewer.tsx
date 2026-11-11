@@ -527,6 +527,37 @@ export function Pattern3DViewer({
       setGlbExportError(error instanceof Error ? error.message : 'تعذر تصدير GLB.');
     }
   };
+  // Export the currently visible body and garment (or Anny preview) as one GLB scene.
+  const handleExportSceneGlb = async () => {
+    const exportObjects: THREE.Object3D[] = [];
+    if (annyPreviewEnabled && annyGroupRef.current) {
+      exportObjects.push(annyGroupRef.current);
+    } else {
+      if (mannequinGroupRef.current?.visible) exportObjects.push(mannequinGroupRef.current);
+      if (garmentResultRef.current?.group.visible) exportObjects.push(garmentResultRef.current.group);
+    }
+    if (!exportObjects.length) {
+      setGlbExportError('لا توجد عناصر ثلاثية الأبعاد ظاهرة للتصدير.');
+      return;
+    }
+    setGlbExportError('');
+    try {
+      const exporter = new GLTFExporter();
+      const result = await exporter.parseAsync(exportObjects, { binary: true, onlyVisible: true, trs: true });
+      if (!(result instanceof ArrayBuffer)) throw new Error('لم يُنتج المُصدّر ملف GLB ثنائياً.');
+      const blob = new Blob([result], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'fashion_scene_' + state.gender + '_' + state.garment + '.glb';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setGlbExportError(error instanceof Error ? error.message : 'تعذر تصدير المشهد بصيغة GLB.');
+    }
+  };
   // Export 3D OBJ
   const handleExportObj = () => {
     if (!garmentResultRef.current) return;
@@ -707,6 +738,15 @@ export function Pattern3DViewer({
         >
           <Download className="w-3.5 h-3.5 text-cyan-300" />
           <span>تصدير GLB</span>
+        </button>
+        {/* Export the visible body and garment together */}
+        <button
+          onClick={() => { void handleExportSceneGlb(); }}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/30 transition-colors"
+          title="تصدير العناصر الظاهرة معاً: الجسم والملابس أو معاينة Anny"
+        >
+          <Download className="w-3.5 h-3.5 text-emerald-300" />
+          <span>تصدير المشهد GLB</span>
         </button>
         {/* Export OBJ */}
         <button
