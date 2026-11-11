@@ -38,9 +38,10 @@ function PanelPreview({ piece, originX }: { piece: ReturnType<typeof generateBas
 type BasicSkirtDraftPanelProps = {
   initialMeasurements?: { waist?: number; hip?: number };
   onApply?: (result: ReturnType<typeof generateBasicSkirtDraft>) => void;
+  onMeasurementsChange?: (key: 'waist' | 'hip', value: number) => void;
 };
 
-export function BasicSkirtDraftPanel({ initialMeasurements, onApply }: BasicSkirtDraftPanelProps) {
+export function BasicSkirtDraftPanel({ initialMeasurements, onApply, onMeasurementsChange }: BasicSkirtDraftPanelProps) {
   const [measurements, setMeasurements] = useState(() => ({
     ...initial,
     waistCircumferenceCm: initialMeasurements?.waist ?? initial.waistCircumferenceCm,
@@ -55,7 +56,11 @@ export function BasicSkirtDraftPanel({ initialMeasurements, onApply }: BasicSkir
     }));
   }, [initialMeasurements?.waist, initialMeasurements?.hip]);
   const result = useMemo(() => generateBasicSkirtDraft(measurements), [measurements]);
-  const update = (key: keyof typeof initial, value: number) => setMeasurements(current => ({ ...current, [key]: value }));
+  const update = (key: keyof typeof initial, value: number) => {
+    setMeasurements(current => ({ ...current, [key]: value }));
+    if (key === 'waistCircumferenceCm') onMeasurementsChange?.('waist', value);
+    if (key === 'hipCircumferenceCm') onMeasurementsChange?.('hip', value);
+  };
 
   return (
     <section className="space-y-4 rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-4 sm:p-5">
