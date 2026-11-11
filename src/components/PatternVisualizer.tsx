@@ -133,7 +133,13 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       shoulderLength: effectiveShoulder,
       armholeCircumference: effectiveArmhole,
       sleeveLength: effectiveSleeve,
-      neckCircumference: effectiveNeck
+      neckCircumference: effectiveNeck,
+      easeProfile: {
+        bust: meas.bustEase ?? patternInputs.easeProfile?.bust ?? patternInputs.additionalEase,
+        waist: meas.waistEase ?? patternInputs.easeProfile?.waist ?? patternInputs.additionalEase,
+        hip: meas.hipEase ?? patternInputs.easeProfile?.hip ?? patternInputs.additionalEase,
+        upperArm: meas.upperArmEase ?? patternInputs.easeProfile?.upperArm ?? patternInputs.additionalEase
+      }
     };
 
     setPatternInputs(updatedInputs);
