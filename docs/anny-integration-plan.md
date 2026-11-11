@@ -76,3 +76,12 @@ Only after calibrated body geometry exists should the pattern engine consume the
 ## Licensing
 
 The core Anny code is Apache-2.0 and upstream README identifies MakeHuman/MPFB2-derived assets under CC0. Optional SMPL-X topology may carry non-commercial restrictions unless separately licensed. Verify the exact release's package and dependency notices before commercial distribution.
+
+
+## Bundled Anny body preview
+
+The GitHub Pages build now generates a neutral Anny v0.6.2 GLB on CPU and publishes it at `models/anny-neutral.glb`. The viewer's **عرض جسم Anny** action loads this static asset without requiring a separately hosted API. The generated reference mesh currently contains 13,718 vertices and 27,420 triangles (about 0.5 MB in the verified runtime run).
+
+The bundled body is a neutral-pose visual reference. The viewer normalizes its displayed height only; this does not calibrate its coordinates to centimetres or adapt the mesh to the user's tape measurements. The Anny API and manual GLB upload remain optional alternatives. The runtime proof-of-concept workflow is now manual-only to avoid generating the same model twice on every main-branch deployment.
+
+The Pages build runs Anny inference only for non-pull-request builds. Pull-request checks validate TypeScript, tests, and the site build without installing CPU PyTorch.
