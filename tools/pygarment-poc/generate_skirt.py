@@ -43,7 +43,9 @@ def build_skirt_pattern(*, waist_cm: float, hip_cm: float,
 
     def make_panel(name: str) -> pyg.Panel:
         panel = pyg.Panel(name)
-        panel.edges = pyg.EdgeSeqFactory.from_verts(outline).close_loop()
+        # PyGarment v2.0.2 takes each vertex as a positional argument;
+        # loop=True closes the chain and preserves shared endpoint references.
+        panel.edges = pyg.EdgeSeqFactory.from_verts(*outline, loop=True)
         if panel.is_self_intersecting():
             raise ValueError(f"Self-intersecting PyGarment panel: {name}")
         return panel
