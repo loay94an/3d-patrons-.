@@ -95,3 +95,19 @@ describe('measured lower-body geometry', () => {
     assert.notDeepEqual(shallow.pieces[0].segments, deep.pieces[0].segments);
   });
 });
+
+
+describe('fitted bodice waist shaping', () => {
+  it('adds front and back waist dart legs as stitch lines, not cutting edges', () => {
+    const result = generatePatternByNumbers({ ...DEFAULT_PATTERN_NUMBERS, bustCircumference: 96, waistCircumference: 68 },
+      { widthCm: 180, heightCm: 100, unit: 'cm' }, 'bodice');
+    const front = result.pieces.find(piece => piece.id === 'piece_front_bodice');
+    const back = result.pieces.find(piece => piece.id === 'piece_back_bodice');
+    assert.ok(front && back);
+    assert.equal(front.segments.filter(segment => segment.id.includes('waist_dart')).length, 2);
+    assert.equal(back.segments.filter(segment => segment.id.includes('waist_dart')).length, 2);
+    assert.ok(front.segments.filter(segment => segment.id.includes('waist_dart')).every(segment => segment.layer === 'stitch'));
+    assert.ok(back.segments.filter(segment => segment.id.includes('waist_dart')).every(segment => segment.layer === 'stitch'));
+    assert.equal(validatePatternPieces(result.pieces).exportSafe, true);
+  });
+});
