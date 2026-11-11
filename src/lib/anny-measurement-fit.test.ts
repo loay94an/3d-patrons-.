@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getAnnyHeightScale, resolveAnnyTargetHeightCm } from './anny-measurement-fit';
+import {
+  convertAnnyCircumferenceToCm,
+  getAnnyHeightScale,
+  resolveAnnyTargetHeightCm
+} from './anny-measurement-fit';
 import type { Gender } from './pattern-logic';
 
 const genders: Gender[] = ['women', 'men', 'kids', 'infant'];
@@ -24,9 +28,20 @@ describe('Anny stature calibration', () => {
     assert.equal(getAnnyHeightScale(2, 180), 90);
   });
 
+  it('converts native mesh circumference using the same uniform stature scale', () => {
+    assert.equal(convertAnnyCircumferenceToCm(2, 2, 180), 180);
+    assert.equal(convertAnnyCircumferenceToCm(0.5, 1, 160), 80);
+    assert.ok(Math.abs(convertAnnyCircumferenceToCm(1.2, 2, 180) - 108) < 1e-9);
+  });
+
   it('rejects invalid native and target heights', () => {
     assert.throws(() => getAnnyHeightScale(0, 168), /native height/);
     assert.throws(() => getAnnyHeightScale(Number.NaN, 168), /native height/);
     assert.throws(() => getAnnyHeightScale(1.6, 0), /target height/);
+  });
+
+  it('rejects invalid circumference values', () => {
+    assert.throws(() => convertAnnyCircumferenceToCm(0, 1.6, 168), /circumference/);
+    assert.throws(() => convertAnnyCircumferenceToCm(Number.NaN, 1.6, 168), /circumference/);
   });
 });
