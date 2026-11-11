@@ -93,8 +93,8 @@ describe('3D mannequin geometry', () => {
     });
     assert.ok(meshes.has('UpperArm_1'));
     assert.ok(meshes.has('Thigh_1'));
-    assert.ok(Math.abs(meshes.get('UpperArm_1')!.geometry.parameters.radius - 30 / (2 * Math.PI)) < 0.001);
-    assert.ok(Math.abs(meshes.get('Thigh_1')!.geometry.parameters.radius - 56 / (2 * Math.PI)) < 0.001);
+    assert.ok(Math.abs((meshes.get('UpperArm_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 30 / (2 * Math.PI)) < 0.001);
+    assert.ok(Math.abs((meshes.get('Thigh_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 56 / (2 * Math.PI)) < 0.001);
   });
 
   it('bounds optional limb radii and safely falls back when measurements are absent', () => {
