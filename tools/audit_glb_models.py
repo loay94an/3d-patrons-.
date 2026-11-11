@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Read-only structural and best-effort geometry audit for repository GLB files."""
+"""Read-only GLB structure and accessor metadata audit."""
 from __future__ import annotations
 import json
 import struct
 from pathlib import Path
-import trimesh
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -75,22 +74,6 @@ def main():
         try:
             doc = read_gltf(path)
             primitives, vertices, triangles, bounds = accessor_summary(doc)
-            geometry = []
-            geometry_error = None
-            try:
-                scene = trimesh.load(path, force="scene", process=False)
-                for name, mesh in list(scene.geometry.items())[:40]:
-                    if not isinstance(mesh, trimesh.Trimesh):
-                        continue
-                    geometry.append({
-                        "name": str(name)[:100],
-                        "vertices": len(mesh.vertices),
-                        "faces": len(mesh.faces),
-                        "watertight": bool(mesh.is_watertight),
-                        "components": len(mesh.split(only_watertight=False)),
-                    })
-            except Exception as exc:
-                geometry_error = str(exc)
             skins = [{"name": skin.get("name", ""), "joints": len(skin.get("joints", []))}
                      for skin in doc.get("skins", [])]
             report = {
@@ -106,8 +89,6 @@ def main():
                 "triangles_from_accessors": triangles,
                 "primitive_accessors": primitives,
                 "position_accessor_bounds": bounds,
-                "geometry_topology": geometry,
-                "geometry_topology_error": geometry_error,
             }
             print(json.dumps(report, ensure_ascii=False))
         except Exception as exc:
