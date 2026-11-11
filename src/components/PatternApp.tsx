@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet,
+  Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet, FolderOpen,
   FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
   Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2, Home, MoreHorizontal
 } from 'lucide-react';
@@ -21,9 +21,11 @@ import { ParametricStudio } from './ParametricStudio';
 import { Pattern3DViewer } from './Pattern3DViewer';
 import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
+import { ProjectWorkspace } from './ProjectWorkspace';
+import { createMeasurementProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 
-export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide';
+export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
 
 const detailedNames = ["عرض الظهر","طول الكتف","طول الظهر","طول الكم","محيط الذراع","محيط الأسوارة","محيط الرقبة","محيط الصدر","محيط الخصر","محيط الورك","المسافة من الخصر إلى الورك","المسافة من الخصر إلى الركبة","طول الساق من الخصر إلى أسفل القدم","طول التنورة","طول الصدر (من أعلى الكتف مروراً فوق الصدر)","محيط الإبط (دوران الإبط)","المسافة من الخصر إلى الإبط","المسافة من أعلى الكتف إلى الثدي","المسافة بين الثديين","محيط الفخذ","محيط الركبة","محيط الكاحل","ارتفاع السرج","طول الجنب"];
 const detailedHelps = ["يقاس أفقياً من منتصف الظهر بين الإبطين.","من نقطة الرقبة إلى طرف الكتف.","من الفقرة السابعة إلى خط الخصر.","من طرف الكتف إلى الرسغ.","حول أوسع نقطة في الذراع.","حول الرسغ.","حول قاعدة الرقبة.","حول أوسع نقطة في الصدر.","حول أضيق نقطة.","حول أوسع نقطة في الأرداف.","عمودياً من الخصر إلى الورك.","عمودياً إلى منتصف الركبة.","من الخصر إلى الأرض.","من الخصر إلى الطول المطلوب.","من الكتف إلى أعلى الصدر.","حول الإبط عند خط الصدر.","عمودياً إلى الإبط.","من الكتف إلى أعلى الصدر.","أفقياً بين نقطتي الصدر.","حول أوسع نقطة في الفخذ.","حول الركبة.","حول الكاحل.","من الخصر إلى المقعد.","من الإبط إلى الخصر."];
@@ -353,6 +355,7 @@ export default function PatternApp() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {[
                     { id: 'measurements', title: 'إعداد القياسات', desc: 'أدخل قياسات الجسم وراجعها قبل التصميم.', icon: <Ruler className="h-5 w-5" />, color: 'text-cyan-300' },
+                    { id: 'projects', title: 'المشاريع وملفات القياسات', desc: 'احفظ مشاريع متعددة واستعد نسخها الاحتياطية.', icon: <FolderOpen className="h-5 w-5" />, color: 'text-emerald-300' },
                     { id: 'parametric', title: 'توليد باترون', desc: 'ابدأ بقطعة وقياسات وراحة تصميمية.', icon: <Sliders className="h-5 w-5" />, color: 'text-indigo-300' },
                     { id: 'cad2d', title: 'الرسم ثنائي الأبعاد', desc: 'افتح محرر القطع والنقاط والمنحنيات.', icon: <DraftingCompass className="h-5 w-5" />, color: 'text-emerald-300' },
                     { id: 'view3d', title: 'المعاينة ثلاثية الأبعاد', desc: 'اعرض النموذج والخامة المتاحة.', icon: <Box className="h-5 w-5" />, color: 'text-violet-300' },
@@ -371,6 +374,23 @@ export default function PatternApp() {
             </div>
           </div>
         )}
+
+        {activeTab === 'projects' && <ProjectWorkspace onOpenCad={(project) => {
+          const profile = createMeasurementProfile(project.measurements);
+          updateState({
+            garment: project.garment,
+            useCustomMode: true,
+            measurementProfile: profile,
+            customMeasurements: {
+              bust: project.measurements.bust, waist: project.measurements.waist,
+              hip: project.measurements.hip, backLength: project.measurements.backLength,
+              sleeveLength: project.measurements.sleeveLength, armCirc: project.measurements.upperArm,
+              bustEase: project.ease.bust, waistEase: project.ease.waist,
+              hipEase: project.ease.hip, upperArmEase: project.ease.upperArm
+            }
+          });
+          setActiveTab('cad2d');
+        }} />}
 
         {activeTab === 'encyclopedia' && (
           <div className="w-full h-full">
@@ -824,13 +844,14 @@ export default function PatternApp() {
             {item.icon}<span>{item.label}</span>
           </button>
         ))}
-        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={() => setShowMoreMenu(value => !value)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs", showMoreMenu || ['encyclopedia','measurements','fabrics','export_guide'].includes(activeTab) ? "font-extrabold text-blue-400" : "text-slate-400")}>
+        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={() => setShowMoreMenu(value => !value)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs", showMoreMenu || ['encyclopedia','measurements','fabrics','export_guide','projects'].includes(activeTab) ? "font-extrabold text-blue-400" : "text-slate-400")}>
           <MoreHorizontal className="h-5 w-5" /><span>المزيد</span>
         </button>
       </nav>
       {showMoreMenu && (
         <div className="absolute bottom-16 left-2 right-2 z-40 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-4 sm:w-72" role="menu" aria-label="أدوات إضافية">
           {[
+            { id: 'projects', label: 'المشاريع وملفات القياسات', icon: <FolderOpen className="h-4 w-4" /> },
             { id: 'encyclopedia', label: 'الموسوعة والمراجع', icon: <BookOpen className="h-4 w-4" /> },
             { id: 'measurements', label: 'ملف القياسات', icon: <Ruler className="h-4 w-4" /> },
             { id: 'fabrics', label: 'الأقمشة والخامات', icon: <Palette className="h-4 w-4" /> },
