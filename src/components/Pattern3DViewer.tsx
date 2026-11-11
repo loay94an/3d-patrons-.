@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   RotateCcw, Eye, EyeOff, Camera, Layers,
   Activity, Play, Pause, Compass, ZoomIn, ZoomOut,
@@ -61,6 +62,8 @@ export function Pattern3DViewer({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const mannequinGroupRef = useRef<THREE.Group | null>(null);
+  const annyGroupRef = useRef<THREE.Group | null>(null);
+  const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const reqIdRef = useRef<number | null>(null);
 
@@ -75,6 +78,9 @@ export function Pattern3DViewer({
 
   // Visual toggles
   const [showMannequin, setShowMannequin] = useState(true);
+  const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
+  const [annyFileName, setAnnyFileName] = useState('');
+  const [annyLoadError, setAnnyLoadError] = useState('');
   const [showSeams, setShowSeams] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
@@ -280,7 +286,7 @@ export function Pattern3DViewer({
     };
 
     const mannequin = buildParametricMannequin(state.gender, currentMeasurements);
-    mannequin.visible = showMannequin;
+    mannequin.visible = showMannequin && !annyPreviewEnabled;
     scene.add(mannequin);
     mannequinGroupRef.current = mannequin;
 
@@ -310,12 +316,13 @@ export function Pattern3DViewer({
     );
 
     garmentResult.seamLinesGroup.visible = showSeams;
+    garmentResult.group.visible = !annyPreviewEnabled;
     scene.add(garmentResult.group);
     garmentResultRef.current = garmentResult;
 
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
-  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, frameScene]);
+  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, frameScene]);
 
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -422,6 +429,61 @@ export function Pattern3DViewer({
     updateCameraPosition();
   };
 
+  // Load a locally generated Anny GLB as a body-only reference preview.
+  // Height normalization is visual only; it does not calibrate measurements.
+  const handleAnnyFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAnnyLoadError('');
+    const objectUrl = URL.createObjectURL(file);
+    const loader = new GLTFLoader();
+    loader.load(objectUrl, (gltf) => {
+      URL.revokeObjectURL(objectUrl);
+      const scene = sceneRef.current;
+      if (!scene) return;
+      if (annyGroupRef.current) {
+        scene.remove(annyGroupRef.current);
+        disposeObjectResources(annyGroupRef.current);
+        annyGroupRef.current = null;
+      }
+      const group = new THREE.Group();
+      group.name = 'AnnyBodyPreview';
+      group.add(gltf.scene);
+      const bounds = new THREE.Box3().setFromObject(group);
+      const size = bounds.getSize(new THREE.Vector3());
+      if (!Number.isFinite(size.y) || size.y <= 0) {
+        disposeObjectResources(group);
+        setAnnyLoadError('ملف GLB لا يحتوي على مجسم صالح.');
+        return;
+      }
+      group.scale.setScalar(168 / size.y);
+      const scaledBounds = new THREE.Box3().setFromObject(group);
+      const center = scaledBounds.getCenter(new THREE.Vector3());
+      group.position.set(-center.x, -scaledBounds.min.y, -center.z);
+      group.traverse((object) => {
+        if (object instanceof THREE.Mesh) { object.castShadow = true; object.receiveShadow = true; }
+      });
+      scene.add(group);
+      annyGroupRef.current = group;
+      setAnnyFileName(file.name);
+      setAnnyPreviewEnabled(true);
+      requestAnimationFrame(() => frameScene(true));
+    }, undefined, () => {
+      URL.revokeObjectURL(objectUrl);
+      setAnnyLoadError('تعذر فتح ملف GLB. تأكد من سلامة الملف.');
+    });
+    event.target.value = '';
+  };
+
+  const handleRemoveAnnyPreview = () => {
+    const scene = sceneRef.current;
+    const group = annyGroupRef.current;
+    if (scene && group) { scene.remove(group); disposeObjectResources(group); annyGroupRef.current = null; }
+    setAnnyPreviewEnabled(false);
+    setAnnyFileName('');
+    setAnnyLoadError('');
+  };
+
   // Export Snapshot PNG
   const handleSnapshot = () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
@@ -503,6 +565,8 @@ export function Pattern3DViewer({
         </div>
       </div>
 
+      {annyLoadError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{annyLoadError}</div>}
+
       {/* Main 3D Canvas */}
       <div
         ref={containerRef}
@@ -519,8 +583,15 @@ export function Pattern3DViewer({
         className="w-full h-full cursor-grab active:cursor-grabbing select-none"
       />
 
+      <input ref={annyFileInputRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={handleAnnyFileChange} aria-label="تحميل مجسم Anny بصيغة GLB" />
+
       {/* Floating Bottom Toolbar (Toggles & Export) */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md px-2 sm:px-3 py-1.5 rounded-2xl border border-slate-700/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+        <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
+          <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
+        </button>
+        {annyPreviewEnabled && <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>}
+
         {/* Turntable Auto-rotate */}
         <button
           onClick={() => setAutoRotate(!autoRotate)}
@@ -541,10 +612,10 @@ export function Pattern3DViewer({
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
             showMannequin ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50' : 'text-slate-400 hover:bg-slate-800'
           }`}
-          title="إظهار/إخفاء المانيكان الداخلي"
+          title={annyPreviewEnabled ? "معاينة Anny نشطة" : "إظهار/إخفاء المانيكان الداخلي"}
         >
           {showMannequin ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-          <span>المانيكان</span>
+          <span>{annyPreviewEnabled ? 'Anny' : 'المانيكان'}</span>
         </button>
 
         {/* Toggle Seams */}
@@ -605,6 +676,11 @@ export function Pattern3DViewer({
           <span>تصدير OBJ</span>
         </button>
       </div>
+
+      {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
+        <div className="font-semibold">معاينة جسم Anny فقط</div><div className="mt-1 text-slate-300">{annyFileName}</div>
+        <div className="mt-1 text-amber-200">ضُبط الارتفاع للعرض التقريبي فقط. القياسات غير معايرة، والباترون مخفي في هذه المعاينة.</div>
+      </div>}
 
       {/* Heatmap Legend when active */}
       {showHeatmap && (
