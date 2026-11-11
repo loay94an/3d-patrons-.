@@ -87,6 +87,7 @@ export interface PatternByNumbersInput {
   waistCircumference: number;    // محيط الخصر (سم)
   hipCircumference: number;      // محيط الورك/الأرداف (سم)
   armholeCircumference: number;  // محيط حفرة الإبط (سم)
+  upperArmCircumference?: number; // محيط أعلى الذراع (سم)، اختياري للتوافق مع الملفات القديمة
   sleeveLength: number;          // طول الكم (سم)
   crotchDepth: number;           // عمق الحجر / الصدرية للبنطلون (سم)
   rise: number;                  // ارتفاع الخصر (سم)
@@ -148,6 +149,7 @@ export const DEFAULT_PATTERN_NUMBERS: PatternByNumbersInput = {
   waistCircumference: 70,
   hipCircumference: 92,
   armholeCircumference: 40,
+  upperArmCircumference: 30,
   sleeveLength: 58,
   crotchDepth: 26,
   rise: 24,
@@ -275,7 +277,7 @@ export function computeReferencePoints(
   const shoulderDrop = evaluateDraftingRule(rules.shoulderDropFormula, vars, input.shoulderLength * 0.1 + 3);
   const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, { ...vars, ease: localEase.bust }, input.bustCircumference / 4 + localEase.bust);
   const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, { ...vars, ease: localEase.waist }, input.waistCircumference / 4 + localEase.waist + 1.5);
-  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, { ...vars, ease: localEase.upperArm }, input.armholeCircumference * 0.45 + localEase.upperArm);
+  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, vars, input.armholeCircumference * 0.45 + input.additionalEase);
 
   const refPoints: ReferencePointInfo[] = [
     // Back Bodice
@@ -1061,7 +1063,7 @@ export function generatePatternByNumbers(
     const dsOrig = { x: 98, y: 5 };
     const dsSegments: CadSegment[] = [];
     const sleeveCapHeight = +(armholeDepth * 0.72).toFixed(1);
-    const halfBicep = +(input.armholeCircumference * 0.42 + localEase.upperArm).toFixed(1);
+    const halfBicep = +((input.upperArmCircumference ?? input.armholeCircumference * 0.84) / 2 + localEase.upperArm).toFixed(1);
     const halfWrist = 9.5;
 
     const dsl_top: CadPoint = { x: dsOrig.x + halfBicep, y: dsOrig.y };
@@ -1535,7 +1537,7 @@ export function generatePatternByNumbers(
   const sOrig = { x: 78, y: 5 };
 
   const sleeveCapHeight = +(armholeDepth * 0.72).toFixed(1);
-  const halfBicep = +(input.armholeCircumference * 0.42 + localEase.upperArm).toFixed(1);
+  const halfBicep = +((input.upperArmCircumference ?? input.armholeCircumference * 0.84) / 2 + localEase.upperArm).toFixed(1);
   const halfWrist = 10;
 
   const sl_top: CadPoint = { x: sOrig.x + halfBicep, y: sOrig.y };
