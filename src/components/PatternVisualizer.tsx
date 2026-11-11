@@ -7,7 +7,7 @@ import {
   Magnet, CheckCircle2, CheckCircle, Split, Wand2, Ruler, Lock, Unlock,
   ChevronRight, ChevronLeft, ChevronDown, ChevronUp, MousePointer, PenTool,
   RotateCw, Undo2, Redo2, Layers2, ArrowLeft, LayoutGrid, Focus, Crosshair,
-  Trash2, CornerDownLeft, X, CircleDot, Zap, ClipboardCheck
+  Trash2, CornerDownLeft, X, CircleDot, Zap, ClipboardCheck, Upload
 } from 'lucide-react';
 import { AppState, GarmentType, getBaseMeasurements } from '../lib/pattern-logic';
 import {
@@ -20,6 +20,7 @@ import {
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { offsetCadContour } from '../lib/offset-geometry';
 import { validatePatternPieces } from '../lib/pattern-quality';
+import { adaptPyGarmentPattern } from '../lib/pygarment-adapter';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
 import { CadFloatingProperties } from './CadFloatingProperties';
 import { PatternByNumbersModal } from './PatternByNumbersModal';
@@ -225,6 +226,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const pyGarmentFileInputRef = useRef<HTMLInputElement>(null);
 
   const pxPerCm = 7.5; // Scale factor for rendering
 
@@ -1355,6 +1357,39 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     document.body.removeChild(link);
   };
 
+  // Import the versioned PyGarment JSON adapter into the editable CAD workspace.
+  const handleImportPyGarmentFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const adapted = adaptPyGarmentPattern(JSON.parse(await file.text()));
+      const report = validatePatternPieces(adapted.pieces);
+      if (!report.exportSafe) {
+        throw new Error('فشل فحص بنية CAD: ' + report.issues.filter(issue => issue.severity === 'error').map(issue => issue.message).join('، '));
+      }
+      const importedPieces = [...adapted.pieces, ...pieces.filter(piece => piece.garmentType === 'custom')];
+      setPieces(importedPieces);
+      setSummaries(adapted.summaries);
+      setActiveGarmentType('skirt');
+      setSelectedPieceId(adapted.pieces[0]?.id ?? null);
+      setSelectedSegmentId(null);
+      setSelectedNode(null);
+      setWorkFrame(current => ({
+        ...current,
+        widthCm: Math.max(current.widthCm, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.x, segment.p2.x])) + 5),
+        heightCm: Math.max(current.heightCm, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.y, segment.p2.y])) + 5)
+      }));
+      pushHistory('استيراد باترون PyGarment إلى لوحة CAD', importedPieces);
+      const warningText = adapted.warnings.length ? '\n\nتنبيهات: ' + adapted.warnings.join('؛ ') : '';
+      window.alert('تم استيراد ' + adapted.pieces.length + ' قطعة من ' + adapted.patternName + ' بنجاح.\nالمحرك: PyGarment ' + adapted.engineVersion + '\nاجتاز فحص CAD البنيوي.' + warningText);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر قراءة ملف PyGarment';
+      window.alert('فشل الاستيراد: ' + message);
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   // Generate ruler tick marks
   const topRulerTicks = useMemo(() => {
     const ticks = [];
@@ -1403,6 +1438,15 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
         
         {/* FIXED PERIMETER TOOLBAR (شريط الأدوات الجانبي الثابت على الطرف - رموز ثابتة) */}
         <div className="w-11 sm:w-12 bg-slate-900/95 border-l border-slate-800 flex flex-col items-center py-1.5 px-0.5 gap-1 z-10 shrink-0 overflow-y-auto">
+          <input ref={pyGarmentFileInputRef} type="file" accept="application/json,.json" className="hidden" onChange={handleImportPyGarmentFile} />
+          <button
+            onClick={() => pyGarmentFileInputRef.current?.click()}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-cyan-300 hover:bg-slate-800 transition-all active:scale-95"
+            title="استيراد باترون PyGarment بصيغة JSON"
+            aria-label="استيراد باترون PyGarment"
+          >
+            <Upload className="w-5 h-5" />
+          </button>
           {perimeterTools.map(tool => {
             const isActive = activeTool === tool.id;
             return (
@@ -1920,6 +1964,15 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
                         </g>
                       );
                     })}
+
+                  {/* PyGarment construction guides (darts and internal pattern lines) */}
+                  {layers.notes && piece.segments.filter(seg => seg.layer === 'guideline').map(seg => (
+                    <g key={seg.id} pointerEvents="none">
+                      <path d={segmentToSvgPath(seg, pxPerCm)} fill="none" stroke="#fbbf24" strokeWidth="1.8" strokeDasharray="5 4">
+                        <title>{seg.label || 'خط إرشادي'}</title>
+                      </path>
+                    </g>
+                  ))}
 
                   {/* 3. Notches Layer */}
                   {layers.notches && piece.notches.map(notch => {
