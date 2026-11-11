@@ -30,6 +30,8 @@ const topics: Topic[] = [
 
 const groups = ['الكل', 'الجونلات', 'القياسات والملاءمة', 'الباترون', 'التصنيع', 'التطريز والحرف'];
 const references = [
+  { title: 'Patternmaking for Fashion Design — Fifth Edition', org: 'Helen Joseph-Armstrong، Pearson Education، 2014', kind: 'كتاب مرجعي مرفوع', desc: 'استُخدمت موضوعات القياسات وتحليل القوام والبلوك الأساسي ونقل البنس وتحويلات التصميم والعينة التجريبية والبنطال. أُعيدت صياغة المبادئ مع الإشارة إلى الفصول، دون نسخ صفحات الكتاب أو جداولِه.', url: 'https://www.pearson.com/en-gb/subject-catalog/p/patternmaking-for-fashion-design/P200000003286/9781292024813' },
+
   { title: 'ISO 8559-1:2017 — تعريفات قياسات الجسم', org: 'المنظمة الدولية للتوحيد القياسي ISO', kind: 'معيار', desc: 'تعريف القياسات ونقاط الجسم؛ تؤكد صفحة ISO أن الإصدار تمت مراجعته في 2026 وما زال سارياً.', url: 'https://www.iso.org/standard/61686.html' },
   { title: 'Patternmaking / Draping', org: 'جامعة كورنيل', kind: 'مورد جامعي', desc: 'دروس في التشكيل على المانيكان، موازنة القطعة، وفحص العينة والملاءمة.', url: 'https://fit.cit.cornell.edu/textiles/index.html' },
   { title: 'Clothing Technology — Pattern and Garment Construction', org: 'Education Bureau, Hong Kong', kind: 'موارد تعليمية', desc: 'مواد عن بلوك التنورة والجذع والأكمام والياقات والجيوب وتقنيات الخياطة.', url: 'https://www.edb.gov.hk/en/curriculum-development/kla/technology-edu/resources/technology-and-living/Clothing_Technology.html' },
