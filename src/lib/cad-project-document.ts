@@ -93,3 +93,17 @@ export function saveCadProjectDocument(
     return false;
   }
 }
+
+/** Removes the CAD document associated with a deleted project. */
+export function deleteCadProjectDocument(
+  storage: Pick<Storage, 'removeItem'> | null,
+  projectId: string
+): boolean {
+  if (!storage || !projectId) return false;
+  try {
+    storage.removeItem(STORAGE_PREFIX + projectId);
+    return true;
+  } catch {
+    return false;
+  }
+}
