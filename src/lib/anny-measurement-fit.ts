@@ -49,3 +49,56 @@ export function convertAnnyCircumferenceToCm(
   }
   return nativeCircumference * getAnnyHeightScale(nativeHeight, targetHeightCm);
 }
+
+
+export interface RadialScaleAnchor {
+  coordinate: number;
+  radialScale: number;
+}
+
+/**
+ * Interpolate a conservative radial deformation factor between validated
+ * anatomical anchors. Smoothstep avoids abrupt scale changes at each anchor.
+ * This helper does not mutate geometry; callers must not use unvalidated
+ * landmarks or apply the result until the body-axis mapping is established.
+ */
+export function interpolateRadialScale(
+  coordinate: number,
+  anchors: RadialScaleAnchor[],
+  minScale = 0.85,
+  maxScale = 1.15
+): number {
+  if (!Number.isFinite(coordinate)) throw new Error('Profile coordinate must be finite');
+  if (!Number.isFinite(minScale) || !Number.isFinite(maxScale) ||
+      minScale <= 0 || maxScale < minScale) {
+    throw new Error('Radial scale bounds must be positive and ordered');
+  }
+  if (anchors.length < 2) throw new Error('At least two radial scale anchors are required');
+
+  const sorted = [...anchors].sort((a, b) => a.coordinate - b.coordinate);
+  for (let i = 0; i < sorted.length; i++) {
+    const anchor = sorted[i];
+    if (!Number.isFinite(anchor.coordinate) ||
+        !Number.isFinite(anchor.radialScale) || anchor.radialScale <= 0) {
+      throw new Error('Radial scale anchors must contain finite coordinates and positive scales');
+    }
+    if (i > 0 && anchor.coordinate <= sorted[i - 1].coordinate) {
+      throw new Error('Radial scale anchor coordinates must be distinct');
+    }
+  }
+
+  const clamp = (value: number) => Math.min(maxScale, Math.max(minScale, value));
+  if (coordinate <= sorted[0].coordinate) return clamp(sorted[0].radialScale);
+  if (coordinate >= sorted[sorted.length - 1].coordinate) {
+    return clamp(sorted[sorted.length - 1].radialScale);
+  }
+
+  const upperIndex = sorted.findIndex(anchor => anchor.coordinate >= coordinate);
+  const lower = sorted[upperIndex - 1];
+  const upper = sorted[upperIndex];
+  const t = (coordinate - lower.coordinate) / (upper.coordinate - lower.coordinate);
+  const smoothT = t * t * (3 - 2 * t);
+  const lowerScale = clamp(lower.radialScale);
+  const upperScale = clamp(upper.radialScale);
+  return lowerScale + (upperScale - lowerScale) * smoothT;
+}
