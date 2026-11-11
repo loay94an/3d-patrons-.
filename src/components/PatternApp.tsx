@@ -26,7 +26,6 @@ import { PWAInstallButton } from './PWAInstallButton';
 import { ProjectWorkspace } from './ProjectWorkspace';
 import { createMeasurementProfile, validateStudioProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
-import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
 
 export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'garment_image' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
 
@@ -85,7 +84,6 @@ export default function PatternApp() {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
-  const [cadInitialDraft, setCadInitialDraft] = useState<BasicSkirtDraftResult | null>(null);
 
   // 3D Fabric Physical & Visual State
   const [fabricState, setFabricState] = useState<FabricCustomState>(DEFAULT_FABRIC_STATE);
@@ -448,8 +446,7 @@ export default function PatternApp() {
                   }
                 });
               }}
-              onOpenCad={(garment, profile, ease, draft) => {
-                setCadInitialDraft(draft ?? null);
+              onOpenCad={(garment, profile, ease) => {
                 const measurements = profile.values;
                 updateState({
                   garment,
@@ -489,7 +486,6 @@ export default function PatternApp() {
           <div className="w-full h-full relative overflow-hidden">
             <PatternVisualizer
               state={state}
-              initialDraft={cadInitialDraft}
               onGarmentChange={(garment) => updateState({ garment })}
             />
           </div>
