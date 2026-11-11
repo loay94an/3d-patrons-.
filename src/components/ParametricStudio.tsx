@@ -4,7 +4,7 @@ import { buildKtrSource, EaseProfile, GarmentFamily, StudioMeasurements } from '
 import { GarmentType } from '../lib/pattern-logic';
 
 type Props = {
-  onOpenCad: (garment: GarmentType) => void;
+  onOpenCad: (garment: GarmentType, measurements: StudioMeasurements, ease: EaseProfile) => void;
   onOpenEncyclopedia: () => void;
 };
 
@@ -75,7 +75,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={onOpenEncyclopedia} className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold hover:bg-white/5"><BookOpen className="h-4 w-4" /> المراجع</button>
-              <button onClick={() => onOpenCad(selected.garment)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-400"><Scissors className="h-4 w-4" /> فتح محرر 2D</button>
+              <button onClick={() => onOpenCad(selected.garment, measurements, ease)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-400"><Scissors className="h-4 w-4" /> فتح محرر 2D</button>
             </div>
           </div>
           <div className="relative mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
