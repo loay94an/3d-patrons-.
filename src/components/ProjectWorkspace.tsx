@@ -4,7 +4,7 @@ import {
   createProject, DEFAULT_PROJECT_EASE, DEFAULT_PROJECT_MEASUREMENTS, exportProjects, importProjects,
   loadProjects, persistProjects, saveProject, type ProjectSnapshot, type ProjectGarment, type ProjectFamily
 } from '../lib/project-store';
-import { loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
+import { deleteCadProjectDocument, loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
 
 type PortableProject = ProjectSnapshot & { cadDocument?: CadProjectDocument | null };
 
@@ -46,6 +46,7 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
   };
   const remove = () => {
     if (!active || !window.confirm(`هل تريد حذف «${active.name}» من هذا الجهاز؟`)) return;
+    deleteCadProjectDocument(window.localStorage, active.id);
     const next = projects.filter(project => project.id !== active.id);
     setProjects(next); setActiveId(next[0]?.id ?? null);
   };
