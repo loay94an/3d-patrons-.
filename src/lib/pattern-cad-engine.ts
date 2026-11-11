@@ -432,6 +432,11 @@ export function generatePatternByNumbers(
   const backWidth = +(quarterChest * 0.85).toFixed(1);
   const frontWidth = +(quarterChest * 0.82).toFixed(1);
   const seamDefault = input.seamAllowanceDefault || 1.5;
+  // Intake is added to the cut waist width and removed when the dart is sewn.
+  // Placement is a starting-block estimate and must be checked with a fitting sample.
+  const waistShapeDifference = Math.max(0, quarterChest - quarterWaist);
+  const backDartIntake = Math.min(2, waistShapeDifference * 0.25);
+  const frontDartIntake = Math.min(2.5, waistShapeDifference * 0.5);
 
   const pieces: CadPiece[] = [];
   const summaries: PieceSpecSummary[] = [];
@@ -1172,7 +1177,7 @@ export function generatePatternByNumbers(
   const b2: CadPoint = { x: bOrig.x + neckWidth + input.shoulderLength, y: bOrig.y + shoulderDrop };
   const bMid: CadPoint = { x: bOrig.x + backWidth, y: bOrig.y + armholeDepth * 0.65 };
   const b3: CadPoint = { x: bOrig.x + quarterChest, y: bOrig.y + armholeDepth };
-  const b4: CadPoint = { x: bOrig.x + quarterWaist, y: bOrig.y + input.backLength };
+  const b4: CadPoint = { x: bOrig.x + quarterWaist + backDartIntake, y: bOrig.y + input.backLength };
   const b5: CadPoint = { x: bOrig.x, y: bOrig.y + input.backLength };
 
   backSegments.push({
@@ -1228,7 +1233,7 @@ export function generatePatternByNumbers(
     p2: b5,
     layer: 'cutting',
     edgeType: 'waist',
-    label: `خصر الظهر: ${quarterWaist} سم`,
+    label: `خصر الظهر قبل إغلاق البنسة: ${distance(b4, b5).toFixed(1)} سم`,
     lengthCm: +distance(b4, b5).toFixed(1)
   });
 
@@ -1270,6 +1275,17 @@ export function generatePatternByNumbers(
     label: 'خط خياطة الجنب',
     lengthCm: +distance(s_b3, s_b4).toFixed(1)
   });
+
+  if (backDartIntake >= 0.4) {
+    const centerX = bOrig.x + (quarterWaist + backDartIntake) * 0.55;
+    const left = { x: centerX - backDartIntake / 2, y: b4.y };
+    const right = { x: centerX + backDartIntake / 2, y: b4.y };
+    const apex = { x: centerX, y: bOrig.y + input.backLength * 0.58 };
+    backSegments.push(
+      { id: 'b_waist_dart_left', type: 'line', p1: left, p2: apex, layer: 'stitch', edgeType: 'general', label: 'رجل بنسة خصر الظهر', lengthCm: +distance(left, apex).toFixed(1) },
+      { id: 'b_waist_dart_right', type: 'line', p1: right, p2: apex, layer: 'stitch', edgeType: 'general', label: 'رجل بنسة خصر الظهر', lengthCm: +distance(right, apex).toFixed(1) }
+    );
+  }
 
   const backNotches: CadNotch[] = [
     { id: 'notch_b_armhole', point: { x: bMid.x, y: bMid.y }, angleDeg: 40, type: 'v_notch', depthCm: 0.6, label: 'نوتش إبط الظهر (مزدوج)' },
@@ -1314,7 +1330,7 @@ export function generatePatternByNumbers(
   const f2: CadPoint = { x: fOrig.x + neckWidth + input.shoulderLength, y: fOrig.y + shoulderDrop + 0.5 };
   const fMid: CadPoint = { x: fOrig.x + frontWidth, y: fOrig.y + armholeDepth * 0.7 };
   const f3: CadPoint = { x: fOrig.x + quarterChest + 0.5, y: fOrig.y + armholeDepth };
-  const f4: CadPoint = { x: fOrig.x + quarterWaist, y: fOrig.y + input.frontLength };
+  const f4: CadPoint = { x: fOrig.x + quarterWaist + frontDartIntake, y: fOrig.y + input.frontLength };
   const f5: CadPoint = { x: fOrig.x, y: fOrig.y + input.frontLength };
 
   frontSegments.push({
@@ -1370,7 +1386,7 @@ export function generatePatternByNumbers(
     p2: f5,
     layer: 'cutting',
     edgeType: 'waist',
-    label: `خصر الأمام: ${quarterWaist} سم`,
+    label: `خصر الأمام قبل إغلاق البنسة: ${distance(f4, f5).toFixed(1)} سم`,
     lengthCm: +distance(f4, f5).toFixed(1)
   });
 
@@ -1411,6 +1427,17 @@ export function generatePatternByNumbers(
     label: 'خط خياطة جنب الأمام',
     lengthCm: +distance(s_f3, s_f4).toFixed(1)
   });
+
+  if (frontDartIntake >= 0.4) {
+    const centerX = fOrig.x + (quarterWaist + frontDartIntake) * 0.55;
+    const left = { x: centerX - frontDartIntake / 2, y: f4.y };
+    const right = { x: centerX + frontDartIntake / 2, y: f4.y };
+    const apex = { x: centerX, y: fOrig.y + input.frontLength * 0.56 };
+    frontSegments.push(
+      { id: 'f_waist_dart_left', type: 'line', p1: left, p2: apex, layer: 'stitch', edgeType: 'general', label: 'رجل بنسة خصر الأمام', lengthCm: +distance(left, apex).toFixed(1) },
+      { id: 'f_waist_dart_right', type: 'line', p1: right, p2: apex, layer: 'stitch', edgeType: 'general', label: 'رجل بنسة خصر الأمام', lengthCm: +distance(right, apex).toFixed(1) }
+    );
+  }
 
   const frontNotches: CadNotch[] = [
     { id: 'notch_f_armhole_1', point: { x: fMid.x, y: fMid.y - 1 }, angleDeg: 35, type: 'v_notch', depthCm: 0.6, label: 'نوتش مفرد للأمام' },
