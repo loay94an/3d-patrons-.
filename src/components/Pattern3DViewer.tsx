@@ -528,7 +528,7 @@ export function Pattern3DViewer({
       const response = await fetch(`${baseUrl}/v1/anny/generate/glb`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phenotypes: annyPhenotypes })
+        body: JSON.stringify({ phenotypes: Object.fromEntries(Object.entries(annyPhenotypes).filter(([, value]) => Math.abs(value - 0.5) > 1e-9)) })
       });
       if (!response.ok) throw new Error(await readAnnyApiError(response));
       const buffer = await response.arrayBuffer();
