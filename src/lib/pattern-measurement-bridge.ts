@@ -67,6 +67,10 @@ export function buildPatternMeasurementBridge(
   const evidence: PatternMeasurementEvidence[] = [];
   const issues: PatternMeasurementBridgeIssue[] = [];
   const seen = new Set<PatternLinearMeasurementField>();
+  const allowedFields = new Set<PatternLinearMeasurementField>([
+    'backLength', 'frontLength', 'shoulderLength', 'neckDepthFront',
+    'neckDepthBack', 'sleeveLength', 'crotchDepth', 'rise'
+  ]);
 
   if (!Array.isArray(measurements) || measurements.length === 0) {
     return {
@@ -78,8 +82,8 @@ export function buildPatternMeasurementBridge(
   }
 
   for (const item of measurements) {
-    if (!item || !item.field) {
-      issues.push({ path: 'measurements.field', message: 'A supported CAD length field is required' });
+    if (!item || !item.field || !allowedFields.has(item.field)) {
+      issues.push({ path: 'measurements.field', message: 'A supported CAD length field is required; circumferences are not derived from a 2D segment' });
       continue;
     }
     if (seen.has(item.field)) {
