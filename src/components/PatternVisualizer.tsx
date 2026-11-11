@@ -20,6 +20,7 @@ import {
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { offsetCadContour } from '../lib/offset-geometry';
 import { validatePatternPieces } from '../lib/pattern-quality';
+import { auditPatternSeamLengths } from '../lib/seam-length-audit';
 import { mapMeasurementsToPatternInput } from '../lib/pattern-measurement-mapper';
 import { loadCadProjectDocument, saveCadProjectDocument } from '../lib/cad-project-document';
 import { adaptPyGarmentPattern } from '../lib/pygarment-adapter';
@@ -125,6 +126,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
   });
 
   const qualityReport = useMemo(() => validatePatternPieces(pieces), [pieces]);
+  const seamLengthChecks = useMemo(() => auditPatternSeamLengths(pieces), [pieces]);
 
   // Synchronize 2D CAD pattern pieces whenever state.customMeasurements or size changes
   useEffect(() => {
@@ -1549,7 +1551,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
               {qualityReport.exportSafe ? 'لا توجد أخطاء بنيوية مانعة وفق الفحوص الحالية' : 'توجد أخطاء بنيوية؛ راجعها قبل التصدير'}
             </div>
             {qualityReport.issues.length > 0 ? <ul className="mt-3 space-y-2">{qualityReport.issues.map((issue,index) => <li key={issue.pieceId + issue.code + index} className={`rounded-lg border p-2 text-[11px] leading-5 ${issue.severity === 'error' ? 'border-rose-900/70 text-rose-200' : 'border-amber-900/70 text-amber-200'}`}><strong>{issue.pieceName}:</strong> {issue.message}</li>)}</ul> : <p className="mt-3 text-xs text-emerald-200">لم تُسجل ملاحظات في الفحوص البنيوية الحالية.</p>}
-            <p className="mt-3 text-[10px] leading-5 text-slate-500">لا يفحص هذا التقرير تطابق الدرزات بين القطع، أو صحة طريقة الباترون، أو التدريج، أو الملاءمة على الجسم، أو محاكاة القماش.</p>
+            {seamLengthChecks.length > 0 && <div className="mt-4 border-t border-slate-700 pt-3">
+              <div className="text-xs font-bold text-slate-200">تدقيق أولي لأطوال حواف الخياطة</div>
+              <p className="mt-1 text-[10px] leading-5 text-slate-500">يقارن الحواف المحددة في القوالب فقط؛ أي فرق يتجاوز الهامش يحتاج مراجعة قبل القص.</p>
+              <ul className="mt-2 space-y-2">{seamLengthChecks.map(check => <li key={check.id} className={`rounded-lg border p-2 text-[10px] leading-5 ${check.status === 'within-tolerance' ? 'border-emerald-900/60 text-emerald-200' : 'border-amber-900/70 text-amber-200'}`}>
+                <div className="font-bold">{check.labelAr} · {check.status === 'within-tolerance' ? 'ضمن الهامش الأولي' : 'يحتاج مراجعة'}</div>
+                <div>{check.leftLabelAr}: {check.leftLengthCm.toFixed(1)} سم · {check.rightLabelAr}: {check.rightLengthCm.toFixed(1)} سم</div>
+                <div>الفرق: {check.differenceCm.toFixed(1)} سم (الهامش: {check.allowedDifferenceCm.toFixed(1)} سم)</div>
+              </li>)}</ul>
+            </div>}
+            <p className="mt-3 text-[10px] leading-5 text-slate-500">هذه مؤشرات أطوال أولية وليست اعتماداً للخياطة؛ لا تحاكي انحناء الدرز أو توزيع الراحة أو شد القماش، ولا تثبت الملاءمة أو صحة طريقة التفصيل.</p>
           </section>
         )}
 
