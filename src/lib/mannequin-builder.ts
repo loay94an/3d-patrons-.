@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Gender } from './pattern-logic';
+import { Gender, getBaseMeasurements } from './pattern-logic';
 
 export interface MannequinMeasurements {
   bust: number;
@@ -11,6 +11,38 @@ export interface MannequinMeasurements {
   /** Optional tape measurements in centimetres; omitted values use category defaults. */
   armCircumference?: number;
   thighCircumference?: number;
+}
+
+export interface Resolved3DMeasurements {
+  body: MannequinMeasurements;
+  sleeveLength: number;
+  totalLength: number;
+}
+
+/** Resolve 3D body and garment inputs from the selected standard size plus custom tape overrides. */
+export function resolve3DMeasurements(
+  gender: Gender,
+  size: number | string,
+  custom: Record<string, number>
+): Resolved3DMeasurements {
+  const standard = getBaseMeasurements(gender, size);
+  const fallback = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+  const positive = (...values: Array<number | undefined>): number | undefined =>
+    values.find(value => Number.isFinite(value) && (value as number) > 0);
+  return {
+    body: {
+      bust: positive(custom.bust, custom.chest, standard.bust, standard.chest, fallback.bust)!,
+      waist: positive(custom.waist, standard.waist, fallback.waist)!,
+      hip: positive(custom.hip, standard.hip, fallback.hip)!,
+      shoulder: positive(custom.shoulder, standard.shoulder, fallback.shoulder)!,
+      backLength: positive(custom.backLength, standard.backLength, fallback.backLength)!,
+      height: positive(custom.height, standard.height, fallback.height)!,
+      armCircumference: positive(custom.armCirc, custom.upperArm, standard.armCirc),
+      thighCircumference: positive(custom.thighCirc, standard.thighCirc)
+    },
+    sleeveLength: positive(custom.sleeveLength, standard.sleeveLength, 58)!,
+    totalLength: positive(custom.skirtLength, standard.skirtLength, 65)!
+  };
 }
 
 export const DEFAULT_MANNEQUIN_MEASUREMENTS: Record<Gender, MannequinMeasurements> = {
