@@ -80,9 +80,10 @@ export function Pattern3DViewer({
   // Visual toggles
   const [showMannequin, setShowMannequin] = useState(true);
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
+  const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
-  const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
+  const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(false);
   const [annyFileName, setAnnyFileName] = useState('');
   const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
   const [annyLoadError, setAnnyLoadError] = useState('');
@@ -507,6 +508,16 @@ export function Pattern3DViewer({
     }
   };
 
+  // Anny is the default visual body. The procedural mannequin remains available
+  // as a local fallback until Anny's mesh has validated tape-measure calibration.
+  useEffect(() => {
+    if (annyAutoLoadStartedRef.current) return;
+    annyAutoLoadStartedRef.current = true;
+    void handleLoadBundledAnny();
+    // Load once after the renderer scene has been initialized.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
 
   const readAnnyApiError = async (response: Response) => {
@@ -801,11 +812,11 @@ export function Pattern3DViewer({
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
-        <button disabled={annyBundledBusy} onClick={() => void handleLoadBundledAnny()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/40 border border-emerald-700/40 disabled:opacity-50" title="تحميل جسم Anny الأساسي المضمّن في الموقع؛ القياسات غير معايرة">
-          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'عرض جسم Anny'}</span>
+        <button disabled={annyBundledBusy} onClick={() => void handleLoadBundledAnny()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/40 border border-emerald-700/40 disabled:opacity-50" title="Anny هو الجسم الافتراضي للمعاينة؛ القياسات والملاءمة غير معايرة بعد">
+          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'إعادة تحميل Anny'}</span>
         </button>
         {annyPreviewEnabled && <>
-          <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الباترون فوق جسم Anny؛ المحاذاة تقريبية حتى معايرة القياسات">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
+          <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الملابس فوق Anny بعد التحقق؛ المحاذاة الحالية غير معايرة">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
           <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
         </>}
 
