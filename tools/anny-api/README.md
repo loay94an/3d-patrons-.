@@ -35,7 +35,7 @@ From the repository root:
 python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2"
 python -m pip install -r tools/anny-poc/requirements.txt
 python -m pip install -r tools/anny-api/requirements.txt
-uvicorn tools.anny-api.app:app --host 127.0.0.1 --port 8000
+uvicorn app:app --app-dir tools/anny-api --host 127.0.0.1 --port 8000
 ```
 
 OpenAPI docs are available at `/docs`.
