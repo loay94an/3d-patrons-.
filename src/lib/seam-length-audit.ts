@@ -30,7 +30,7 @@ export function auditPatternSeamLengths(pieces: CadPiece[]): SeamLengthCheck[] {
   const add = (
     id: string, labelAr: string,
     leftPieceId: string, leftIds: string[], leftLabelAr: string,
-    rightPieceId: string, rightIds: string[], rightLabelAr: string[],
+    rightPieceId: string, rightIds: string[], rightLabelAr: string,
     allowedDifferenceCm: number
   ) => {
     const leftLengthCm = sumSegments(byId.get(leftPieceId), leftIds);
