@@ -4,6 +4,9 @@ import {
   createProject, DEFAULT_PROJECT_EASE, DEFAULT_PROJECT_MEASUREMENTS, exportProjects, importProjects,
   loadProjects, persistProjects, saveProject, type ProjectSnapshot, type ProjectGarment, type ProjectFamily
 } from '../lib/project-store';
+import { loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
+
+type PortableProject = ProjectSnapshot & { cadDocument?: CadProjectDocument | null };
 
 const garmentOptions: { value: ProjectGarment; label: string }[] = [
   { value: 'blouse', label: 'بلوزة' }, { value: 'dress', label: 'فستان' }, { value: 'shirt', label: 'قميص' },
@@ -46,22 +49,35 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
     const next = projects.filter(project => project.id !== active.id);
     setProjects(next); setActiveId(next[0]?.id ?? null);
   };
+  const getPortableProjects = (items: ProjectSnapshot[]): PortableProject[] => items.map(project => ({
+    ...project,
+    cadDocument: loadCadProjectDocument(typeof window === 'undefined' ? null : window.localStorage, project.id)
+  }));
   const download = () => {
     if (!active) return;
-    const blob = new Blob([exportProjects([active])], { type: 'application/json' });
+    const blob = new Blob([exportProjects(getPortableProjects([active]))], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
     anchor.href = url; anchor.download = `${active.name.replace(/[^\p{L}\p{N}-]+/gu, '-')}.patron-project.json`;
     anchor.click(); URL.revokeObjectURL(url);
   };
   const backupAll = () => {
-    const blob = new Blob([exportProjects(projects)], { type: 'application/json' });
+    const blob = new Blob([exportProjects(getPortableProjects(projects))], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
     anchor.href = url; anchor.download = 'patron-studio-projects-backup.json'; anchor.click(); URL.revokeObjectURL(url);
   };
   const restore = async (file?: File) => {
     if (!file) return;
     try {
-      const imported = importProjects(await file.text());
+      const portable = importProjects(await file.text()) as PortableProject[];
+      portable.forEach(project => {
+        if (project.cadDocument) {
+          saveCadProjectDocument(
+            typeof window === 'undefined' ? null : window.localStorage,
+            project.id, project.cadDocument.pieces, project.cadDocument.summaries, project.cadDocument.updatedAt
+          );
+        }
+      });
+      const imported = portable.map(({ cadDocument: _cadDocument, ...project }) => project);
       setProjects(current => {
         const byId = new Map(current.map(project => [project.id, project]));
         imported.forEach(project => byId.set(project.id, project));
