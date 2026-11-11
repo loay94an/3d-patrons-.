@@ -35,7 +35,7 @@ def main() -> None:
 
     path = Path(args.model)
     scene = trimesh.load(path, force="scene", process=False)
-    mesh = scene.dump(concatenate=True)
+    mesh = scene.to_geometry()
     if not isinstance(mesh, trimesh.Trimesh) or len(mesh.vertices) == 0:
         raise RuntimeError("Anny GLB did not produce a triangle mesh")
     bounds = mesh.bounds
