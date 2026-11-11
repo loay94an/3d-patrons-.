@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,23 @@ ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = ROOT / "tools" / "anny-poc" / "generate.py"
 MAX_PARAMETERS = 40
 GENERATION_TIMEOUT_SECONDS = int(os.getenv("ANNY_GENERATION_TIMEOUT", "420"))
+MAX_CONCURRENT_GENERATIONS = max(1, int(os.getenv("ANNY_MAX_CONCURRENT_GENERATIONS", "1")))
+GENERATION_QUEUE_WAIT_SECONDS = max(0.0, float(os.getenv("ANNY_GENERATION_QUEUE_WAIT", "3")))
+_GENERATION_SLOTS = threading.BoundedSemaphore(MAX_CONCURRENT_GENERATIONS)
+
+
+class GenerationBusyError(Exception):
+    """Raised when the bounded inference capacity is already occupied."""
+
+
+def run_with_generation_slot(generator, phenotypes: dict[str, float], *, slots=None):
+    semaphore = slots if slots is not None else _GENERATION_SLOTS
+    if not semaphore.acquire(timeout=GENERATION_QUEUE_WAIT_SECONDS):
+        raise GenerationBusyError("Anny is busy; retry the request shortly")
+    try:
+        return generator(phenotypes)
+    finally:
+        semaphore.release()
 
 
 def normalize_phenotypes(values: dict[str, Any]) -> dict[str, float]:
@@ -185,7 +203,9 @@ async def generate_body_glb(request: GenerateRequest, background_tasks: Backgrou
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     try:
-        glb_path = await run_in_threadpool(_generate_glb_file, phenotypes)
+        glb_path = await run_in_threadpool(run_with_generation_slot, _generate_glb_file, phenotypes)
+    except GenerationBusyError as exc:
+        raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "5"}) from exc
     except TimeoutError as exc:
         raise HTTPException(status_code=504, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -209,7 +229,7 @@ async def generate_body(request: GenerateRequest, background_tasks: BackgroundTa
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     try:
-        archive_path = await run_in_threadpool(_generate_archive, phenotypes)
+        archive_path = await run_in_threadpool(run_with_generation_slot, _generate_archive, phenotypes)
     except TimeoutError as exc:
         raise HTTPException(status_code=504, detail=str(exc)) from exc
     except RuntimeError as exc:
