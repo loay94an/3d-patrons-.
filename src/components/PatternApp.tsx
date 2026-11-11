@@ -341,8 +341,23 @@ export default function PatternApp() {
         {activeTab === 'parametric' && (
           <div className="w-full h-full">
             <ParametricStudio
-              onOpenCad={(garment) => {
-                updateState({ garment });
+              onOpenCad={(garment, measurements, ease) => {
+                updateState({
+                  garment,
+                  useCustomMode: true,
+                  customMeasurements: {
+                    bust: measurements.bust,
+                    waist: measurements.waist,
+                    hip: measurements.hip,
+                    backLength: measurements.backLength,
+                    sleeveLength: measurements.sleeveLength,
+                    armCirc: measurements.upperArm,
+                    bustEase: ease.bust,
+                    waistEase: ease.waist,
+                    hipEase: ease.hip,
+                    upperArmEase: ease.upperArm
+                  }
+                });
                 setActiveTab('cad2d');
               }}
               onOpenEncyclopedia={() => setActiveTab('encyclopedia')}
