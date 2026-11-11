@@ -152,6 +152,47 @@ export function getTorsoProfile(
 
   return { y: yOffset + THREE.MathUtils.clamp(v, 0, 1) * torsoHeight, rx, rz, zCenter };
 }
+/**
+ * Measures the perimeter of an actual generated torso-mesh ring.
+ * The body model is generated in centimetre-like project units; this value
+ * is meaningful in cm only after the model's physical scale is calibrated.
+ */
+export function measureTorsoMeshCircumference(
+  gender: Gender,
+  measurements: MannequinMeasurements,
+  v: number
+): number {
+  const mannequin = buildParametricMannequin(gender, measurements);
+  let torso: THREE.Mesh | undefined;
+  mannequin.traverse(object => {
+    if (object instanceof THREE.Mesh && object.name === 'TorsoSurface') torso = object;
+  });
+  if (!torso) throw new Error('Generated mannequin has no torso surface');
+
+  const radialSegments = 64;
+  const verticalSegments = 100;
+  const row = Math.round(THREE.MathUtils.clamp(v, 0, 1) * verticalSegments);
+  const positions = torso.geometry.getAttribute('position');
+  const stride = radialSegments + 1;
+  let perimeter = 0;
+  for (let j = 0; j < radialSegments; j++) {
+    const a = row * stride + j;
+    const b = a + 1;
+    perimeter += Math.hypot(
+      positions.getX(b) - positions.getX(a),
+      positions.getZ(b) - positions.getZ(a)
+    );
+  }
+  mannequin.traverse(object => {
+    if (object instanceof THREE.Mesh) {
+      object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach(material => material.dispose());
+    }
+  });
+  return perimeter;
+}
+
 export function ellipsePerimeter(a: number, b: number): number {
   const h = ((a - b) ** 2) / ((a + b) ** 2);
   return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
