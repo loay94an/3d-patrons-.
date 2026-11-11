@@ -423,7 +423,7 @@ export function generatePatternByNumbers(
   const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, { ...vars, ease: localEase.bust }, input.bustCircumference / 4 + localEase.bust);
   const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, { ...vars, ease: localEase.waist }, input.waistCircumference / 4 + localEase.waist + 1.5);
   const quarterHip = evaluateDraftingRule(rules.hipQuarterFormula, { ...vars, ease: localEase.hip }, input.hipCircumference / 4 + localEase.hip);
-  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, { ...vars, ease: localEase.upperArm }, input.armholeCircumference * 0.45 + localEase.upperArm);
+  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, vars, input.armholeCircumference * 0.45 + input.additionalEase);
 
   const backWidth = +(quarterChest * 0.85).toFixed(1);
   const frontWidth = +(quarterChest * 0.82).toFixed(1);
