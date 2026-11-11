@@ -2,6 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildAnnyBodyProfile, sampleAnnyBodySection } from './anny-body-profile';
+import { generate3DGarmentMesh } from './garment-3d-generator';
+import { DEFAULT_FABRIC_STATE } from './fabric-engine';
 
 describe('Anny mesh-derived body profile', () => {
   it('extracts closed horizontal sections from the actual transformed mesh', () => {
@@ -48,6 +50,43 @@ describe('Anny mesh-derived body profile', () => {
     assert.equal(middle.radii.length, 64);
     geometry.dispose();
     (mesh.material as THREE.Material).dispose();
+  });
+
+  it('builds the garment torso around the Anny mesh centre instead of the legacy mannequin axis', () => {
+    const body = new THREE.Mesh(
+      new THREE.CylinderGeometry(10, 10, 100, 64, 32, false),
+      new THREE.MeshBasicMaterial()
+    );
+    body.position.set(4, 50, -7);
+    body.updateMatrixWorld(true);
+    const profile = buildAnnyBodyProfile(body, { sectionCount: 32, radialSamples: 96 });
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const garment = generate3DGarmentMesh({
+      garmentType: 'vest',
+      gender: 'women',
+      bust: 80,
+      waist: 70,
+      hip: 90,
+      shoulder: 12,
+      backLength: 40,
+      height: 100,
+      sleeveLength: 0,
+      totalLength: 50,
+      fabricState: DEFAULT_FABRIC_STATE,
+      annyBodyProfile: profile
+    }, material);
+
+    garment.garmentMesh.geometry.computeBoundingBox();
+    const center = garment.garmentMesh.geometry.boundingBox!.getCenter(new THREE.Vector3());
+    assert.ok(Math.abs(center.x - 4) < 0.1, `expected Anny centre x=4, received ${center.x}`);
+    assert.ok(Math.abs(center.z + 7) < 0.1, `expected Anny centre z=-7, received ${center.z}`);
+
+    garment.group.traverse(object => {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Line) object.geometry.dispose();
+    });
+    material.dispose();
+    body.geometry.dispose();
+    (body.material as THREE.Material).dispose();
   });
 
   it('rejects meshes that do not provide enough closed body sections', () => {
