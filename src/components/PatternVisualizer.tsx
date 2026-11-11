@@ -1374,10 +1374,12 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       setSelectedPieceId(adapted.pieces[0]?.id ?? null);
       setSelectedSegmentId(null);
       setSelectedNode(null);
+      const maxX = Math.max(0, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.x, segment.p2.x])));
+      const maxY = Math.max(0, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.y, segment.p2.y])));
       setWorkFrame(current => ({
         ...current,
-        widthCm: Math.max(current.widthCm, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.x, segment.p2.x])) + 5),
-        heightCm: Math.max(current.heightCm, ...adapted.pieces.flatMap(piece => piece.segments.filter(segment => segment.layer === 'cutting').flatMap(segment => [segment.p1.y, segment.p2.y])) + 5)
+        widthCm: Math.max(current.widthCm, maxX + 5),
+        heightCm: Math.max(current.heightCm, maxY + 5)
       }));
       pushHistory('استيراد باترون PyGarment إلى لوحة CAD', importedPieces);
       const warningText = adapted.warnings.length ? '\n\nتنبيهات: ' + adapted.warnings.join('؛ ') : '';
