@@ -7,7 +7,7 @@ import {
   Magnet, CheckCircle2, CheckCircle, Split, Wand2, Ruler, Lock, Unlock,
   ChevronRight, ChevronLeft, ChevronDown, ChevronUp, MousePointer, PenTool,
   RotateCw, Undo2, Redo2, Layers2, ArrowLeft, LayoutGrid, Focus, Crosshair,
-  Trash2, CornerDownLeft, X, CircleDot, Zap
+  Trash2, CornerDownLeft, X, CircleDot, Zap, ClipboardCheck
 } from 'lucide-react';
 import { AppState, GarmentType, getBaseMeasurements } from '../lib/pattern-logic';
 import {
@@ -19,6 +19,7 @@ import {
 } from '../lib/pattern-cad-engine';
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { offsetCadContour } from '../lib/offset-geometry';
+import { validatePatternPieces } from '../lib/pattern-quality';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
 import { CadFloatingProperties } from './CadFloatingProperties';
 import { PatternByNumbersModal } from './PatternByNumbersModal';
@@ -76,6 +77,8 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   const [showQuickProperties, setShowQuickProperties] = useState(false);
   const [showSpecsTable, setShowSpecsTable] = useState(false);
   const [showSeamAllowanceControl, setShowSeamAllowanceControl] = useState(false);
+  const [showQualityReport, setShowQualityReport] = useState(false);
+  const qualityReport = useMemo(() => validatePatternPieces(pieces), [pieces]);
 
   // Pattern By Numbers Data State (16 fields)
   const [patternInputs, setPatternInputs] = useState<PatternByNumbersInput>(() => {
@@ -1463,7 +1466,34 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
           >
             <RotateCw className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => setShowQualityReport(value => !value)}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 ${qualityReport.exportSafe ? 'text-emerald-300 hover:bg-emerald-900/30' : 'text-rose-300 bg-rose-900/20'}`}
+            title="تقرير فحص جودة الباترون"
+            aria-expanded={showQualityReport}
+          >
+            <ClipboardCheck className="w-5 h-5" />
+          </button>
         </div>
+
+        {showQualityReport && (
+          <section className="absolute right-14 top-3 z-40 w-[min(22rem,calc(100vw-4.5rem))] max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl" dir="rtl" aria-label="تقرير جودة الباترون">
+            <div className="flex items-start justify-between gap-3">
+              <div><h3 className="font-black">فحص جودة الباترون</h3><p className="mt-1 text-[11px] text-slate-400">فحوص بنيوية قبل التصدير، وليست شهادة ملاءمة أو اعتماد إنتاج.</p></div>
+              <button onClick={() => setShowQualityReport(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-800" aria-label="إغلاق"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-slate-950 p-2"><div className="text-lg font-black">{qualityReport.checkedPieces}</div><div className="text-[10px] text-slate-500">قطع</div></div>
+              <div className="rounded-xl bg-slate-950 p-2"><div className="text-lg font-black">{qualityReport.errors}</div><div className="text-[10px] text-slate-500">أخطاء</div></div>
+              <div className="rounded-xl bg-slate-950 p-2"><div className="text-lg font-black">{qualityReport.warnings}</div><div className="text-[10px] text-slate-500">تنبيهات</div></div>
+            </div>
+            <div className={`mt-3 rounded-xl border p-3 text-xs font-bold ${qualityReport.exportSafe ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-rose-500/30 bg-rose-500/10 text-rose-200'}`}>
+              {qualityReport.exportSafe ? 'لا توجد أخطاء بنيوية مانعة وفق الفحوص الحالية' : 'توجد أخطاء بنيوية؛ راجعها قبل التصدير'}
+            </div>
+            {qualityReport.issues.length > 0 ? <ul className="mt-3 space-y-2">{qualityReport.issues.map((issue,index) => <li key={issue.pieceId + issue.code + index} className={`rounded-lg border p-2 text-[11px] leading-5 ${issue.severity === 'error' ? 'border-rose-900/70 text-rose-200' : 'border-amber-900/70 text-amber-200'}`}><strong>{issue.pieceName}:</strong> {issue.message}</li>)}</ul> : <p className="mt-3 text-xs text-emerald-200">لم تُسجل ملاحظات في الفحوص البنيوية الحالية.</p>}
+            <p className="mt-3 text-[10px] leading-5 text-slate-500">لا يفحص هذا التقرير تطابق الدرزات بين القطع، أو صحة طريقة الباترون، أو التدريج، أو الملاءمة على الجسم، أو محاكاة القماش.</p>
+          </section>
+        )}
 
         {showSeamAllowanceControl && (
           <div className="absolute right-14 top-3 z-30 w-56 rounded-xl border border-slate-700 bg-slate-900 p-3 text-white shadow-2xl" dir="rtl">
