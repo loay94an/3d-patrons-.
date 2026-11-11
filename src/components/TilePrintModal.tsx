@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Printer, Grid, Layers, Download, Check, HelpCircle, FileDown } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { CadPiece, WorkFrameConfig } from '../lib/pattern-cad-engine';
+import { getCadPieceContourPoints } from '../lib/tile-print-geometry';
 
 interface TilePrintModalProps {
   isOpen: boolean;
@@ -32,8 +33,12 @@ export function TilePrintModal({
     ? (orientation === 'portrait' ? { w: 21.0, h: 29.7 } : { w: 29.7, h: 21.0 })
     : (orientation === 'portrait' ? { w: 21.59, h: 27.94 } : { w: 27.94, h: 21.59 });
 
-  const effectivePageW = pageDim.w - (overlapMarginMm / 10);
-  const effectivePageH = pageDim.h - (overlapMarginMm / 10);
+  // Reserve a 10 mm border, a 60 mm header/calibration band, and the selected overlap.
+  const pageMarginCm = 1;
+  const headerBandCm = 6;
+  const overlapCm = overlapMarginMm / 10;
+  const effectivePageW = pageDim.w - pageMarginCm * 2 - overlapCm;
+  const effectivePageH = pageDim.h - headerBandCm - pageMarginCm - overlapCm;
 
   const cols = Math.max(1, Math.ceil(workFrame.widthCm / effectivePageW));
   const rows = Math.max(1, Math.ceil(workFrame.heightCm / effectivePageH));
@@ -46,61 +51,82 @@ export function TilePrintModal({
   const handleExportTilePdf = async () => {
     setIsExporting(true);
     try {
-      const doc = new jsPDF({
-        orientation: orientation,
-        unit: 'mm',
-        format: pageSize.toLowerCase() as any
-      });
+      const doc = new jsPDF({ orientation, unit: 'mm', format: pageSize.toLowerCase() as any, compress: true });
+      const pageWMm = pageDim.w * 10;
+      const pageHMm = pageDim.h * 10;
+      const stepWMm = effectivePageW * 10;
+      const stepHMm = effectivePageH * 10;
+      const validContours = pieces.map(piece => ({ piece, points: getCadPieceContourPoints(piece) }))
+        .filter((item): item is { piece: CadPiece; points: { x: number; y: number }[] } => Boolean(item.points));
 
-      // Simple multi-page tile generation
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const pageIndex = r * cols + c + 1;
-          if (pageIndex > 1) {
-            doc.addPage(pageSize.toLowerCase(), orientation);
-          }
+      if (!validContours.length) throw new Error('لا توجد قطع مغلقة صالحة للطباعة. أكمل حدود القطع أولاً.');
 
-          const pageWMm = pageDim.w * 10;
-          const pageHMm = pageDim.h * 10;
-
-          // Border & Cut lines
-          doc.setDrawColor(200, 200, 200);
-          doc.setLineWidth(0.3);
+      for (let row = 0; row < rows; row++) {
+        for (let column = 0; column < cols; column++) {
+          const pageIndex = row * cols + column + 1;
+          if (pageIndex > 1) doc.addPage(pageSize.toLowerCase(), orientation);
+          doc.setDrawColor(190, 190, 190);
+          doc.setLineWidth(0.25);
           doc.rect(5, 5, pageWMm - 10, pageHMm - 10);
+          doc.setFontSize(9);
+          doc.setTextColor(45, 55, 72);
+          doc.text(`صفحة ${pageIndex} من ${totalPages} • صف ${row + 1} • عمود ${column + 1}`, 10, 10);
 
-          // Header
-          doc.setFontSize(10);
-          doc.setTextColor(50, 50, 50);
-          doc.text(`الصفحة ${pageIndex} من ${totalPages} [صف ${r + 1}, عمود ${c + 1}] - باترون موكاي`, 10, 10);
-
-          // 5x5 cm Test Calibration Square on page 1
           if (pageIndex === 1 && showTestSquare) {
-            doc.setDrawColor(30, 30, 30);
+            const squareX = pageWMm - 60;
+            doc.setDrawColor(25, 25, 25);
             doc.setLineWidth(0.5);
-            doc.rect(15, 20, 50, 50);
-            doc.setFontSize(8);
-            doc.text("مربع اختبار المقياس", 25, 42);
-            doc.text("5cm x 5cm (100% Scale)", 20, 50);
+            doc.rect(squareX, 5, 50, 50);
+            doc.setFontSize(7);
+            doc.text('اختبار المقياس', squareX + 5, 27);
+            doc.text('50 × 50 mm', squareX + 5, 34);
           }
 
-          // Registration Crosshairs at corners
-          const drawCross = (cx: number, cy: number) => {
-            doc.setDrawColor(220, 38, 38);
-            doc.setLineWidth(0.2);
-            doc.line(cx - 3, cy, cx + 3, cy);
-            doc.line(cx, cy - 3, cx, cy + 3);
-          };
+          if (showAssemblyGrid) {
+            const drawCross = (x: number, y: number) => {
+              doc.setDrawColor(220, 38, 38);
+              doc.setLineWidth(0.2);
+              doc.line(x - 3, y, x + 3, y);
+              doc.line(x, y - 3, x, y + 3);
+            };
+            drawCross(10, 60);
+            drawCross(pageWMm - 10, 60);
+            drawCross(10, pageHMm - 10);
+            drawCross(pageWMm - 10, pageHMm - 10);
+          }
 
-          drawCross(10, 10);
-          drawCross(pageWMm - 10, 10);
-          drawCross(10, pageHMm - 10);
-          drawCross(pageWMm - 10, pageHMm - 10);
+          // Draw full-size vector contours; page boundaries clip each overlapping tile.
+          const offsetX = pageMarginCm * 10 - column * stepWMm;
+          const offsetY = headerBandCm * 10 - row * stepHMm;
+          validContours.forEach(({ piece, points }) => {
+            doc.setDrawColor(25, 45, 80);
+            doc.setLineWidth(0.45);
+            for (let i = 1; i < points.length; i++) {
+              const a = points[i - 1];
+              const b = points[i];
+              doc.line(offsetX + a.x * 10, offsetY + a.y * 10, offsetX + b.x * 10, offsetY + b.y * 10);
+            }
+            doc.setDrawColor(190, 35, 45);
+            doc.setLineWidth(0.35);
+            piece.notches.forEach(notch => {
+              const angle = notch.angleDeg * Math.PI / 180;
+              const half = Math.max(0.2, notch.depthCm) * 5;
+              const x = offsetX + notch.point.x * 10;
+              const y = offsetY + notch.point.y * 10;
+              doc.line(x - Math.cos(angle) * half, y - Math.sin(angle) * half, x + Math.cos(angle) * half, y + Math.sin(angle) * half);
+            });
+            doc.setDrawColor(30, 120, 170);
+            doc.setLineWidth(0.3);
+            piece.grainlines.forEach(line => {
+              doc.line(offsetX + line.p1.x * 10, offsetY + line.p1.y * 10, offsetX + line.p2.x * 10, offsetY + line.p2.y * 10);
+            });
+          });
         }
       }
-
       doc.save(`pattern-tiles-${pageSize}-${totalPages}pages.pdf`);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Tile PDF export failed:', error);
+      window.alert(error instanceof Error ? error.message : 'تعذر إنشاء ملف الطباعة.');
     } finally {
       setIsExporting(false);
     }
