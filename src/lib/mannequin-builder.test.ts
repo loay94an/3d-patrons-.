@@ -94,8 +94,15 @@ describe('3D mannequin geometry', () => {
     });
     assert.ok(meshes.has('UpperArm_1'));
     assert.ok(meshes.has('Thigh_1'));
-    assert.ok(Math.abs((meshes.get('UpperArm_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 30 / (2 * Math.PI)) < 0.001);
-    assert.ok(Math.abs((meshes.get('Thigh_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 56 / (2 * Math.PI)) < 0.001);
+    for (const [name, circumference] of [['UpperArm_1', 30], ['Thigh_1', 56]] as const) {
+      const geometry = meshes.get(name)!.geometry as THREE.LatheGeometry;
+      geometry.computeBoundingBox();
+      const radius = (geometry.boundingBox!.max.x - geometry.boundingBox!.min.x) / 2;
+      assert.ok(Math.abs(radius - circumference / (2 * Math.PI)) < 0.001,
+        `${name} should retain its tape-derived proximal radius`);
+      assert.ok(geometry.getAttribute('position').count > 100,
+        `${name} should use a smooth tapered surface`);
+    }
   });
 
   it('bounds optional limb radii and safely falls back when measurements are absent', () => {

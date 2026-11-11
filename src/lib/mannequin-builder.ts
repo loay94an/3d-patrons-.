@@ -352,13 +352,30 @@ export function buildParametricMannequin(
     return mesh;
   };
 
-  const addSegment = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number) => {
+  const addSegment = (
+    name: string,
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+    startRadius: number,
+    endRadius = startRadius * 0.78
+  ) => {
     const direction = new THREE.Vector3().subVectors(end, start);
     const length = direction.length();
-    const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 12, 24),
-      skin
-    );
+    const profile = [
+      new THREE.Vector2(0, -length / 2 - startRadius),
+      new THREE.Vector2(startRadius * 0.707, -length / 2 - startRadius * 0.707),
+      new THREE.Vector2(startRadius, -length / 2),
+      new THREE.Vector2(THREE.MathUtils.lerp(startRadius, endRadius, 0.25), -length / 4),
+      new THREE.Vector2(THREE.MathUtils.lerp(startRadius, endRadius, 0.5), 0),
+      new THREE.Vector2(THREE.MathUtils.lerp(startRadius, endRadius, 0.75), length / 4),
+      new THREE.Vector2(endRadius, length / 2),
+      new THREE.Vector2(endRadius * 0.707, length / 2 + endRadius * 0.707),
+      new THREE.Vector2(0, length / 2 + endRadius)
+    ];
+    const geometry = new THREE.LatheGeometry(profile, 32);
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    const mesh = new THREE.Mesh(geometry, skin);
     mesh.name = name;
     mesh.position.copy(start).add(end).multiplyScalar(0.5);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
@@ -399,9 +416,9 @@ export function buildParametricMannequin(
     const palm = new THREE.Vector3(side * (shoulderX + 7.5 * scale), yOffset + 8.8 * scale, 1.0 * scale);
     addEllipsoid('Shoulder_' + side, shoulder.x, shoulder.y, shoulder.z,
       4.0 * scale, 4.1 * scale, 3.8 * scale);
-    addSegment('UpperArm_' + side, shoulder, elbow, upperArmRadius);
+    addSegment('UpperArm_' + side, shoulder, elbow, upperArmRadius, upperArmRadius * 0.82);
     addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.35 * scale, 2.35 * scale);
-    addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale);
+    addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale, 1.55 * scale);
     addEllipsoid('Wrist_' + side, wrist.x, wrist.y, wrist.z, 1.5 * scale, 1.45 * scale, 1.5 * scale);
     addEllipsoid('Palm_' + side, palm.x, palm.y, palm.z, 1.8 * scale, 2.8 * scale, 0.9 * scale);
     for (let finger = 0; finger < 5; finger++) {
@@ -409,11 +426,11 @@ export function buildParametricMannequin(
       const fingerLength = (finger === 1 || finger === 2 ? 4.1 : 3.55) * scale;
       const start = new THREE.Vector3(palm.x + offset, palm.y - 1.2 * scale, palm.z + 0.08 * scale);
       const end = new THREE.Vector3(palm.x + offset * 1.08, palm.y - fingerLength, palm.z + 0.1 * scale);
-      addSegment('Finger_' + side + '_' + finger, start, end, 0.34 * scale);
+      addSegment('Finger_' + side + '_' + finger, start, end, 0.34 * scale, 0.22 * scale);
     }
     const thumbStart = new THREE.Vector3(palm.x - side * 1.25 * scale, palm.y + 0.1 * scale, palm.z + 0.1 * scale);
     const thumbEnd = new THREE.Vector3(palm.x - side * 2.8 * scale, palm.y - 1.8 * scale, palm.z + 0.15 * scale);
-    addSegment('Thumb_' + side, thumbStart, thumbEnd, 0.48 * scale);
+    addSegment('Thumb_' + side, thumbStart, thumbEnd, 0.48 * scale, 0.31 * scale);
   });
 
   // Legs now occupy the full height budget instead of the old short 40–45 cm stumps.
@@ -427,9 +444,9 @@ export function buildParametricMannequin(
     const ankle = new THREE.Vector3(side * hipX * 1.08, ankleY, 0.1 * scale);
     addEllipsoid('HipJoint_' + side, hip.x, hip.y, hip.z,
       4.7 * scale, 5.2 * scale, 4.9 * scale);
-    addSegment('Thigh_' + side, hip, knee, thighRadius);
+    addSegment('Thigh_' + side, hip, knee, thighRadius, thighRadius * 0.72);
     addEllipsoid('Knee_' + side, knee.x, knee.y, knee.z, 3.0 * scale, 3.1 * scale, 3.0 * scale);
-    addSegment('Calf_' + side, knee, ankle, 2.8 * scale);
+    addSegment('Calf_' + side, knee, ankle, 2.8 * scale, 1.65 * scale);
     addEllipsoid('Ankle_' + side, ankle.x, ankle.y, ankle.z, 1.8 * scale, 2.0 * scale, 1.8 * scale);
     addEllipsoid('Foot_' + side, side * hipX * 1.08, 2.2 * scale, 4.0 * scale,
       2.7 * scale, 1.9 * scale, 5.7 * scale);
