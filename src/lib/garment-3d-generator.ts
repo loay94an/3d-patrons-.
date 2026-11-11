@@ -159,6 +159,22 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     return r;
   };
 
+  const annyWaistLevel = annyBodyProfile ? clamp((annyBodyProfile.waistY - yOffset) / torsoHeight, 0, 1) : 0.45;
+  const annyBustLevel = annyBodyProfile ? clamp((annyBodyProfile.bustY - yOffset) / torsoHeight, annyWaistLevel + 0.03, 0.97) : 0.60;
+  const easeAtLevel = (bodyV: number) => {
+    if (!annyBodyProfile) return easeAt(bodyV);
+    const shoulderLevel = Math.min(0.99, annyBustLevel + Math.max(0.08, (1 - annyBustLevel) * 0.35));
+    if (bodyV >= shoulderLevel) return EASE_SHOULDER;
+    if (bodyV >= annyBustLevel) {
+      return lerp(EASE_BUST, EASE_SHOULDER, (bodyV - annyBustLevel) / Math.max(shoulderLevel - annyBustLevel, 0.01));
+    }
+    if (bodyV >= annyWaistLevel) {
+      return lerp(EASE_WAIST, EASE_BUST, (bodyV - annyWaistLevel) / Math.max(annyBustLevel - annyWaistLevel, 0.01));
+    }
+    if (bodyV > 0) return lerp(EASE_HIP, EASE_WAIST, bodyV / Math.max(annyWaistLevel, 0.01));
+    return EASE_HIP;
+  };
+
   const hasLegs = ['pants', 'shorts', 'culottes', 'jumpsuit', 'romper', 'pajamas'].includes(garmentType as string);
   const isOnePieceWithLegs = ['jumpsuit', 'romper', 'pajamas'].includes(garmentType as string);
   const isDress = garmentType === 'dress' || garmentType === 'abaya';
@@ -224,7 +240,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     const localFlare = flare * Math.pow(flareT, 1.25);
 
     const env = bodyEnvelope(bodyV);
-    const scale = (env.perim + easeAt(bodyV) + localFlare) / env.perim;
+    const scale = (env.perim + easeAtLevel(bodyV) + localFlare) / env.perim;
 
     for (let j = 0; j <= radialSteps; j++) {
       const u = j / radialSteps;
@@ -334,7 +350,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   if (hasLegs) {
     const crotchBodyV = annyBodyProfile ? (crotchY - yOffset) / torsoHeight : CROTCH_V;
     const crotchEnv = bodyEnvelope(crotchBodyV);
-    const hipOuterX = envelopeRadius(crotchEnv, 0) * ((crotchEnv.perim + easeAt(CROTCH_V) + 1.2) / crotchEnv.perim);
+    const hipOuterX = envelopeRadius(crotchEnv, 0) * ((crotchEnv.perim + easeAtLevel(crotchBodyV) + 1.2) / crotchEnv.perim);
     const thighRadius = Math.max(3, hipOuterX * 0.46);
     const ankleRadius = thighRadius * (garmentType === 'culottes' ? 0.85 : 0.6);
     const isShort = garmentType === 'shorts';
