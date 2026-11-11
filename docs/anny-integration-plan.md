@@ -37,7 +37,9 @@ The product is a Vite/React/Three.js static site deployed through GitHub Pages. 
 
 The `tools/anny-poc` utility uses the upstream Anny package to produce a neutral-pose mesh and a reproducibility report. The runtime workflow validates finite vertices and triangular faces. This proves that the model can run in CI; it does not prove anthropometric accuracy or production service capacity.
 
-## Phase 2 — Anthropometric calibration: not implemented
+## Phase 2 — Anthropometric calibration: measurement foundation added; Anny fitting not implemented
+
+`src/lib/mesh-anthropometry.ts` now measures triangle-mesh section perimeters along an explicitly selected axis and computes diagnostic radial scale factors for ordered measurement landmarks. Unit tests use a known synthetic cylinder. This utility does not infer Anny landmarks, deform a GLB, establish centimetres, or claim a fitted result.
 
 Do not map bust/waist/hip measurements directly to phenotype labels by name. Build a separate fitting layer only after:
 
