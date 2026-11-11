@@ -135,6 +135,7 @@ export function ParametricStudio({
          {family === 'skirt' && (
           <BasicSkirtDraftPanel
             initialMeasurements={{ waist: measurements.waist, hip: measurements.hip }}
+            onMeasurementsChange={updateMeasurement}
             onApply={draft => onOpenCad('skirt', createMeasurementProfile(measurements), ease, draft)}
           />
         )}
