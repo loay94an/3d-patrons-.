@@ -480,7 +480,7 @@ export function Pattern3DViewer({
     requestAnimationFrame(() => frameScene(true));
   };
 
-  const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\\/+$/, '');
+  const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
 
   const readAnnyApiError = async (response: Response) => {
     const payload = await response.json().catch(() => null) as { detail?: unknown } | null;
