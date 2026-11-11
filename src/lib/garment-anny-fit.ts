@@ -49,6 +49,7 @@ export function conformGarmentMeshToBody(
   const rayOrigin = new THREE.Vector3();
   const outwardNormal = new THREE.Vector3();
   const fittedWorld = new THREE.Vector3();
+  const fittedLocal = new THREE.Vector3();
   const position = garmentMesh.geometry.getAttribute('position');
   if (!position || position.count === 0) {
     return { totalVertices: 0, fittedVertices: 0, fitRatio: 0, meanDisplacementCm: 0, maxDisplacementCm: 0, status: 'no-intersections' };
@@ -92,7 +93,8 @@ export function conformGarmentMeshToBody(
     const displacement = fittedWorld.distanceTo(worldVertex);
     totalDisplacement += displacement;
     maxDisplacementCm = Math.max(maxDisplacementCm, displacement);
-    fittedPosition.setXYZ(i, ...fittedWorld.applyMatrix4(inverseGarmentWorld).toArray());
+    fittedLocal.copy(fittedWorld).applyMatrix4(inverseGarmentWorld);
+    fittedPosition.setXYZ(i, fittedLocal.x, fittedLocal.y, fittedLocal.z);
     fittedVertices++;
   }
 
