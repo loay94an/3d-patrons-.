@@ -42,7 +42,7 @@ test('keeps missing and invisible landmarks null', () => {
   const result = adaptGarmentLandmarks({
     ...base,
     keypoints: [{ x: 20, y: 10, visibility: 'not_present' }],
-    keypointMap: { shoulder_left: 0 }
+    keypointMap: { shoulder_left: 0, shoulder_right: 1 }
   });
   assert.equal(result.landmarks[2].point, null);
   assert.equal(result.landmarks[2].visibility, 'not_present');
