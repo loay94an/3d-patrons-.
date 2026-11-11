@@ -91,8 +91,26 @@ export interface PatternByNumbersInput {
   crotchDepth: number;           // عمق الحجر / الصدرية للبنطلون (سم)
   rise: number;                  // ارتفاع الخصر (سم)
   thighCircumference: number;    // محيط الفخذ (سم)
-  additionalEase: number;        // سماحة الراحة الإضافية (Ease cm)
+  additionalEase: number;        // قيمة توافقية افتراضية عند غياب ملف الراحة المحلي
+  easeProfile?: Partial<PatternEaseProfile>;
   seamAllowanceDefault: number;  // سماحة الخياطة الافتراضية (سم)
+}
+
+export interface PatternEaseProfile {
+  bust: number;
+  waist: number;
+  hip: number;
+  upperArm: number;
+}
+
+export function resolvePatternEase(input: Pick<PatternByNumbersInput, 'additionalEase' | 'easeProfile'>): PatternEaseProfile {
+  const fallback = input.additionalEase;
+  return {
+    bust: input.easeProfile?.bust ?? fallback,
+    waist: input.easeProfile?.waist ?? fallback,
+    hip: input.easeProfile?.hip ?? fallback,
+    upperArm: input.easeProfile?.upperArm ?? fallback
+  };
 }
 
 export interface DraftingRulesConfig {
@@ -250,13 +268,14 @@ export function computeReferencePoints(
     ease: input.additionalEase
   };
 
+  const localEase = resolvePatternEase(input);
   const neckWidth = evaluateDraftingRule(rules.neckWidthFormula, vars, input.neckCircumference / 6);
   const backNeckDepth = evaluateDraftingRule(rules.backNeckDepthFormula, vars, 2.5);
   const frontNeckDepth = evaluateDraftingRule(rules.frontNeckDepthFormula, vars, input.neckDepthFront || (input.neckCircumference / 10 + 2));
   const shoulderDrop = evaluateDraftingRule(rules.shoulderDropFormula, vars, input.shoulderLength * 0.1 + 3);
-  const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, vars, input.bustCircumference / 4 + input.additionalEase);
-  const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, vars, input.waistCircumference / 4 + input.additionalEase + 1.5);
-  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, vars, input.armholeCircumference * 0.45 + input.additionalEase);
+  const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, { ...vars, ease: localEase.bust }, input.bustCircumference / 4 + localEase.bust);
+  const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, { ...vars, ease: localEase.waist }, input.waistCircumference / 4 + localEase.waist + 1.5);
+  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, { ...vars, ease: localEase.upperArm }, input.armholeCircumference * 0.45 + localEase.upperArm);
 
   const refPoints: ReferencePointInfo[] = [
     // Back Bodice
@@ -394,14 +413,15 @@ export function generatePatternByNumbers(
     ease: input.additionalEase
   };
 
+  const localEase = resolvePatternEase(input);
   const neckWidth = evaluateDraftingRule(rules.neckWidthFormula, vars, input.neckCircumference / 6);
   const backNeckDepth = evaluateDraftingRule(rules.backNeckDepthFormula, vars, 2.5);
   const frontNeckDepth = evaluateDraftingRule(rules.frontNeckDepthFormula, vars, input.neckDepthFront || (input.neckCircumference / 10 + 2));
   const shoulderDrop = evaluateDraftingRule(rules.shoulderDropFormula, vars, input.shoulderLength * 0.1 + 3);
-  const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, vars, input.bustCircumference / 4 + input.additionalEase);
-  const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, vars, input.waistCircumference / 4 + input.additionalEase + 1.5);
-  const quarterHip = evaluateDraftingRule(rules.hipQuarterFormula, vars, input.hipCircumference / 4 + input.additionalEase);
-  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, vars, input.armholeCircumference * 0.45 + input.additionalEase);
+  const quarterChest = evaluateDraftingRule(rules.chestQuarterFormula, { ...vars, ease: localEase.bust }, input.bustCircumference / 4 + localEase.bust);
+  const quarterWaist = evaluateDraftingRule(rules.waistQuarterFormula, { ...vars, ease: localEase.waist }, input.waistCircumference / 4 + localEase.waist + 1.5);
+  const quarterHip = evaluateDraftingRule(rules.hipQuarterFormula, { ...vars, ease: localEase.hip }, input.hipCircumference / 4 + localEase.hip);
+  const armholeDepth = evaluateDraftingRule(rules.armholeDepthFormula, { ...vars, ease: localEase.upperArm }, input.armholeCircumference * 0.45 + localEase.upperArm);
 
   const backWidth = +(quarterChest * 0.85).toFixed(1);
   const frontWidth = +(quarterChest * 0.82).toFixed(1);
@@ -1041,7 +1061,7 @@ export function generatePatternByNumbers(
     const dsOrig = { x: 98, y: 5 };
     const dsSegments: CadSegment[] = [];
     const sleeveCapHeight = +(armholeDepth * 0.72).toFixed(1);
-    const halfBicep = +(input.armholeCircumference * 0.42 + input.additionalEase).toFixed(1);
+    const halfBicep = +(input.armholeCircumference * 0.42 + localEase.upperArm).toFixed(1);
     const halfWrist = 9.5;
 
     const dsl_top: CadPoint = { x: dsOrig.x + halfBicep, y: dsOrig.y };
@@ -1515,7 +1535,7 @@ export function generatePatternByNumbers(
   const sOrig = { x: 78, y: 5 };
 
   const sleeveCapHeight = +(armholeDepth * 0.72).toFixed(1);
-  const halfBicep = +(input.armholeCircumference * 0.42 + input.additionalEase).toFixed(1);
+  const halfBicep = +(input.armholeCircumference * 0.42 + localEase.upperArm).toFixed(1);
   const halfWrist = 10;
 
   const sl_top: CadPoint = { x: sOrig.x + halfBicep, y: sOrig.y };
