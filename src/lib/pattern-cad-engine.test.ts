@@ -78,3 +78,20 @@ describe('generated pattern structural quality gates', () => {
     });
   }
 });
+
+
+describe('measured lower-body geometry', () => {
+  const frame = { widthCm: 240, heightCm: 180, unit: 'cm' as const };
+
+  it('moves the trouser knee line when waist-to-knee measurement changes', () => {
+    const shorter = generatePatternByNumbers({ ...DEFAULT_PATTERN_NUMBERS, backLength: 104, crotchDepth: 27, waistToKnee: 49 }, frame, 'pants');
+    const longer = generatePatternByNumbers({ ...DEFAULT_PATTERN_NUMBERS, backLength: 104, crotchDepth: 27, waistToKnee: 58 }, frame, 'pants');
+    assert.notDeepEqual(shorter.pieces[0].segments, longer.pieces[0].segments);
+  });
+
+  it('moves hip shaping when measured hip depth changes', () => {
+    const shallow = generatePatternByNumbers({ ...DEFAULT_PATTERN_NUMBERS, hipDepth: 16 }, frame, 'skirt');
+    const deep = generatePatternByNumbers({ ...DEFAULT_PATTERN_NUMBERS, hipDepth: 23 }, frame, 'skirt');
+    assert.notDeepEqual(shallow.pieces[0].segments, deep.pieces[0].segments);
+  });
+});
