@@ -12,6 +12,7 @@ import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '..
 import { buildParametricMannequin, resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
+import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
 import { loadCadProjectDocument } from '../lib/cad-project-document';
 import type { CadPiece } from '../lib/pattern-cad-engine';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
@@ -198,6 +199,9 @@ export function Pattern3DViewer({
   const mannequinGroupRef = useRef<THREE.Group | null>(null);
   const annyGroupRef = useRef<THREE.Group | null>(null);
   const annyNativeHeightRef = useRef<number | null>(null);
+  const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
+  const annySourceGeometryRef = useRef<THREE.BufferGeometry | null>(null);
+  const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
@@ -458,7 +462,7 @@ export function Pattern3DViewer({
       disposeObjectResources(mannequinGroupRef.current);
     }
 
-    const meas = state.customMeasurements;
+    const meas = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
     const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
     const currentMeasurements = resolvedMeasurements.body;
 
@@ -484,6 +488,7 @@ export function Pattern3DViewer({
         hip: currentMeasurements.hip,
         shoulder: currentMeasurements.shoulder,
         backLength: currentMeasurements.backLength,
+        height: currentMeasurements.height,
         sleeveLength: resolvedMeasurements.sleeveLength,
         totalLength: resolvedMeasurements.totalLength,
         fabricState,
@@ -499,7 +504,7 @@ export function Pattern3DViewer({
 
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
-  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
+  }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -642,6 +647,36 @@ export function Pattern3DViewer({
     }
     const group = new THREE.Group();
     group.name = 'AnnyBodyPreview';
+    bodyScene.updateMatrixWorld(true);
+    const bodyMeshes: THREE.Mesh[] = [];
+    bodyScene.traverse(object => {
+      if (object instanceof THREE.Mesh) bodyMeshes.push(object);
+    });
+    if (annySourceGeometryRef.current) {
+      annySourceGeometryRef.current.dispose();
+      annySourceGeometryRef.current = null;
+    }
+    annyBodyMeshRef.current = null;
+    setAnnyCalibrationSummary(null);
+    // The bundled Anny export is a single, static triangle mesh. Keep a clean
+    // source copy so every measurement edit recalibrates from the original,
+    // never cumulatively deforming an already deformed body.
+    if (bodyMeshes.length === 1 && !(bodyMeshes[0] instanceof THREE.SkinnedMesh)) {
+      const bodyMesh = bodyMeshes[0];
+      const sourceGeometry = bodyMesh.geometry.clone().applyMatrix4(bodyMesh.matrix);
+      bodyMesh.position.set(0, 0, 0);
+      bodyMesh.rotation.set(0, 0, 0);
+      bodyMesh.scale.set(1, 1, 1);
+      bodyMesh.updateMatrix();
+      annySourceGeometryRef.current = sourceGeometry;
+      annyBodyMeshRef.current = bodyMesh;
+    } else {
+      setAnnyCalibrationSummary({
+        nativeHeight: 0, targetHeightCm: 0, heightScale: 1, landmarks: [],
+        status: 'review-required',
+        warnings: ['هذا الملف لا يحتوي على شبكة Anny ثابتة واحدة؛ تم عرض الجسم دون معايرة محيطية آلية.']
+      });
+    }
     group.add(bodyScene);
     // Anny's native mesh is Z-up. Convert it to this viewer's Y-up world.
     group.rotation.x = -Math.PI / 2;
@@ -653,6 +688,21 @@ export function Pattern3DViewer({
     }
     annyNativeHeightRef.current = size.y;
     const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+    if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
+      const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
+      const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
+      const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
+        heightCm: targetHeightCm,
+        bustCm: resolved.body.bust,
+        waistCm: resolved.body.waist,
+        hipCm: resolved.body.hip
+      });
+      const previousGeometry = annyBodyMeshRef.current.geometry;
+      annyBodyMeshRef.current.geometry = calibration.geometry;
+      previousGeometry.dispose();
+      const { geometry: _geometry, ...summary } = calibration;
+      setAnnyCalibrationSummary(summary);
+    }
     group.scale.setScalar(getAnnyHeightScale(size.y, targetHeightCm));
     const scaledBounds = new THREE.Box3().setFromObject(group);
     const center = scaledBounds.getCenter(new THREE.Vector3());
@@ -678,6 +728,29 @@ export function Pattern3DViewer({
     if (!group || !nativeHeight || !annyPreviewEnabled) return;
 
     const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+    const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
+    const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
+    if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
+      try {
+        const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
+          heightCm: targetHeightCm,
+          bustCm: resolved.body.bust,
+          waistCm: resolved.body.waist,
+          hipCm: resolved.body.hip
+        });
+        const previousGeometry = annyBodyMeshRef.current.geometry;
+        annyBodyMeshRef.current.geometry = calibration.geometry;
+        previousGeometry.dispose();
+        const { geometry: _geometry, ...summary } = calibration;
+        setAnnyCalibrationSummary(summary);
+      } catch (error) {
+        setAnnyCalibrationSummary({
+          nativeHeight, targetHeightCm, heightScale: getAnnyHeightScale(nativeHeight, targetHeightCm),
+          landmarks: [], status: 'review-required',
+          warnings: [error instanceof Error ? error.message : 'تعذر معايرة شبكة Anny؛ عُرض النموذج دون تغيير محيطي.']
+        });
+      }
+    }
     group.position.set(0, 0, 0);
     group.scale.setScalar(getAnnyHeightScale(nativeHeight, targetHeightCm));
     group.updateMatrixWorld(true);
@@ -686,7 +759,7 @@ export function Pattern3DViewer({
     group.position.set(-center.x, -bounds.min.y, -center.z);
     group.updateMatrixWorld(true);
     frameScene();
-  }, [state.gender, state.customMeasurements.height, annyPreviewEnabled, frameScene]);
+  }, [state.gender, state.size, state.customMeasurements, state.measurementProfile, annyPreviewEnabled, frameScene]);
 
   const handleLoadBundledAnny = async () => {
     setAnnyBundledBusy(true);
@@ -848,6 +921,10 @@ export function Pattern3DViewer({
     const group = annyGroupRef.current;
     if (scene && group) { scene.remove(group); disposeObjectResources(group); annyGroupRef.current = null; }
     annyNativeHeightRef.current = null;
+    annyBodyMeshRef.current = null;
+    if (annySourceGeometryRef.current) annySourceGeometryRef.current.dispose();
+    annySourceGeometryRef.current = null;
+    setAnnyCalibrationSummary(null);
     setAnnyPreviewEnabled(false);
     setAnnyFileName('');
     setAnnyLoadError('');
@@ -1201,7 +1278,17 @@ export function Pattern3DViewer({
 
       {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
         <div className="font-semibold">معاينة جسم Anny</div><div className="mt-1 text-slate-300">{annyFileName}</div>
-        <div className="mt-1 text-amber-200">ضُبط الارتفاع للعرض فقط. القياسات غير معايرة، ومحاذاة الملابس تقريبية.</div>
+        {annyCalibrationSummary && <div className="mt-2 space-y-1 text-[10px] leading-4">
+          <div className={annyCalibrationSummary.status === 'calibrated-preview' ? 'text-emerald-200' : 'text-amber-200'}>
+            {annyCalibrationSummary.status === 'calibrated-preview' ? 'تم تطبيق معايرة شكل أولية' : annyCalibrationSummary.status === 'limited-preview' ? 'معايرة محدودة — تحتاج مراجعة' : 'تعذرت المعايرة الكاملة'}
+          </div>
+          {annyCalibrationSummary.landmarks.map(item => <div key={item.zone} className="text-slate-300">
+            {item.zone === 'hip' ? 'الورك' : item.zone === 'waist' ? 'الخصر' : 'الصدر'}: {item.predictedCircumferenceCm.toFixed(1)} / {item.targetCircumferenceCm.toFixed(1)} سم
+            <span className={Math.abs(item.residualCm) > 1 ? 'text-amber-200' : 'text-emerald-200'}> · فرق {item.residualCm > 0 ? '+' : ''}{item.residualCm.toFixed(1)}</span>
+          </div>)}
+          {annyCalibrationSummary.warnings.map((warning,index) => <div key={index} className="text-amber-200">{warning}</div>)}
+          <div className="text-slate-400">المعايرة الهندسية تقريبية؛ مواضع الصدر والخصر والورك مستنتجة من مقاطع النموذج وتحتاج تحققاً بصرياً.</div>
+        </div>}
       </div>}
 
       {/* Heatmap Legend when active */}
