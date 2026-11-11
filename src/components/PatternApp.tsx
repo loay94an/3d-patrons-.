@@ -355,7 +355,7 @@ export default function PatternApp() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {[
                     { id: 'measurements', title: 'إعداد القياسات', desc: 'أدخل قياسات الجسم وراجعها قبل التصميم.', icon: <Ruler className="h-5 w-5" />, color: 'text-cyan-300' },
-                    { id: 'projects', title: 'المشاريع وملفات القياسات', desc: 'احفظ مشاريع متعددة واستعد نسخها الاحتياطية.', icon: <FolderOpen className="h-5 w-5" />, color: 'text-emerald-300' }
+                    { id: 'projects', title: 'المشاريع وملفات القياسات', desc: 'احفظ مشاريع متعددة واستعد نسخها الاحتياطية.', icon: <FolderOpen className="h-5 w-5" />, color: 'text-emerald-300' },
                     { id: 'parametric', title: 'توليد باترون', desc: 'ابدأ بقطعة وقياسات وراحة تصميمية.', icon: <Sliders className="h-5 w-5" />, color: 'text-indigo-300' },
                     { id: 'cad2d', title: 'الرسم ثنائي الأبعاد', desc: 'افتح محرر القطع والنقاط والمنحنيات.', icon: <DraftingCompass className="h-5 w-5" />, color: 'text-emerald-300' },
                     { id: 'view3d', title: 'المعاينة ثلاثية الأبعاد', desc: 'اعرض النموذج والخامة المتاحة.', icon: <Box className="h-5 w-5" />, color: 'text-violet-300' },
@@ -852,7 +852,7 @@ export default function PatternApp() {
         <div className="absolute bottom-16 left-2 right-2 z-40 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-4 sm:w-72" role="menu" aria-label="أدوات إضافية">
           {[
             { id: 'projects', label: 'المشاريع وملفات القياسات', icon: <FolderOpen className="h-4 w-4" /> },
-            { id: 'encyclopedia', label: 'الموسوعة والمراجع', icon: <BookOpen className="h-4 w-4" /> }
+            { id: 'encyclopedia', label: 'الموسوعة والمراجع', icon: <BookOpen className="h-4 w-4" /> },
             { id: 'measurements', label: 'ملف القياسات', icon: <Ruler className="h-4 w-4" /> },
             { id: 'fabrics', label: 'الأقمشة والخامات', icon: <Palette className="h-4 w-4" /> },
             { id: 'export_guide', label: 'التصدير والإنتاج', icon: <FileText className="h-4 w-4" /> }
