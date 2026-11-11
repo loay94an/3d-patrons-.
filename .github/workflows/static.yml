@@ -62,7 +62,6 @@ jobs:
       - name: Audit uploaded GLB reference models
         if: github.event_name == 'pull_request'
         run: |
-          python -m pip install trimesh
           python tools/audit_glb_models.py
 
       - name: Install Anny API test dependencies
