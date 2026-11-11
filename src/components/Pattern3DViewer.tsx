@@ -11,7 +11,8 @@ import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
 import { buildParametricMannequin, MannequinMeasurements, DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
-import { getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
+import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
+import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
 
 /**
  * Releases GPU-backed resources owned by a Three.js subtree.
@@ -94,6 +95,9 @@ export function Pattern3DViewer({
   const [annyApiPanelOpen, setAnnyApiPanelOpen] = useState(false);
   const [annyApiBusy, setAnnyApiBusy] = useState(false);
   const [annyApiMessage, setAnnyApiMessage] = useState('');
+  const [annyProfileBusy, setAnnyProfileBusy] = useState(false);
+  const [annyProfileMessage, setAnnyProfileMessage] = useState('');
+  const [annyProfileCandidates, setAnnyProfileCandidates] = useState<AnnyCalibrationCandidate[]>([]);
   const [annyPhenotypeLabels, setAnnyPhenotypeLabels] = useState<string[]>([]);
   const [annyPhenotypes, setAnnyPhenotypes] = useState<Record<string, number>>({});
   const [annyApiConnected, setAnnyApiConnected] = useState(false);
@@ -604,6 +608,42 @@ export function Pattern3DViewer({
     }
   };
 
+  const handleAnalyzeAnnyProfile = async () => {
+    const baseUrl = getAnnyApiBaseUrl();
+    if (!baseUrl || !annyApiConnected) {
+      setAnnyProfileMessage('اتصل بخدمة Anny وحمّل معاملات النموذج أولاً.');
+      return;
+    }
+    setAnnyProfileBusy(true);
+    setAnnyProfileMessage('جارٍ توليد الجسم وتحليل 121 مقطعاً أفقياً. قد تستغرق العملية عدة دقائق على CPU...');
+    setAnnyProfileCandidates([]);
+    try {
+      const response = await fetch(baseUrl + '/v1/anny/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phenotypes: Object.fromEntries(
+            Object.entries(annyPhenotypes).filter(([, value]) => Math.abs(value - 0.5) > 1e-9)
+          )
+        })
+      });
+      if (!response.ok) throw new Error(await readAnnyApiError(response));
+      const report = await response.json() as AnnyProfileReport;
+      const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+      const candidates = buildAnnyCalibrationCandidates(report, targetHeightCm);
+      setAnnyProfileCandidates(candidates);
+      setAnnyProfileMessage(
+        candidates.length
+          ? 'اكتمل التحليل. هذه مرشحات هندسية أولية فقط؛ راجع مواضعها على الجسم قبل استخدامها.'
+          : 'اكتمل التحليل، لكن لم ينتج مرشحات صالحة للمراجعة.'
+      );
+    } catch (error) {
+      setAnnyProfileMessage(error instanceof Error ? error.message : 'تعذر تحليل مقاطع جسم Anny.');
+    } finally {
+      setAnnyProfileBusy(false);
+    }
+  };
+
   const handleGenerateAnnyFromApi = async () => {
     const baseUrl = getAnnyApiBaseUrl();
     if (!baseUrl || !annyApiConnected) {
@@ -835,8 +875,29 @@ export function Pattern3DViewer({
         <div className="flex gap-2 mt-2">
           <button disabled={annyApiBusy} onClick={() => void handleConnectAnnyApi()} className="flex-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 disabled:opacity-50 px-3 py-2 font-bold">اتصال وتحميل المعاملات</button>
           <button disabled={annyApiBusy || !annyApiConnected} onClick={() => void handleGenerateAnnyFromApi()} className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 px-3 py-2 font-bold">توليد الجسم وعرضه</button>
+          <button disabled={annyApiBusy || annyProfileBusy || !annyApiConnected} onClick={() => void handleAnalyzeAnnyProfile()} className="flex-1 rounded-lg bg-amber-700 hover:bg-amber-600 disabled:opacity-50 px-3 py-2 font-bold">تحليل المقاطع</button>
         </div>
         {annyApiMessage && <div role="status" className="mt-2 rounded-lg bg-slate-900 border border-slate-700 p-2 leading-5 text-slate-300">{annyApiMessage}</div>}
+        {annyProfileMessage && <div role="status" className="mt-2 rounded-lg border border-amber-700/50 bg-amber-950/40 p-2 leading-5 text-amber-100">{annyProfileBusy ? '⏳ ' : ''}{annyProfileMessage}</div>}
+        {annyProfileCandidates.length > 0 && <div className="mt-3 rounded-xl border border-amber-500/30 bg-slate-900/80 p-3">
+          <div className="font-bold text-amber-200">مرشحات محيط الجسم • مراجعة فقط</div>
+          <p className="mt-1 text-[10px] leading-4 text-slate-400">القيم التالية مستخرجة من مقاطع هندسية استدلالية ومحوّلة بمقياس الطول الحالي. ليست قياسات خياطة مؤكدة ولا تعديلاً لشكل المجسم.</p>
+          <div className="mt-2 space-y-2">
+            {annyProfileCandidates.map(candidate => <div key={candidate.zone} className="rounded-lg border border-slate-700 bg-slate-950/70 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-white">{candidate.zone === 'hip' ? 'الورك' : candidate.zone === 'waist' ? 'الخصر' : 'الصدر'}</span>
+                <span className="rounded-full border border-amber-500/40 px-2 py-0.5 text-[10px] text-amber-200">يتطلب مراجعة</span>
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] text-slate-300">
+                <span>المحيط المرشح: <b className="text-cyan-200">{candidate.circumferenceCm.toFixed(1)} سم</b></span>
+                <span>موضع الارتفاع: <b>{(candidate.heightFraction * 100).toFixed(1)}%</b></span>
+                <span>المسارات المغلقة: <b>{candidate.contourCount}</b></span>
+                <span>مؤشر هندسي: <b>{(candidate.heuristicConfidence * 100).toFixed(0)}%</b></span>
+              </div>
+              {candidate.diagnostics.length > 0 && <p className="mt-1 text-[10px] leading-4 text-amber-300">تنبيهات: {candidate.diagnostics.join('، ')}</p>}
+            </div>)}
+          </div>
+        </div>}
         {annyApiConnected && <div className="mt-3">
           <div className="flex items-center justify-between mb-2">
             <span className="font-semibold text-cyan-200">معاملات Anny الأصلية</span>
