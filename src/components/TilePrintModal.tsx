@@ -42,10 +42,14 @@ export function TilePrintModal({
   const validContours = pieces.map(piece => ({ piece, points: getCadPieceContourPoints(piece) }))
     .filter((item): item is { piece: CadPiece; points: { x: number; y: number }[] } => Boolean(item.points));
   const allPoints = validContours.flatMap(item => item.points);
-  const minX = allPoints.length ? Math.min(...allPoints.map(point => point.x)) : 0;
-  const minY = allPoints.length ? Math.min(...allPoints.map(point => point.y)) : 0;
-  const maxX = allPoints.length ? Math.max(...allPoints.map(point => point.x)) : workFrame.widthCm;
-  const maxY = allPoints.length ? Math.max(...allPoints.map(point => point.y)) : workFrame.heightCm;
+  const bounds = allPoints.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x), minY: Math.min(result.minY, point.y),
+    maxX: Math.max(result.maxX, point.x), maxY: Math.max(result.maxY, point.y)
+  }), { minX: Number.POSITIVE_INFINITY, minY: Number.POSITIVE_INFINITY, maxX: Number.NEGATIVE_INFINITY, maxY: Number.NEGATIVE_INFINITY });
+  const minX = allPoints.length ? bounds.minX : 0;
+  const minY = allPoints.length ? bounds.minY : 0;
+  const maxX = allPoints.length ? bounds.maxX : workFrame.widthCm;
+  const maxY = allPoints.length ? bounds.maxY : workFrame.heightCm;
   const patternWidthCm = Math.max(0, maxX - minX);
   const patternHeightCm = Math.max(0, maxY - minY);
   const cols = Math.max(1, Math.ceil(patternWidthCm / effectivePageW));
