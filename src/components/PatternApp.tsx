@@ -545,6 +545,7 @@ export default function PatternApp() {
           <div className="w-full h-full relative overflow-hidden bg-slate-950">
             <Pattern3DViewer
               state={state}
+              projectId={activeProjectId}
               fabricState={fabricState}
               onOpenFabricDrawer={() => setActiveTab('fabrics')}
               onOpenMeasurementsDrawer={() => setActiveTab('measurements')}
