@@ -88,3 +88,41 @@ describe('safe radial profile interpolation', () => {
     assert.throws(() => interpolateRadialScale(0, anchors, 1.2, 1.1), /bounds/);
   });
 });
+
+
+describe('Anny calibration report conversion', () => {
+  const report = {
+    height_model_units: 2,
+    heuristic_candidates: {
+      hip_peak: { height_fraction: 0.48, circumference_model_units: 1.8, contour_count: 2, selected_contour_score: 0.91, confidence: 0.62, diagnostics: ['multiple_closed_contours_possible_limbs_or_disconnected_parts'] },
+      waist_minimum: { height_fraction: 0.63, circumference_model_units: 1.2, contour_count: 1, selected_contour_score: 0.95, confidence: 0.72, diagnostics: [] },
+      bust_peak: { height_fraction: 0.76, circumference_model_units: 1.6, contour_count: 1, selected_contour_score: 0.88, confidence: 0.68, diagnostics: ['selected_contour_centroid_off_body_center'] }
+    }
+  };
+
+  it('converts the three heuristic candidates to stature-scaled centimetres', async () => {
+    const { buildAnnyCalibrationCandidates } = await import('./anny-measurement-fit');
+    const candidates = buildAnnyCalibrationCandidates(report, 180);
+    assert.deepEqual(candidates.map(item => item.zone), ['hip', 'waist', 'bust']);
+    assert.deepEqual(candidates.map(item => item.circumferenceCm), [162, 108, 144]);
+    assert.ok(candidates.every(item => item.status === 'review_required'));
+    assert.equal(candidates[0].contourCount, 2);
+    assert.ok(candidates[0].diagnostics.length > 0);
+  });
+
+  it('compares candidates to user targets without approving them as tape measurements', async () => {
+    const { buildAnnyCalibrationCandidates } = await import('./anny-measurement-fit');
+    const candidates = buildAnnyCalibrationCandidates(report, 180, { hip: 100, waist: 80 });
+    assert.equal(candidates[0].targetCircumferenceCm, 100);
+    assert.equal(candidates[0].differenceCm, 62);
+    assert.equal(candidates[1].differenceCm, 28);
+    assert.equal(candidates[2].differenceCm, null);
+  });
+
+  it('rejects invalid report scale and target values', async () => {
+    const { buildAnnyCalibrationCandidates } = await import('./anny-measurement-fit');
+    assert.throws(() => buildAnnyCalibrationCandidates({ ...report, height_model_units: 0 }, 180), /report height/);
+    assert.throws(() => buildAnnyCalibrationCandidates(report, Number.NaN), /Target stature/);
+    assert.throws(() => buildAnnyCalibrationCandidates(report, 180, { hip: 0 }), /Target hip/);
+  });
+});
