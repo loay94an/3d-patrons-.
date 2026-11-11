@@ -1,5 +1,13 @@
 # Anny integration: current status and staged technical plan
 
+## Architecture decision: local-first body model
+
+The site does not need a server to generate its everyday fitting mannequin. The React/Three.js client already builds a parametric body locally from bust, waist, hip, shoulder, back length, height, and body category. This path works on GitHub Pages and can be extended without Python, PyTorch, network requests, or inference hosting.
+
+The local mannequin is the primary interactive fitting body. Anny is an optional advanced model-generation path, not a runtime dependency. Keep Anny server-side only if later experiments show a clear visual or anatomical benefit that the local model cannot reach. Do not require a hosted Anny service for basic measurement adaptation.
+
+The local model is currently a procedural fitting mannequin, not a photorealistic anatomical digital human. Its torso profile uses ellipse-based circumference targets; limbs and detailed anatomy remain approximations. Calibrating physical scale and validating real body-shape diversity are still required before claiming production measurement accuracy.
+
 ## Current implementation status
 
 The product is a Vite/React/Three.js static site deployed through GitHub Pages. The Anny integration is split between browser-side viewer code and a separate Python API.
@@ -10,6 +18,12 @@ The product is a Vite/React/Three.js static site deployed through GitHub Pages. 
 - **Python API foundation:** `tools/anny-api` exposes health, phenotype-label, ZIP-generation, and direct-GLB endpoints.
 - **Viewer transport:** PR #44 added an Anny API panel to `Pattern3DViewer`. It can load the exact phenotype labels from the API, submit changed phenotype values, load the returned GLB into Three.js, and retain manual GLB upload as a fallback.
 - **Frontend deployment:** PR #44 was merged to `main` at `edcf6a085a3e32da65f8b4ef0940a98e89ea91bf`. Type-check, unit tests, production build, and GitHub Pages deployment all passed in [run 42962889468](https://github.com/loay94an/3d-patrons-./actions/runs/42962889468).
+
+### Local model improvements
+
+- The browser builds the mannequin directly from user measurements; no inference API is required for this.
+- A mesh-ring measurement helper now checks the generated torso geometry at the bust, waist, and hip profile levels. These are geometry regression checks, not a substitute for validation against real scanned bodies.
+- Future work should extend the same local model with measured neck, upper-arm, thigh, inseam, and shoulder/torso landmark controls, and use a smooth continuous body surface rather than disconnected primitive limb shapes.
 
 ### Not yet completed
 
@@ -40,9 +54,9 @@ The calibration report must distinguish user-entered measurements, measured mesh
 
 The Anny API panel in `src/components/Pattern3DViewer.tsx` supports API URL configuration, phenotype discovery, parameter adjustment, GLB generation/loading, and manual GLB fallback. The frontend build and Pages deployment passed. End-to-end use still depends on deploying and configuring the separate API.
 
-## Phase 4 — Hosted inference service: not deployed
+## Phase 4 — Optional hosted Anny inference service: not deployed
 
-Before public exposure:
+This phase is optional and must not block the local-first fitting workflow. Before public exposure:
 
 - Choose a hosting target only after checking CPU/RAM limits, persistent cache behavior, cold-start time, request latency, concurrency, and cost.
 - Add authentication, per-user rate limits, bounded concurrency/queueing, request-size limits, timeouts, and operational health checks.
