@@ -54,6 +54,29 @@ describe('3D mannequin geometry', () => {
     }
   });
 
+  it('adds blended pelvis volumes and tapered limb segments', () => {
+    const mannequin = buildParametricMannequin('women', DEFAULT_MANNEQUIN_MEASUREMENTS.women);
+    const meshes = new Map<string, THREE.Mesh>();
+    mannequin.traverse(object => {
+      if (object instanceof THREE.Mesh) meshes.set(object.name, object);
+    });
+
+    for (const name of ['PelvisCore', 'Gluteal_1', 'Gluteal_-1', 'Deltoid_1', 'Heel_1', 'ToeBox_1']) {
+      assert.ok(meshes.has(name), `expected anatomical volume ${name}`);
+    }
+
+    for (const name of ['UpperArm_1', 'Forearm_1', 'Thigh_1', 'Calf_1']) {
+      const segment = meshes.get(name);
+      assert.ok(segment, `expected limb segment ${name}`);
+      assert.ok(segment!.geometry instanceof THREE.CylinderGeometry,
+        `${name} should use a tapered cylinder rather than a uniform capsule`);
+      const position = segment!.geometry.getAttribute('position');
+      for (let i = 0; i < position.count; i++) {
+        assert.ok(Number.isFinite(position.getX(i)) && Number.isFinite(position.getY(i)) && Number.isFinite(position.getZ(i)));
+      }
+    }
+  });
+
   it('builds a finite, non-empty torso mesh for every supported body category', () => {
     for (const gender of genders) {
       const mannequin = buildParametricMannequin(gender, DEFAULT_MANNEQUIN_MEASUREMENTS[gender]);
