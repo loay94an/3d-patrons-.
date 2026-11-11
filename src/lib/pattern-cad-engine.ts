@@ -225,7 +225,7 @@ export function evaluateDraftingRule(
     if (!Number.isFinite(value)) return defaultVal;
     expression = expression.replace(new RegExp(`\\b${name}\\b`, 'g'), String(value));
   }
-  expression = expression.replace(/π|\\bPI\\b/g, String(Math.PI));
+  expression = expression.replace(/π|\bPI\b/g, String(Math.PI));
 
   const result = evaluateArithmeticExpression(expression);
   if (result === null) return defaultVal;
