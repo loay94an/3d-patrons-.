@@ -22,7 +22,7 @@ import { Pattern3DViewer } from './Pattern3DViewer';
 import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ProjectWorkspace } from './ProjectWorkspace';
-import { createMeasurementProfile } from '../lib/measurement-profile';
+import { createMeasurementProfile, validateStudioProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 
 export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
@@ -401,6 +401,40 @@ export default function PatternApp() {
         {activeTab === 'parametric' && (
           <div className="w-full h-full">
             <ParametricStudio
+              initialMeasurements={{
+                bust: currentMeas.bust ?? currentMeas.chest ?? 88,
+                waist: currentMeas.waist ?? 70,
+                hip: currentMeas.hip ?? 94,
+                backLength: currentMeas.backLength ?? 40,
+                sleeveLength: currentMeas.sleeveLength ?? 58,
+                upperArm: currentMeas.armCirc ?? 30
+              }}
+              initialEase={{
+                bust: state.customMeasurements.bustEase ?? 4,
+                waist: state.customMeasurements.waistEase ?? 2,
+                hip: state.customMeasurements.hipEase ?? 4,
+                upperArm: state.customMeasurements.upperArmEase ?? 3
+              }}
+              onDraftChange={(measurements, ease) => {
+                if (validateStudioProfile(measurements, ease).errors.length > 0) return;
+                const profile = createMeasurementProfile(measurements);
+                updateState({
+                  useCustomMode: true,
+                  measurementProfile: profile,
+                  customMeasurements: {
+                    bust: measurements.bust,
+                    waist: measurements.waist,
+                    hip: measurements.hip,
+                    backLength: measurements.backLength,
+                    sleeveLength: measurements.sleeveLength,
+                    armCirc: measurements.upperArm,
+                    bustEase: ease.bust,
+                    waistEase: ease.waist,
+                    hipEase: ease.hip,
+                    upperArmEase: ease.upperArm
+                  }
+                });
+              }}
               onOpenCad={(garment, profile, ease) => {
                 const measurements = profile.values;
                 updateState({
