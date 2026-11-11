@@ -33,7 +33,7 @@ describe('parametric ease integration', () => {
       ...DEFAULT_PATTERN_NUMBERS,
       upperArmCircumference: 28,
       easeProfile: { bust: 2, waist: 2, hip: 2, upperArm: 1 }
-    }, frame, 'sleeve');
+    }, frame, 'dress');
     const widerArm = generatePatternByNumbers({
       ...DEFAULT_PATTERN_NUMBERS,
       upperArmCircumference: 36,
