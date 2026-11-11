@@ -71,6 +71,16 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
       setStatus(`تم استيراد ${imported.length} مشروع`);
     } catch (error) { setStatus(error instanceof Error ? error.message : 'تعذر قراءة الملف'); }
   };
+  const restoreVersion = (version: ProjectSnapshot['history'][number]) => {
+    if (!active) return;
+    const restored = saveProject(active, {
+      measurements: { ...version.measurements },
+      ease: { ...version.ease },
+      notes: version.notes
+    });
+    setProjects(current => current.map(project => project.id === active.id ? restored : project));
+    setStatus(`تم استعادة بيانات الإصدار ${version.version} وحفظها كإصدار جديد`);
+  };
   const versionLabel = useMemo(() => active ? `الإصدار ${active.version}` : '', [active]);
 
   return <div dir="rtl" className="h-full w-full overflow-y-auto bg-slate-950 p-4 text-slate-100 sm:p-6">
