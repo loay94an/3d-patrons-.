@@ -449,6 +449,10 @@ export function Pattern3DViewer({
       const group = new THREE.Group();
       group.name = 'AnnyBodyPreview';
       group.add(gltf.scene);
+      // Anny's native mesh is Z-up. Convert it to this viewer's Y-up world
+      // before measuring bounds, centering, and applying display-only scaling.
+      // This matches the -90 degree X scene transform used by Anny's own demo.
+      group.rotation.x = -Math.PI / 2;
       const bounds = new THREE.Box3().setFromObject(group);
       const size = bounds.getSize(new THREE.Vector3());
       if (!Number.isFinite(size.y) || size.y <= 0) {
