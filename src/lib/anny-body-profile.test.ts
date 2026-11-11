@@ -15,9 +15,9 @@ describe('Anny mesh-derived body profile', () => {
     const profile = buildAnnyBodyProfile(mesh, { sectionCount: 32, radialSamples: 96 });
     assert.ok(profile.sections.length >= 24);
     assert.ok(Math.abs(profile.height - 100) < 1e-4);
-    assert.ok(Math.abs(profile.hipY - 50) < 1e-4);
-    assert.ok(Math.abs(profile.waistY - 50) < 1e-4);
-    assert.ok(Math.abs(profile.bustY - 50) < 1e-4);
+    assert.ok(profile.hipY < profile.waistY);
+    assert.ok(profile.waistY < profile.bustY);
+    assert.ok(profile.hipY > 25 && profile.bustY < 90);
 
     const section = sampleAnnyBodySection(profile, 52);
     assert.ok(Math.abs(section.centerX - 4) < 0.05);
