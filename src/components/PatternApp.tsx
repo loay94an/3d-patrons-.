@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet,
   FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
-  Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2
+  Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2, Home, MoreHorizontal
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -23,7 +23,7 @@ import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { cn } from '../lib/utils';
 
-export type MainViewTab = 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide';
+export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'measurements' | 'fabrics' | 'export_guide';
 
 const detailedNames = ["عرض الظهر","طول الكتف","طول الظهر","طول الكم","محيط الذراع","محيط الأسوارة","محيط الرقبة","محيط الصدر","محيط الخصر","محيط الورك","المسافة من الخصر إلى الورك","المسافة من الخصر إلى الركبة","طول الساق من الخصر إلى أسفل القدم","طول التنورة","طول الصدر (من أعلى الكتف مروراً فوق الصدر)","محيط الإبط (دوران الإبط)","المسافة من الخصر إلى الإبط","المسافة من أعلى الكتف إلى الثدي","المسافة بين الثديين","محيط الفخذ","محيط الركبة","محيط الكاحل","ارتفاع السرج","طول الجنب"];
 const detailedHelps = ["يقاس أفقياً من منتصف الظهر بين الإبطين.","من نقطة الرقبة إلى طرف الكتف.","من الفقرة السابعة إلى خط الخصر.","من طرف الكتف إلى الرسغ.","حول أوسع نقطة في الذراع.","حول الرسغ.","حول قاعدة الرقبة.","حول أوسع نقطة في الصدر.","حول أضيق نقطة.","حول أوسع نقطة في الأرداف.","عمودياً من الخصر إلى الورك.","عمودياً إلى منتصف الركبة.","من الخصر إلى الأرض.","من الخصر إلى الطول المطلوب.","من الكتف إلى أعلى الصدر.","حول الإبط عند خط الصدر.","عمودياً إلى الإبط.","من الكتف إلى أعلى الصدر.","أفقياً بين نقطتي الصدر.","حول أوسع نقطة في الفخذ.","حول الركبة.","حول الكاحل.","من الخصر إلى المقعد.","من الإبط إلى الخصر."];
@@ -76,7 +76,8 @@ const defaultState: AppState = {
 export default function PatternApp() {
   const [state, setState] = useState<AppState>(defaultState);
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<MainViewTab>('cad2d');
+  const [activeTab, setActiveTab] = useState<MainViewTab>('home');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
 
@@ -332,6 +333,45 @@ export default function PatternApp() {
       {/* 2. MAIN VIEW AREA (واجهات منفصلة بالكامل - كل واجهة تملأ الشاشة بنسبة 100%) */}
       <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-slate-950">
         
+
+        {activeTab === 'home' && (
+          <div className="h-full overflow-y-auto p-4 pb-6 sm:p-7">
+            <div className="mx-auto max-w-6xl space-y-6">
+              <section className="overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-5 sm:p-8">
+                <div className="max-w-2xl">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[11px] font-bold text-indigo-200">منصة تصميم وهندسة الأزياء</span>
+                  <h1 className="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">من القياسات إلى باترونك التالي</h1>
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">ابدأ بمشروع جديد، أو واصل التصميم، أو تعلّم قاعدة ثم طبّقها مباشرة داخل الاستوديو.</p>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <button onClick={() => setActiveTab('parametric')} className="rounded-xl bg-indigo-500 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-400">إنشاء باترون من القياسات <ArrowRight className="mr-1 inline h-4 w-4" /></button>
+                    <button onClick={() => setActiveTab('cad2d')} className="rounded-xl border border-slate-600 bg-slate-800/70 px-4 py-3 text-sm font-bold text-slate-100 transition hover:bg-slate-700">فتح استوديو الرسم</button>
+                  </div>
+                </div>
+              </section>
+              <section className="space-y-3">
+                <div><h2 className="text-lg font-extrabold text-white">ابدأ من هنا</h2><p className="mt-1 text-xs text-slate-400">اختر المهمة التي تريد إنجازها</p></div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {[
+                    { id: 'measurements', title: 'إعداد القياسات', desc: 'أدخل قياسات الجسم وراجعها قبل التصميم.', icon: <Ruler className="h-5 w-5" />, color: 'text-cyan-300' },
+                    { id: 'parametric', title: 'توليد باترون', desc: 'ابدأ بقطعة وقياسات وراحة تصميمية.', icon: <Sliders className="h-5 w-5" />, color: 'text-indigo-300' },
+                    { id: 'cad2d', title: 'الرسم ثنائي الأبعاد', desc: 'افتح محرر القطع والنقاط والمنحنيات.', icon: <DraftingCompass className="h-5 w-5" />, color: 'text-emerald-300' },
+                    { id: 'view3d', title: 'المعاينة ثلاثية الأبعاد', desc: 'اعرض النموذج والخامة المتاحة.', icon: <Box className="h-5 w-5" />, color: 'text-violet-300' },
+                    { id: 'catalog', title: 'استكشاف الموديلات', desc: 'تعرّف على أنواع القطع وابدأ من نموذج.', icon: <Shirt className="h-5 w-5" />, color: 'text-amber-300' },
+                    { id: 'encyclopedia', title: 'التعلم والمراجع', desc: 'اقرأ الشرح ثم انتقل إلى التطبيق.', icon: <BookOpen className="h-5 w-5" />, color: 'text-rose-300' }
+                  ].map(item => (
+                    <button key={item.id} onClick={() => setActiveTab(item.id as MainViewTab)} className="group flex min-h-28 items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-right transition hover:-translate-y-0.5 hover:border-indigo-500/60 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800", item.color)}>{item.icon}</span>
+                      <span className="min-w-0"><span className="block text-sm font-extrabold text-white">{item.title}</span><span className="mt-1 block text-xs leading-6 text-slate-400">{item.desc}</span></span>
+                      <ChevronLeft className="mr-auto mt-1 h-4 w-4 shrink-0 text-slate-600 transition group-hover:text-indigo-300" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-[11px] leading-6 text-slate-400">ملاحظة: المعاينة ثلاثية الأبعاد الحالية للعرض والخامات المتاحة؛ لا تمثل بعد محاكاة فيزيائية كاملة لسقوط القماش وملاءمته.</p>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'encyclopedia' && (
           <div className="w-full h-full">
             <PatternEncyclopedia />
@@ -771,36 +811,37 @@ export default function PatternApp() {
         )}
       </main>
 
-{/* 3. MODERN MOBILE APP BOTTOM NAVIGATION BAR (شريط تنقل سفلي واضح وبسيط ومريح للإبهام) */}
-      <nav className="h-14 bg-slate-950 border-t border-slate-800/90 px-2 flex items-center justify-around shrink-0 z-30">
+{/* Primary navigation: five high-frequency destinations plus a compact tools menu. */}
+      <nav aria-label="التنقل الرئيسي" className="relative z-30 flex h-16 shrink-0 items-center justify-around border-t border-slate-800/90 bg-slate-950 px-1 sm:px-3">
         {[
-          { id: 'encyclopedia', label: 'الموسوعة', icon: <BookOpen className="w-5 h-5" /> },
-          { id: 'catalog', label: 'الموديلات', icon: <Shirt className="w-5 h-5" /> },
-          { id: 'parametric', label: 'المعمل', icon: <Code2 className="w-5 h-5" /> },
-          { id: 'cad2d', label: 'باترون 2D', icon: <DraftingCompass className="w-5 h-5" /> },
-          { id: 'view3d', label: 'محاكاة 3D', icon: <Box className="w-5 h-5" /> },
-          { id: 'measurements', label: 'المقاسات', icon: <Ruler className="w-5 h-5" /> },
-          { id: 'fabrics', label: 'الأقمشة', icon: <Palette className="w-5 h-5" /> },
-          { id: 'export_guide', label: 'التصدير', icon: <FileText className="w-5 h-5" /> },
-        ].map(item => {
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id as MainViewTab)}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center py-1 transition-all rounded-xl",
-                isActive
-                  ? "text-blue-400 font-bold scale-105"
-                  : "text-slate-400 hover:text-slate-200"
-              )}
-            >
-              {item.icon}
-              <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
-            </button>
-          );
-        })}
+          { id: 'home', label: 'الرئيسية', icon: <Home className="h-5 w-5" /> },
+          { id: 'catalog', label: 'الموديلات', icon: <Shirt className="h-5 w-5" /> },
+          { id: 'parametric', label: 'المعمل', icon: <Code2 className="h-5 w-5" /> },
+          { id: 'cad2d', label: 'الرسم 2D', icon: <DraftingCompass className="h-5 w-5" /> },
+          { id: 'view3d', label: 'عرض 3D', icon: <Box className="h-5 w-5" /> }
+        ].map(item => (
+          <button key={item.id} aria-current={activeTab === item.id ? 'page' : undefined} onClick={() => { setActiveTab(item.id as MainViewTab); setShowMoreMenu(false); }} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] transition sm:text-xs", activeTab === item.id ? "font-extrabold text-blue-400" : "text-slate-400 hover:text-slate-100")}>
+            {item.icon}<span>{item.label}</span>
+          </button>
+        ))}
+        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={() => setShowMoreMenu(value => !value)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs", showMoreMenu || ['encyclopedia','measurements','fabrics','export_guide'].includes(activeTab) ? "font-extrabold text-blue-400" : "text-slate-400")}>
+          <MoreHorizontal className="h-5 w-5" /><span>المزيد</span>
+        </button>
       </nav>
+      {showMoreMenu && (
+        <div className="absolute bottom-16 left-2 right-2 z-40 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-4 sm:w-72" role="menu" aria-label="أدوات إضافية">
+          {[
+            { id: 'encyclopedia', label: 'الموسوعة والمراجع', icon: <BookOpen className="h-4 w-4" /> },
+            { id: 'measurements', label: 'ملف القياسات', icon: <Ruler className="h-4 w-4" /> },
+            { id: 'fabrics', label: 'الأقمشة والخامات', icon: <Palette className="h-4 w-4" /> },
+            { id: 'export_guide', label: 'التصدير والإنتاج', icon: <FileText className="h-4 w-4" /> }
+          ].map(item => (
+            <button key={item.id} role="menuitem" onClick={() => { setActiveTab(item.id as MainViewTab); setShowMoreMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 transition hover:bg-slate-800">
+              {item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* PDF Export Modal */}
       <PdfExportModal
