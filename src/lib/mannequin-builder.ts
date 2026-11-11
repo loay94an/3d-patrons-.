@@ -252,6 +252,18 @@ export function buildParametricMannequin(
   const { yOffset, torsoHeight } = getTorsoSpan(gender, measurements);
   const scale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
 
+  const referenceHeight = DEFAULT_MANNEQUIN_MEASUREMENTS[gender]?.height ?? 168;
+  // Stature changes should affect limb reach as well as leg length, while
+  // tape-derived girths remain controlled exclusively by circumference inputs.
+  const statureScale = THREE.MathUtils.clamp(
+    (Number.isFinite(measurements.height) && measurements.height > 0
+      ? measurements.height
+      : referenceHeight) / referenceHeight,
+    0.85,
+    1.15
+  );
+  const limbLengthScale = scale * statureScale;
+
   const skin = new THREE.MeshStandardMaterial({
     color: 0xc99a80, roughness: 0.82, metalness: 0,
     side: THREE.DoubleSide
@@ -402,7 +414,7 @@ export function buildParametricMannequin(
     measurements.armCircumference, 3.0 * scale, 2.0 * scale, 6.5 * scale
   );
   const thighRadius = limbRadiusFromCircumference(
-    measurements.thighCircumference, 4.35 * scale, 2.8 * scale, 9.0 * scale
+    measurements.thighCircumference, 4.35 * scale, 2.8 * limbLengthScale, 9.0 * scale
   );
 
   // Shoulder position comes from the measured torso silhouette, not a hard-coded width.
@@ -411,24 +423,24 @@ export function buildParametricMannequin(
   const shoulderY = yOffset + torsoHeight * 0.86;
   [-1, 1].forEach(side => {
     const shoulder = new THREE.Vector3(side * shoulderX, shoulderY, 0);
-    const elbow = new THREE.Vector3(side * (shoulderX + 5.2 * scale), yOffset + torsoHeight * 0.57, 0.6 * scale);
-    const wrist = new THREE.Vector3(side * (shoulderX + 7.2 * scale), yOffset + 13.5 * scale, 0.8 * scale);
-    const palm = new THREE.Vector3(side * (shoulderX + 7.5 * scale), yOffset + 8.8 * scale, 1.0 * scale);
+    const elbow = new THREE.Vector3(side * (shoulderX + 5.2 * limbLengthScale), yOffset + torsoHeight * 0.57, 0.6 * scale);
+    const wrist = new THREE.Vector3(side * (shoulderX + 7.2 * limbLengthScale), yOffset + 13.5 * scale, 0.8 * scale);
+    const palm = new THREE.Vector3(side * (shoulderX + 7.5 * limbLengthScale), yOffset + 8.8 * scale, 1.0 * scale);
     addEllipsoid('Shoulder_' + side, shoulder.x, shoulder.y, shoulder.z,
       4.0 * scale, 4.1 * scale, 3.8 * scale);
     addSegment('UpperArm_' + side, shoulder, elbow, upperArmRadius, upperArmRadius * 0.82);
     addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.35 * scale, 2.35 * scale);
     addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale, 1.55 * scale);
     addEllipsoid('Wrist_' + side, wrist.x, wrist.y, wrist.z, 1.5 * scale, 1.45 * scale, 1.5 * scale);
-    addEllipsoid('Palm_' + side, palm.x, palm.y, palm.z, 1.8 * scale, 2.8 * scale, 0.9 * scale);
+    addEllipsoid('Palm_' + side, palm.x, palm.y, palm.z, 1.8 * limbLengthScale, 2.8 * scale, 0.9 * scale);
     for (let finger = 0; finger < 5; finger++) {
-      const offset = (finger - 2) * 0.72 * scale;
-      const fingerLength = (finger === 1 || finger === 2 ? 4.1 : 3.55) * scale;
-      const start = new THREE.Vector3(palm.x + offset, palm.y - 1.2 * scale, palm.z + 0.08 * scale);
-      const end = new THREE.Vector3(palm.x + offset * 1.08, palm.y - fingerLength, palm.z + 0.1 * scale);
+      const offset = (finger - 2) * 0.72 * limbLengthScale;
+      const fingerLength = (finger === 1 || finger === 2 ? 4.1 : 3.55) * limbLengthScale;
+      const start = new THREE.Vector3(palm.x + offset, palm.y - 1.2 * scale, palm.z + 0.08 * limbLengthScale);
+      const end = new THREE.Vector3(palm.x + offset * 1.08, palm.y - fingerLength, palm.z + 0.1 * limbLengthScale);
       addSegment('Finger_' + side + '_' + finger, start, end, 0.34 * scale, 0.22 * scale);
     }
-    const thumbStart = new THREE.Vector3(palm.x - side * 1.25 * scale, palm.y + 0.1 * scale, palm.z + 0.1 * scale);
+    const thumbStart = new THREE.Vector3(palm.x - side * 1.25 * limbLengthScale, palm.y + 0.1 * scale, palm.z + 0.1 * scale);
     const thumbEnd = new THREE.Vector3(palm.x - side * 2.8 * scale, palm.y - 1.8 * scale, palm.z + 0.15 * scale);
     addSegment('Thumb_' + side, thumbStart, thumbEnd, 0.48 * scale, 0.31 * scale);
   });
