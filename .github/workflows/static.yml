@@ -95,6 +95,37 @@ jobs:
           assert report['heuristic_candidates']['waist_minimum'] is not None
           PY
 
+      - name: Test Anny contour candidate ranking
+        if: github.event_name == 'pull_request'
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import numpy as np
+          spec = importlib.util.spec_from_file_location("analyze_profile", "tools/anny-poc/analyze_profile.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          center = np.array([0.0, 0.0])
+          span = np.array([4.0, 4.0])
+          def contour(perimeter, centroid, compactness=0.75, ratio=1.0):
+              return {"perimeter_model_units": perimeter, "centroid_xy": list(centroid),
+                      "compactness": compactness, "width_depth_ratio": ratio}
+          centered = contour(8.0, (0.0, 0.0))
+          offset = contour(14.0, (2.0, 1.5))
+          result = module.summarize_section([offset, centered], center, span)
+          assert result["selected_contour"] is centered
+          assert result["circumference_model_units"] == 8.0
+          assert sum(item["selected"] for item in result["candidate_selection"]) == 1
+          ambiguous = module.summarize_section(
+              [contour(8.0, (0.0, 0.0)), contour(7.8, (0.01, 0.01))], center, span
+          )
+          assert "contour_selection_ambiguous_similar_candidate_scores" in ambiguous["diagnostics"]
+          off_center = module.summarize_section([contour(9.0, (1.2, 0.0))], center, span)
+          assert "selected_contour_centroid_off_body_center" in off_center["diagnostics"]
+          empty = module.summarize_section([], center, span)
+          assert empty["circumference_model_units"] is None and empty["confidence"] == 0.0
+          print("Anny contour ranking tests passed")
+          PY
+
       - name: Install Anny API test dependencies
         run: python -m pip install -r tools/anny-api/requirements.txt
 
