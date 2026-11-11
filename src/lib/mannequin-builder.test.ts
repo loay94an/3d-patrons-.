@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {
   buildParametricMannequin,
+  resolve3DMeasurements,
   DEFAULT_MANNEQUIN_MEASUREMENTS,
   ellipsePerimeter,
   getTorsoProfile,
@@ -207,4 +208,34 @@ describe('3D mannequin geometry', () => {
     }
   });
 
+});
+
+
+describe('3D measurement resolution', () => {
+  it('uses the selected standard size for the mannequin and garment inputs', () => {
+    const resolved = resolve3DMeasurements('women', 40, {});
+    assert.equal(resolved.body.bust, 92);
+    assert.equal(resolved.body.waist, 74);
+    assert.equal(resolved.body.hip, 98);
+    assert.equal(resolved.body.backLength, 41);
+    assert.equal(resolved.body.armCircumference, 29.5);
+    assert.equal(resolved.body.thighCircumference, 56);
+    assert.equal(resolved.sleeveLength, 58.5);
+    assert.equal(resolved.totalLength, 55);
+  });
+
+  it('lets custom tape values override the selected standard size', () => {
+    const resolved = resolve3DMeasurements('women', 38, {
+      bust: 101, waist: 81, hip: 109, shoulder: 14,
+      backLength: 43, height: 174, armCirc: 34,
+      thighCirc: 63, sleeveLength: 62, skirtLength: 72
+    });
+    assert.deepEqual(resolved.body, {
+      bust: 101, waist: 81, hip: 109, shoulder: 14,
+      backLength: 43, height: 174, armCircumference: 34,
+      thighCircumference: 63
+    });
+    assert.equal(resolved.sleeveLength, 62);
+    assert.equal(resolved.totalLength, 72);
+  });
 });
