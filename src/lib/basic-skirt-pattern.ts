@@ -178,17 +178,48 @@ export function generateBasicSkirtDraft(input: BasicSkirtDraftInput): BasicSkirt
     id: 'front' | 'back',
     origin: CadPoint,
     dartIntake: number,
-    dartLength: number
+    dartLength: number,
+    targetHipCurveLength?: number
   ): { piece: CadPiece; sideSeam: number; summary: PieceSpecSummary } => {
     const centerWaist = origin;
     const sideWaist = point(origin.x + waistQuarter + dartIntake, origin.y);
     const sideHip = point(origin.x + hipQuarter, origin.y + hipDepth);
     const sideHem = point(origin.x + hipQuarter, origin.y + length);
     const centerHem = point(origin.x, origin.y + length);
-    const curveControl = point(
+    let curveControl = point(
       origin.x + Math.max(waistQuarter + dartIntake, hipQuarter) + 0.25,
       origin.y + hipDepth * 0.58
     );
+    // Walk the shorter side curve to the same sewn length as the longer panel.
+    // Only the control point moves; the waist, hip and hem landmarks stay fixed.
+    if (targetHipCurveLength !== undefined) {
+      const baseLength = quadLength(sideWaist, curveControl, sideHip);
+      if (baseLength < targetHipCurveLength - 0.001) {
+        let low = curveControl.x;
+        let high = curveControl.x + Math.max(hipDepth * 3, 20);
+        const highPoint = point(high, curveControl.y);
+        if (quadLength(sideWaist, highPoint, sideHip) >= targetHipCurveLength) {
+          for (let i = 0; i < 48; i += 1) {
+            const mid = (low + high) / 2;
+            const candidate = point(mid, curveControl.y);
+            if (quadLength(sideWaist, candidate, sideHip) < targetHipCurveLength) low = mid;
+            else high = mid;
+          }
+          curveControl = point((low + high) / 2, curveControl.y);
+        } else {
+          // If horizontal walking cannot reach the target, adjust curvature vertically.
+          let lowY = curveControl.y;
+          let highY = curveControl.y + Math.max(hipDepth * 3, 20);
+          for (let i = 0; i < 48; i += 1) {
+            const midY = (lowY + highY) / 2;
+            const candidate = point(curveControl.x, midY);
+            if (quadLength(sideWaist, candidate, sideHip) < targetHipCurveLength) lowY = midY;
+            else highY = midY;
+          }
+          curveControl = point(curveControl.x, (lowY + highY) / 2);
+        }
+      }
+    }
 
     const waist = line(id + '_waist', centerWaist, sideWaist, 'waist', 'خط الخصر قبل إغلاق البنسة');
     const hipCurve: CadSegment = {
@@ -257,8 +288,14 @@ export function generateBasicSkirtDraft(input: BasicSkirtDraftInput): BasicSkirt
     return { piece, sideSeam, summary };
   };
 
-  const front = makePanel('front', frontOrigin, frontDart, frontDartLength);
-  const back = makePanel('back', backOrigin, backDart, backDartLength);
+  const frontBase = makePanel('front', frontOrigin, frontDart, frontDartLength);
+  const backBase = makePanel('back', backOrigin, backDart, backDartLength);
+  const targetHipCurveLength = Math.max(
+    frontBase.piece.segments.find(segment => segment.id === 'front_hip_curve')?.lengthCm ?? 0,
+    backBase.piece.segments.find(segment => segment.id === 'back_hip_curve')?.lengthCm ?? 0
+  );
+  const front = makePanel('front', frontOrigin, frontDart, frontDartLength, targetHipCurveLength);
+  const back = makePanel('back', backOrigin, backDart, backDartLength, targetHipCurveLength);
   const sideDifference = Math.abs(front.sideSeam - back.sideSeam);
   const finishedWaist = (waistQuarter * 4);
   const finishedHip = hipQuarter * 4;
