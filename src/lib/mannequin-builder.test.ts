@@ -129,6 +129,24 @@ describe('3D mannequin geometry', () => {
     }
   });
 
+  it('scales arm reach with stature without changing tape-derived torso girths', () => {
+    const base = DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+    const standard = buildParametricMannequin('women', { ...base, height: 168 });
+    const tall = buildParametricMannequin('women', { ...base, height: 188 });
+    const findArm = (root: THREE.Group) => {
+      let arm: THREE.Mesh | undefined;
+      root.traverse(object => {
+        if (object instanceof THREE.Mesh && object.name === 'UpperArm_1') arm = object;
+      });
+      assert.ok(arm, 'upper arm mesh should exist');
+      return arm!;
+    };
+    assert.ok(findArm(tall).position.x > findArm(standard).position.x,
+      'taller stature should proportionally increase arm reach');
+    assert.ok(Math.abs(measureTorsoMeshCircumference('women', { ...base, height: 188 }, 0.5) - base.waist) < 0.35,
+      'stature adjustment must not alter the waist tape circumference');
+  });
+
   it('builds a finite, non-empty torso mesh for every supported body category', () => {
     for (const gender of genders) {
       const mannequin = buildParametricMannequin(gender, DEFAULT_MANNEQUIN_MEASUREMENTS[gender]);
