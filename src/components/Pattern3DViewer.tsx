@@ -27,7 +27,7 @@ function disposeObjectResources(root: THREE.Object3D) {
   const textures = new Set<THREE.Texture>();
 
   root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
+    if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line)) return;
 
     geometries.add(object.geometry);
     const objectMaterials = Array.isArray(object.material)
@@ -97,19 +97,75 @@ function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
     const width = bounds.max.x - bounds.min.x;
     const depth = bounds.max.y - bounds.min.y;
     if (cursorX > 0 && cursorX + width > 145) { cursorX = 0; cursorZ += rowDepth + 8; rowDepth = 0; }
-    geometry.translate(-(bounds.min.x + bounds.max.x) / 2, -(bounds.min.y + bounds.max.y) / 2, 0);
-    geometry.rotateX(-Math.PI / 2);
+    const centerX = (bounds.min.x + bounds.max.x) / 2;
+    const centerY = (bounds.min.y + bounds.max.y) / 2;
+    geometry.translate(-centerX, -centerY, 0);
+
+    const pieceGroup = new THREE.Group();
+    pieceGroup.name = piece.nameAr || piece.name;
+    pieceGroup.rotation.x = -Math.PI / 2;
+    pieceGroup.position.set(cursorX + width / 2, 108, cursorZ + depth / 2);
+
     const material = new THREE.MeshStandardMaterial({
       color: piece.color || ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'][index % 4],
       roughness: 0.78, metalness: 0.02, side: THREE.DoubleSide,
       transparent: true, opacity: 0.88
     });
     const panel = new THREE.Mesh(geometry, material);
-    panel.position.set(cursorX + width / 2, 108, cursorZ + depth / 2);
     panel.name = piece.nameAr || piece.name;
     panel.castShadow = true;
     panel.receiveShadow = true;
-    root.add(panel);
+    pieceGroup.add(panel);
+
+    const outline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry, 25),
+      new THREE.LineBasicMaterial({ color: '#0f172a', transparent: true, opacity: 0.8 })
+    );
+    outline.position.z = 0.025;
+    pieceGroup.add(outline);
+
+    const localPoint = (point: { x: number; y: number }, z = 0.04) =>
+      new THREE.Vector3(point.x - centerX, point.y - centerY, z);
+    const addLine = (points: THREE.Vector3[], color: string, dashed = false) => {
+      if (points.length < 2) return;
+      const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMaterial = dashed
+        ? new THREE.LineDashedMaterial({ color, dashSize: 1.2, gapSize: 0.65, transparent: true, opacity: 0.95 })
+        : new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.95 });
+      const line = new THREE.Line(lineGeometry, lineMaterial);
+      if (dashed) line.computeLineDistances();
+      pieceGroup.add(line);
+    };
+
+    // Preserve the CAD stitch layer (including darts) in the 3D flat-panel view.
+    piece.segments.filter(segment => segment.layer === 'stitch').forEach(segment => {
+      const p1 = localPoint(segment.p1, 0.045);
+      const p2 = localPoint(segment.p2, 0.045);
+      let points: THREE.Vector3[];
+      if (segment.type === 'quad' && segment.cp1) {
+        points = new THREE.QuadraticBezierCurve3(p1, localPoint(segment.cp1, 0.045), p2).getPoints(16);
+      } else if (segment.type === 'bezier' && segment.cp1 && segment.cp2) {
+        points = new THREE.CubicBezierCurve3(p1, localPoint(segment.cp1, 0.045), localPoint(segment.cp2, 0.045), p2).getPoints(20);
+      } else {
+        points = [p1, p2];
+      }
+      addLine(points, '#172554');
+    });
+
+    piece.grainlines.forEach(grainline => {
+      addLine([localPoint(grainline.p1, 0.05), localPoint(grainline.p2, 0.05)], '#b45309', true);
+    });
+
+    piece.notches.forEach(notch => {
+      const angle = notch.angleDeg * Math.PI / 180;
+      const half = notch.depthCm / 2;
+      addLine([
+        localPoint({ x: notch.point.x - Math.cos(angle) * half, y: notch.point.y - Math.sin(angle) * half }, 0.06),
+        localPoint({ x: notch.point.x + Math.cos(angle) * half, y: notch.point.y + Math.sin(angle) * half }, 0.06)
+      ], '#be123c');
+    });
+
+    root.add(pieceGroup);
     cursorX += width + 8;
     rowDepth = Math.max(rowDepth, depth);
   });
