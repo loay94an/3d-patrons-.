@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
-import { buildParametricMannequin, resolve3DMeasurements } from '../lib/mannequin-builder';
+import { resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
@@ -197,7 +197,6 @@ export function Pattern3DViewer({
   const [presentationMode, setPresentationMode] = useState<'atelier' | 'luxury'>('atelier');
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const mannequinGroupRef = useRef<THREE.Group | null>(null);
   const annyGroupRef = useRef<THREE.Group | null>(null);
   const annyNativeHeightRef = useRef<number | null>(null);
   const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
@@ -221,12 +220,11 @@ export function Pattern3DViewer({
   const fitRadiusRef = useRef(130);
 
   // Visual toggles
-  const [showMannequin, setShowMannequin] = useState(true);
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
   const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
-  const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(false);
+  const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
   const [annyFileName, setAnnyFileName] = useState('');
   const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
   const [annyLoadError, setAnnyLoadError] = useState('');
@@ -458,20 +456,9 @@ export function Pattern3DViewer({
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // 1. Rebuild or Update Mannequin
-    if (mannequinGroupRef.current) {
-      scene.remove(mannequinGroupRef.current);
-      disposeObjectResources(mannequinGroupRef.current);
-    }
-
+    // Anny is the sole body model. Resolve measurements for garment geometry.
     const meas = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
     const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
-    const currentMeasurements = resolvedMeasurements.body;
-
-    const mannequin = buildParametricMannequin(state.gender, currentMeasurements);
-    mannequin.visible = showMannequin && !annyPreviewEnabled;
-    scene.add(mannequin);
-    mannequinGroupRef.current = mannequin;
 
     // 2. Rebuild Garment Mesh
     if (garmentResultRef.current) {
@@ -530,7 +517,7 @@ export function Pattern3DViewer({
 
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
-  }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
+  }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -950,20 +937,6 @@ export function Pattern3DViewer({
     event.target.value = '';
   };
 
-  const handleRemoveAnnyPreview = () => {
-    const scene = sceneRef.current;
-    const group = annyGroupRef.current;
-    if (scene && group) { scene.remove(group); disposeObjectResources(group); annyGroupRef.current = null; }
-    annyNativeHeightRef.current = null;
-    annyBodyMeshRef.current = null;
-    if (annySourceGeometryRef.current) annySourceGeometryRef.current.dispose();
-    annySourceGeometryRef.current = null;
-    setAnnyCalibrationSummary(null);
-    setAnnyPreviewEnabled(false);
-    setAnnyFileName('');
-    setAnnyLoadError('');
-  };
-
   // Export Snapshot PNG
   const handleSnapshot = () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
@@ -1000,13 +973,12 @@ export function Pattern3DViewer({
   // Export the currently visible body and garment (or Anny preview) as one GLB scene.
   const handleExportSceneGlb = async () => {
     const exportObjects: THREE.Object3D[] = [];
-    if (annyPreviewEnabled && annyGroupRef.current) {
+    if (annyGroupRef.current) {
       exportObjects.push(annyGroupRef.current);
       if (showGarmentOnAnny && garmentResultRef.current?.group.visible) {
         exportObjects.push(garmentResultRef.current.group);
       }
     } else {
-      if (mannequinGroupRef.current?.visible) exportObjects.push(mannequinGroupRef.current);
       if (garmentResultRef.current?.group.visible) exportObjects.push(garmentResultRef.current.group);
       if (cadPreviewGroupRef.current?.visible) exportObjects.push(cadPreviewGroupRef.current);
     }
@@ -1196,7 +1168,6 @@ export function Pattern3DViewer({
         </button>
         {annyPreviewEnabled && <>
           <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="تشكيل سطح الملابس ليتبع شبكة جسم Anny الفعلية">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
-          <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
         </>}
 
         <button
@@ -1213,25 +1184,13 @@ export function Pattern3DViewer({
           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
             autoRotate ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50' : 'text-slate-300 hover:bg-slate-800'
           }`}
-          title="دوران المانيكان التلقائي"
+          title="تدوير جسم Anny تلقائياً"
         >
           {autoRotate ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           <span>{autoRotate ? 'إيقاف الدوران' : 'دوران 360°'}</span>
         </button>
 
         <div className="w-px h-5 bg-slate-700/80 mx-0.5" />
-
-        {/* Toggle Mannequin visibility */}
-        <button
-          onClick={() => setShowMannequin(!showMannequin)}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-            showMannequin ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50' : 'text-slate-400 hover:bg-slate-800'
-          }`}
-          title={annyPreviewEnabled ? "معاينة Anny نشطة" : "إظهار/إخفاء المانيكان الداخلي"}
-        >
-          {showMannequin ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-          <span>{annyPreviewEnabled ? 'Anny' : 'المانيكان'}</span>
-        </button>
 
         {/* Toggle Seams */}
         <button
@@ -1263,7 +1222,7 @@ export function Pattern3DViewer({
         <button
           onClick={() => frameScene(true)}
           className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"
-          title="ملء العرض على المانيكان والثوب كاملين"
+          title="ملء العرض على جسم Anny والثوب كاملين"
         >
           <Maximize2 className="w-3.5 h-3.5 text-teal-300" />
           <span>ملء العرض</span>
