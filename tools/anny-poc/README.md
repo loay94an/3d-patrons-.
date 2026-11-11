@@ -55,6 +55,10 @@ python tools/anny-poc/generate.py \
 Replace `SOME_LABEL` with a real label printed by the command. Values outside
 [0, 1] and unknown labels are rejected.
 
+## Preview the generated GLB in the website
+
+After generating a file, open the website's 3D viewer and choose **تحميل Anny GLB** (Load Anny GLB), then select the `.glb` file. The viewer scales the mesh to an approximate display height and centers it on the stage. This is visual-only normalization: the viewer hides the existing procedural mannequin and garment while the Anny preview is active, so no unvalidated pattern fit is implied. Choose **إغلاق Anny** (Close Anny) to return to the existing mannequin and garment preview.
+
 ## Current limitations and next validation gate
 
 1. This experiment has not yet been executed in the project's GitHub Actions
