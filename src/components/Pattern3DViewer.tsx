@@ -12,6 +12,8 @@ import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '..
 import { buildParametricMannequin, MannequinMeasurements, DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
+import { loadCadProjectDocument } from '../lib/cad-project-document';
+import type { CadPiece } from '../lib/pattern-cad-engine';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
 
 /**
@@ -45,12 +47,67 @@ function disposeObjectResources(root: THREE.Object3D) {
   materials.forEach((material) => material.dispose());
 }
 
+
+function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
+  const root = new THREE.Group();
+  root.name = 'saved-cad-piece-preview';
+  let cursorX = 0;
+  let cursorZ = 0;
+  let rowDepth = 0;
+  pieces.forEach((piece, index) => {
+    if (piece.segments.length < 3) return;
+    const first = piece.segments[0];
+    const shape = new THREE.Shape();
+    shape.moveTo(first.p1.x, first.p1.y);
+    let current = { x: first.p1.x, y: first.p1.y };
+    piece.segments.forEach(segment => {
+      if (Math.hypot(current.x - segment.p1.x, current.y - segment.p1.y) > 0.001) {
+        shape.lineTo(segment.p1.x, segment.p1.y);
+      }
+      if (segment.type === 'quad' && segment.cp1) {
+        shape.quadraticCurveTo(segment.cp1.x, segment.cp1.y, segment.p2.x, segment.p2.y);
+      } else if (segment.type === 'bezier' && segment.cp1 && segment.cp2) {
+        shape.bezierCurveTo(segment.cp1.x, segment.cp1.y, segment.cp2.x, segment.cp2.y, segment.p2.x, segment.p2.y);
+      } else {
+        shape.lineTo(segment.p2.x, segment.p2.y);
+      }
+      current = { x: segment.p2.x, y: segment.p2.y };
+    });
+    shape.closePath();
+    const geometry = new THREE.ShapeGeometry(shape, 12);
+    geometry.computeBoundingBox();
+    const bounds = geometry.boundingBox;
+    if (!bounds) { geometry.dispose(); return; }
+    const width = bounds.max.x - bounds.min.x;
+    const depth = bounds.max.y - bounds.min.y;
+    if (cursorX > 0 && cursorX + width > 145) { cursorX = 0; cursorZ += rowDepth + 8; rowDepth = 0; }
+    geometry.translate(-(bounds.min.x + bounds.max.x) / 2, -(bounds.min.y + bounds.max.y) / 2, 0);
+    geometry.rotateX(-Math.PI / 2);
+    const material = new THREE.MeshStandardMaterial({
+      color: piece.color || ['#60a5fa', '#f472b6', '#34d399', '#fbbf24'][index % 4],
+      roughness: 0.78, metalness: 0.02, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.88
+    });
+    const panel = new THREE.Mesh(geometry, material);
+    panel.position.set(cursorX + width / 2, 108, cursorZ + depth / 2);
+    panel.name = piece.nameAr || piece.name;
+    panel.castShadow = true;
+    panel.receiveShadow = true;
+    root.add(panel);
+    cursorX += width + 8;
+    rowDepth = Math.max(rowDepth, depth);
+  });
+  root.visible = false;
+  return root;
+}
+
 interface Pattern3DViewerProps {
   state: AppState;
   fabricState: FabricCustomState;
   onOpenFabricDrawer?: () => void;
   onOpenMeasurementsDrawer?: () => void;
   isSplitView?: boolean;
+  projectId?: string | null;
 }
 
 export function Pattern3DViewer({
@@ -58,7 +115,8 @@ export function Pattern3DViewer({
   fabricState,
   onOpenFabricDrawer,
   onOpenMeasurementsDrawer,
-  isSplitView = false
+  isSplitView = false,
+  projectId = null
 }: Pattern3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -70,6 +128,9 @@ export function Pattern3DViewer({
   const annyNativeHeightRef = useRef<number | null>(null);
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
+  const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
+  const [showCadPieces, setShowCadPieces] = useState(false);
+  const [cadPieceCount, setCadPieceCount] = useState(0);
   const reqIdRef = useRef<number | null>(null);
 
   // Interaction & Camera Controls state
@@ -377,6 +438,30 @@ export function Pattern3DViewer({
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
   }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
+
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (cadPreviewGroupRef.current) {
+      scene.remove(cadPreviewGroupRef.current);
+      disposeObjectResources(cadPreviewGroupRef.current);
+      cadPreviewGroupRef.current = null;
+    }
+    setCadPieceCount(0);
+    setShowCadPieces(false);
+    if (!projectId || typeof window === 'undefined') return;
+    const document = loadCadProjectDocument(window.localStorage, projectId);
+    if (!document?.pieces.length) return;
+    const preview = buildCadPiecePreview(document.pieces);
+    preview.visible = false;
+    scene.add(preview);
+    cadPreviewGroupRef.current = preview;
+    setCadPieceCount(preview.children.length);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (cadPreviewGroupRef.current) cadPreviewGroupRef.current.visible = showCadPieces;
+  }, [showCadPieces, cadPieceCount]);
 
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -750,6 +835,7 @@ export function Pattern3DViewer({
     } else {
       if (mannequinGroupRef.current?.visible) exportObjects.push(mannequinGroupRef.current);
       if (garmentResultRef.current?.group.visible) exportObjects.push(garmentResultRef.current.group);
+      if (cadPreviewGroupRef.current?.visible) exportObjects.push(cadPreviewGroupRef.current);
     }
     if (!exportObjects.length) {
       setGlbExportError('لا توجد عناصر ثلاثية الأبعاد ظاهرة للتصدير.');
@@ -923,6 +1009,9 @@ export function Pattern3DViewer({
 
       {/* Floating Bottom Toolbar (Toggles & Export) */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md px-2 sm:px-3 py-1.5 rounded-2xl border border-slate-700/60 shadow-2xl max-w-[95vw] overflow-x-auto">
+        {cadPieceCount > 0 && <button onClick={() => setShowCadPieces(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showCadPieces ? 'bg-amber-600/30 text-amber-100 border-amber-500/50' : 'text-amber-200 border-amber-700/40 hover:bg-amber-900/30'}`} title="عرض قطع CAD المحفوظة بالمقياس الهندسي في مساحة 3D؛ هذه معاينة مسطحة وليست محاكاة ارتداء">
+          <Layers className="w-3.5 h-3.5" /><span>{showCadPieces ? 'إخفاء قطع CAD' : `قطع CAD (${cadPieceCount})`}</span>
+        </button>}
         <button onClick={() => setAnnyApiPanelOpen(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${annyApiPanelOpen ? 'bg-indigo-600/30 text-indigo-100 border-indigo-500/50' : 'text-indigo-200 hover:bg-indigo-900/40 border-indigo-700/40'}`} title="الاتصال بخدمة Anny وتوليد جسم مباشر">
           <Activity className="w-3.5 h-3.5" /><span>Anny API</span>
         </button>
