@@ -1,6 +1,7 @@
+import threading
 import unittest
 
-from app import normalize_phenotypes
+from app import GenerationBusyError, normalize_phenotypes, run_with_generation_slot
 
 
 class PhenotypeValidationTests(unittest.TestCase):
@@ -28,6 +29,33 @@ class PhenotypeValidationTests(unittest.TestCase):
         for label in ("", "x" * 121):
             with self.subTest(label=label), self.assertRaises(ValueError):
                 normalize_phenotypes({label: 0.5})
+
+
+class GenerationCapacityTests(unittest.TestCase):
+    def test_releases_slot_after_success(self):
+        slots = threading.BoundedSemaphore(1)
+        result = run_with_generation_slot(lambda values: values["shape"], {"shape": 0.4}, slots=slots)
+        self.assertEqual(result, 0.4)
+        self.assertTrue(slots.acquire(blocking=False))
+        slots.release()
+
+    def test_rejects_when_capacity_is_full(self):
+        slots = threading.BoundedSemaphore(1)
+        slots.acquire()
+        called = []
+        with self.assertRaises(GenerationBusyError):
+            run_with_generation_slot(lambda values: called.append(values), {}, slots=slots)
+        self.assertEqual(called, [])
+        slots.release()
+
+    def test_releases_slot_when_generator_fails(self):
+        slots = threading.BoundedSemaphore(1)
+        def fail(_values):
+            raise RuntimeError("failed")
+        with self.assertRaises(RuntimeError):
+            run_with_generation_slot(fail, {}, slots=slots)
+        self.assertTrue(slots.acquire(blocking=False))
+        slots.release()
 
 
 if __name__ == "__main__":
