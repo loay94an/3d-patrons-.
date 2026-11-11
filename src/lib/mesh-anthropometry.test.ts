@@ -31,6 +31,34 @@ describe('mesh anthropometry', () => {
     geometry.dispose();
   });
 
+  it('selects the largest closed contour when a plane also intersects separate limbs', () => {
+    const torso = new THREE.CylinderGeometry(2, 2, 4, 256, 8, false);
+    const limb = new THREE.CylinderGeometry(0.5, 0.5, 4, 128, 8, false);
+    limb.translate(5, 0, 0);
+    const merged = new THREE.BufferGeometry();
+    const vertices: number[] = [];
+    const indices: number[] = [];
+    for (const geometry of [torso, limb]) {
+      const position = geometry.getAttribute('position');
+      const offset = vertices.length / 3;
+      for (let i = 0; i < position.count; i++) {
+        vertices.push(position.getX(i), position.getY(i), position.getZ(i));
+      }
+      const index = geometry.getIndex();
+      if (index) {
+        for (let i = 0; i < index.count; i++) indices.push(index.getX(i) + offset);
+      }
+    }
+    merged.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    merged.setIndex(indices);
+    const actual = measureMeshSectionCircumference(merged, 'y', 0.137);
+    assert.ok(Math.abs(actual - 4 * Math.PI) < 0.02,
+      `expected largest torso contour, got ${actual}`);
+    torso.dispose();
+    limb.dispose();
+    merged.dispose();
+  });
+
   it('rejects invalid or ambiguous calibration landmarks', () => {
     const geometry = new THREE.CylinderGeometry(2, 2, 4, 64, 8, false);
     assert.throws(() => buildCircumferenceCalibrationAnchors(geometry, 'y', [
