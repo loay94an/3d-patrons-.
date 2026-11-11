@@ -52,7 +52,7 @@ export function saveMeasurementProfile(
     const current = loadSavedMeasurementProfiles(storage);
     const existing = current.find(item => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase());
     const record: SavedMeasurementProfile = {
-      id: existing?.id ?? `measurement-${Date.parse(now) || Date.now()}`,
+      id: existing?.id ?? `measurement-${encodeURIComponent(cleanName.toLocaleLowerCase())}`,
       name: cleanName,
       profile: { ...profile, values: { ...profile.values } },
       updatedAt: now
