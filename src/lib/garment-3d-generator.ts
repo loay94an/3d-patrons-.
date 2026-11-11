@@ -16,6 +16,8 @@ export interface Garment3DOptions {
   hip: number;
   shoulder: number;
   backLength: number;
+  /** Physical stature in centimetres; keeps the garment on the same floor/height as Anny. */
+  height?: number;
   sleeveLength: number;
   totalLength: number;
   fabricState: FabricCustomState;
@@ -90,7 +92,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     hip,
     shoulder,
     backLength,
-    height: gender === 'men' ? 178 : gender === 'kids' ? 120 : gender === 'infant' ? 70 : 168
+    height: options.height ?? (gender === 'men' ? 178 : gender === 'kids' ? 120 : gender === 'infant' ? 70 : 168)
   };
 
   const { yOffset, torsoHeight } = getTorsoSpan(gender, bodyMeasurements);
