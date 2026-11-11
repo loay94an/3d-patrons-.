@@ -1,0 +1,85 @@
+name: Anny runtime proof of concept
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-and-validate:
+    name: Generate and validate Anny GLB on CPU
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tools/anny-poc/requirements.txt
+
+      - name: Install CPU PyTorch
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2"
+
+      - name: Install Anny proof-of-concept dependencies
+        run: python -m pip install -r tools/anny-poc/requirements.txt
+
+      - name: Generate neutral-pose Anny body
+        run: |
+          python tools/anny-poc/generate.py --device cpu --output artifacts/anny-neutral.glb
+
+      - name: Validate exported GLB and report
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import numpy as np
+          import trimesh
+
+          glb = Path("artifacts/anny-neutral.glb")
+          report_path = glb.with_suffix(".json")
+          assert glb.is_file() and glb.stat().st_size > 1000, "GLB is missing or unexpectedly small"
+          assert report_path.is_file(), "JSON report is missing"
+
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          assert report["model"] == "Anny"
+          assert report["device"] == "cpu"
+          assert report["vertex_count"] > 0
+          assert report["triangle_count"] > 0
+          assert "Not calibrated" in report["measurement_status"]
+
+          scene = trimesh.load(glb, force="scene")
+          meshes = [geometry for geometry in scene.geometry.values()
+                    if isinstance(geometry, trimesh.Trimesh)]
+          assert meshes, "GLB contains no triangle mesh"
+          vertices = np.concatenate([mesh.vertices for mesh in meshes], axis=0)
+          faces_count = sum(len(mesh.faces) for mesh in meshes)
+          assert np.isfinite(vertices).all(), "GLB contains non-finite vertices"
+          assert faces_count > 0, "GLB contains no faces"
+
+          print(json.dumps({
+              "glb_bytes": glb.stat().st_size,
+              "mesh_count": len(meshes),
+              "vertex_count_reported": report["vertex_count"],
+              "triangle_count_reported": report["triangle_count"],
+              "triangle_count_in_glb": faces_count,
+              "bounds_model_units": report["bounds_model_units"],
+              "measurement_status": report["measurement_status"],
+          }, indent=2))
+          PY
+
+      - name: Upload generated Anny artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: anny-runtime-poc
+          path: |
+            artifacts/anny-neutral.glb
+            artifacts/anny-neutral.json
+          if-no-files-found: error
+          retention-days: 7
