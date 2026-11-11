@@ -72,7 +72,7 @@ export function buildPatternMeasurementBridge(
     'neckDepthBack', 'sleeveLength', 'crotchDepth', 'rise'
   ]);
 
-  if (!Array.isArray(measurements) || measurements.length === 0) {
+  if (measurements.length === 0) {
     return {
       values,
       evidence,
