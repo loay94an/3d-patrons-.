@@ -27,7 +27,7 @@ Use labels returned by `GET /v1/anny/phenotypes`. Every value must be within
 accept bust, waist, hip, height, or other tape measurements because no validated
 mapping from anthropometry to Anny phenotype parameters exists.
 
-## Local run
+## Connect the website viewer\n\nSet `VITE_ANNY_API_URL` in the frontend build environment to the public base\nURL of this service (without a trailing slash). The 3D viewer can also accept\nthe service URL in its Anny API panel, fetch the exact phenotype labels, adjust\nvalues in the documented [0, 1] range, and request a GLB directly. The API\nservice must allow the exact website origin through `ANNY_CORS_ORIGINS`.\n\n## Local run
 
 From the repository root:
 
