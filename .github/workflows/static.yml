@@ -64,6 +64,19 @@ jobs:
         run: |
           python tools/audit_glb_models.py
 
+      - name: Analyze bundled Anny body cross-sections
+        if: github.event_name != 'pull_request'
+        run: |
+          python tools/anny-poc/analyze_profile.py --model public/models/anny-neutral.glb --output public/models/anny-neutral-profile.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("public/models/anny-neutral-profile.json").read_text())
+          assert report["closed_section_samples"] >= 12
+          assert report["heuristic_candidates"]["waist_minimum"] is not None
+          print("Anny section-profile diagnostics validated")
+          PY
+
       - name: Install Anny API test dependencies
         run: python -m pip install -r tools/anny-api/requirements.txt
 
