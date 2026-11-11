@@ -11,6 +11,7 @@ import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
 import { buildParametricMannequin, MannequinMeasurements, DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
+import { getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 
 /**
  * Releases GPU-backed resources owned by a Three.js subtree.
@@ -64,6 +65,7 @@ export function Pattern3DViewer({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const mannequinGroupRef = useRef<THREE.Group | null>(null);
   const annyGroupRef = useRef<THREE.Group | null>(null);
+  const annyNativeHeightRef = useRef<number | null>(null);
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const reqIdRef = useRef<number | null>(null);
@@ -470,7 +472,9 @@ export function Pattern3DViewer({
       disposeObjectResources(group);
       throw new Error('ملف Anny لا يحتوي على مجسم صالح.');
     }
-    group.scale.setScalar(168 / size.y);
+    annyNativeHeightRef.current = size.y;
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+    group.scale.setScalar(getAnnyHeightScale(size.y, targetHeightCm));
     const scaledBounds = new THREE.Box3().setFromObject(group);
     const center = scaledBounds.getCenter(new THREE.Vector3());
     group.position.set(-center.x, -scaledBounds.min.y, -center.z);
@@ -486,6 +490,24 @@ export function Pattern3DViewer({
     setAnnyPreviewEnabled(true);
     requestAnimationFrame(() => frameScene(true));
   };
+
+  // Keep Anny's full-body stature synchronized with the active measurement profile.
+  // Reposition the group after scaling so its feet remain on the floor.
+  useEffect(() => {
+    const group = annyGroupRef.current;
+    const nativeHeight = annyNativeHeightRef.current;
+    if (!group || !nativeHeight || !annyPreviewEnabled) return;
+
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+    group.position.set(0, 0, 0);
+    group.scale.setScalar(getAnnyHeightScale(nativeHeight, targetHeightCm));
+    group.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(group);
+    const center = bounds.getCenter(new THREE.Vector3());
+    group.position.set(-center.x, -bounds.min.y, -center.z);
+    group.updateMatrixWorld(true);
+    frameScene();
+  }, [state.gender, state.customMeasurements.height, annyPreviewEnabled, frameScene]);
 
   const handleLoadBundledAnny = async () => {
     setAnnyBundledBusy(true);
@@ -608,6 +630,7 @@ export function Pattern3DViewer({
     const scene = sceneRef.current;
     const group = annyGroupRef.current;
     if (scene && group) { scene.remove(group); disposeObjectResources(group); annyGroupRef.current = null; }
+    annyNativeHeightRef.current = null;
     setAnnyPreviewEnabled(false);
     setAnnyFileName('');
     setAnnyLoadError('');
