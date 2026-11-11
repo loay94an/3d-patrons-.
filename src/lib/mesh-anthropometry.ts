@@ -46,8 +46,13 @@ export function measureMeshSectionCircumference(
   );
   const signedDistance = (vertex: number) => positions.getComponent(vertex, axisIndex) - coordinate;
   const segmentKeys = new Set<string>();
-  let circumference = 0;
+  const segments: Array<{ a: string; b: string; length: number }> = [];
   const epsilon = 1e-9;
+
+  const quantize = (point: THREE.Vector3) => {
+    const values = [point.x, point.y, point.z].map(value => Math.round(value * 1e7));
+    return values.join(',');
+  };
 
   for (let face = 0; face < triangleCount; face++) {
     const ids = [0, 1, 2].map(corner => index
@@ -67,23 +72,55 @@ export function measureMeshSectionCircumference(
     }
 
     if (intersections.length !== 2) continue;
-    const [a, b] = intersections;
-    const quantize = (point: THREE.Vector3) => {
-      const values = [point.x, point.y, point.z].map(value => Math.round(value * 1e7));
-      return values.join(',');
-    };
-    const keyA = quantize(a);
-    const keyB = quantize(b);
+    const [pointA, pointB] = intersections;
+    const keyA = quantize(pointA);
+    const keyB = quantize(pointB);
+    if (keyA === keyB) continue;
     const key = keyA < keyB ? keyA + '|' + keyB : keyB + '|' + keyA;
     if (segmentKeys.has(key)) continue;
     segmentKeys.add(key);
-    circumference += a.distanceTo(b);
+    segments.push({ a: keyA, b: keyB, length: pointA.distanceTo(pointB) });
+  }
+
+  // A full human mesh can intersect the same horizontal plane at the torso
+  // and both arms. Keep the largest closed contour instead of adding unrelated
+  // perimeters together.
+  const adjacency = new Map<string, number[]>();
+  segments.forEach((segment, segmentIndex) => {
+    adjacency.set(segment.a, [...(adjacency.get(segment.a) ?? []), segmentIndex]);
+    adjacency.set(segment.b, [...(adjacency.get(segment.b) ?? []), segmentIndex]);
+  });
+
+  const visited = new Set<number>();
+  let circumference = 0;
+  for (let seed = 0; seed < segments.length; seed++) {
+    if (visited.has(seed)) continue;
+    const stack = [seed];
+    const component: number[] = [];
+    const nodes = new Set<string>();
+    while (stack.length) {
+      const segmentIndex = stack.pop()!;
+      if (visited.has(segmentIndex)) continue;
+      visited.add(segmentIndex);
+      component.push(segmentIndex);
+      const segment = segments[segmentIndex];
+      nodes.add(segment.a);
+      nodes.add(segment.b);
+      for (const node of [segment.a, segment.b]) {
+        for (const neighbor of adjacency.get(node) ?? []) {
+          if (!visited.has(neighbor)) stack.push(neighbor);
+        }
+      }
+    }
+    const isClosed = [...nodes].every(node => (adjacency.get(node)?.length ?? 0) === 2);
+    if (!isClosed) continue;
+    const perimeter = component.reduce((sum, segmentIndex) => sum + segments[segmentIndex].length, 0);
+    circumference = Math.max(circumference, perimeter);
   }
 
   if (!Number.isFinite(circumference) || circumference <= 0) {
     throw new Error('The section plane did not produce a measurable closed contour');
   }
-  return circumference;
 }
 
 /**
