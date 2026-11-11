@@ -870,7 +870,7 @@ export function generatePatternByNumbers(
   if (garmentType === 'dress') {
     const dressLen = input.backLength > 80 ? input.backLength : 105;
     const waistLevel = input.backLength < 80 ? input.backLength : 42;
-    const hipLevel = +(waistLevel + 19).toFixed(1);
+    const hipLevel = +(waistLevel + (input.hipDepth ?? 19)).toFixed(1);
     const hemFlare = 14; // اتساع كلوش للفستان
 
     // 1. BACK DRESS (فستان الظهر)
