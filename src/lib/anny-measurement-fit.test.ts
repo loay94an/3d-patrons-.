@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   convertAnnyCircumferenceToCm,
   getAnnyHeightScale,
+  interpolateRadialScale,
   resolveAnnyTargetHeightCm
 } from './anny-measurement-fit';
 import type { Gender } from './pattern-logic';
@@ -43,5 +44,47 @@ describe('Anny stature calibration', () => {
   it('rejects invalid circumference values', () => {
     assert.throws(() => convertAnnyCircumferenceToCm(0, 1.6, 168), /circumference/);
     assert.throws(() => convertAnnyCircumferenceToCm(Number.NaN, 1.6, 168), /circumference/);
+  });
+});
+
+
+describe('safe radial profile interpolation', () => {
+  const anchors = [
+    { coordinate: 0, radialScale: 1 },
+    { coordinate: 10, radialScale: 1.2 },
+    { coordinate: 20, radialScale: 0.8 }
+  ];
+
+  it('sorts anchors and interpolates smoothly between them', () => {
+    assert.equal(interpolateRadialScale(0, [...anchors].reverse()), 1);
+    assert.equal(interpolateRadialScale(10, anchors), 1.15);
+    assert.equal(interpolateRadialScale(20, anchors), 0.85);
+    assert.ok(interpolateRadialScale(5, anchors) > 1);
+    assert.ok(interpolateRadialScale(15, anchors) < 1.15);
+  });
+
+  it('clamps extreme scale requests to conservative defaults', () => {
+    assert.equal(interpolateRadialScale(10, [
+      { coordinate: 0, radialScale: 0.1 },
+      { coordinate: 20, radialScale: 4 }
+    ]), 0.85);
+    assert.equal(interpolateRadialScale(20, [
+      { coordinate: 0, radialScale: 0.1 },
+      { coordinate: 20, radialScale: 4 }
+    ]), 1.15);
+  });
+
+  it('rejects insufficient, duplicate, or invalid anchors', () => {
+    assert.throws(() => interpolateRadialScale(0, [{ coordinate: 0, radialScale: 1 }]), /at least two/i);
+    assert.throws(() => interpolateRadialScale(0, [
+      { coordinate: 0, radialScale: 1 },
+      { coordinate: 0, radialScale: 1.1 }
+    ]), /distinct/i);
+    assert.throws(() => interpolateRadialScale(0, [
+      { coordinate: 0, radialScale: 0 },
+      { coordinate: 1, radialScale: 1 }
+    ]), /positive scales/i);
+    assert.throws(() => interpolateRadialScale(Number.NaN, anchors), /coordinate/);
+    assert.throws(() => interpolateRadialScale(0, anchors, 1.2, 1.1), /bounds/);
   });
 });
