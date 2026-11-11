@@ -211,6 +211,18 @@ export function buildParametricMannequin(
   torso.receiveShadow = true;
   body.add(torso);
 
+  // Soft anatomical volumes blend into the torso silhouette. The pelvis
+  // bridges the open lower torso to the thighs; gluteal forms add a natural
+  // posterior contour instead of leaving a flat, tube-like back.
+  const pelvisProfile = getTorsoProfile(gender, measurements, gender === 'kids' || gender === 'infant' ? 0.34 : 0.28);
+  addEllipsoid('PelvisCore', 0, pelvisProfile.y + 1.2 * scale, -0.15 * scale,
+    pelvisProfile.rx * 0.94, 7.2 * scale, pelvisProfile.rz * 0.98);
+  [-1, 1].forEach(side => {
+    addEllipsoid('Gluteal_' + side, side * pelvisProfile.rx * 0.39,
+      pelvisProfile.y + 0.4 * scale, -pelvisProfile.rz * 0.56,
+      pelvisProfile.rx * 0.43, 6.2 * scale, pelvisProfile.rz * 0.56);
+  });
+
   // Measurement tape follows the exact waist cross-section used by the garment generator.
   const waistV = gender === 'kids' || gender === 'infant' ? 0.6 : 0.5;
   const waistProfile = getTorsoProfile(gender, measurements, waistV);
@@ -241,11 +253,19 @@ export function buildParametricMannequin(
     return mesh;
   };
 
-  const addSegment = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number) => {
+  // Tapered anatomical segments replace uniform capsules: real limbs narrow
+  // towards wrists/ankles and widen at their muscle origins.
+  const addSegment = (
+    name: string,
+    start: THREE.Vector3,
+    end: THREE.Vector3,
+    startRadius: number,
+    endRadius = startRadius
+  ) => {
     const direction = new THREE.Vector3().subVectors(end, start);
     const length = direction.length();
     const mesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 12, 24),
+      new THREE.CylinderGeometry(endRadius, startRadius, Math.max(0.01, length), 32, 4, false),
       skin
     );
     mesh.name = name;
@@ -280,9 +300,11 @@ export function buildParametricMannequin(
     const palm = new THREE.Vector3(side * (shoulderX + 7.5 * scale), yOffset + 8.8 * scale, 1.0 * scale);
     addEllipsoid('Shoulder_' + side, shoulder.x, shoulder.y, shoulder.z,
       4.0 * scale, 4.1 * scale, 3.8 * scale);
-    addSegment('UpperArm_' + side, shoulder, elbow, 3.0 * scale);
-    addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.35 * scale, 2.35 * scale);
-    addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale);
+    addEllipsoid('Deltoid_' + side, shoulder.x, shoulder.y - 0.7 * scale, shoulder.z,
+      4.25 * scale, 4.8 * scale, 4.0 * scale);
+    addSegment('UpperArm_' + side, shoulder, elbow, 3.35 * scale, 2.45 * scale);
+    addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.45 * scale, 2.25 * scale);
+    addSegment('Forearm_' + side, elbow, wrist, 2.45 * scale, 1.45 * scale);
     addEllipsoid('Wrist_' + side, wrist.x, wrist.y, wrist.z, 1.5 * scale, 1.45 * scale, 1.5 * scale);
     addEllipsoid('Palm_' + side, palm.x, palm.y, palm.z, 1.8 * scale, 2.8 * scale, 0.9 * scale);
     for (let finger = 0; finger < 5; finger++) {
@@ -308,12 +330,18 @@ export function buildParametricMannequin(
     const ankle = new THREE.Vector3(side * hipX * 1.08, ankleY, 0.1 * scale);
     addEllipsoid('HipJoint_' + side, hip.x, hip.y, hip.z,
       4.7 * scale, 5.2 * scale, 4.9 * scale);
-    addSegment('Thigh_' + side, hip, knee, 4.35 * scale);
-    addEllipsoid('Knee_' + side, knee.x, knee.y, knee.z, 3.0 * scale, 3.1 * scale, 3.0 * scale);
-    addSegment('Calf_' + side, knee, ankle, 2.8 * scale);
+    addEllipsoid('GlutealFold_' + side, hip.x, hip.y - 2.2 * scale, -2.2 * scale,
+      5.0 * scale, 5.2 * scale, 4.5 * scale);
+    addSegment('Thigh_' + side, hip, knee, 5.0 * scale, 3.0 * scale);
+    addEllipsoid('Knee_' + side, knee.x, knee.y, knee.z, 3.05 * scale, 3.35 * scale, 2.8 * scale);
+    addSegment('Calf_' + side, knee, ankle, 3.0 * scale, 1.65 * scale);
     addEllipsoid('Ankle_' + side, ankle.x, ankle.y, ankle.z, 1.8 * scale, 2.0 * scale, 1.8 * scale);
-    addEllipsoid('Foot_' + side, side * hipX * 1.08, 2.2 * scale, 4.0 * scale,
-      2.7 * scale, 1.9 * scale, 5.7 * scale);
+    addEllipsoid('Heel_' + side, ankle.x, 2.1 * scale, -0.3 * scale,
+      2.35 * scale, 2.0 * scale, 2.8 * scale);
+    addEllipsoid('Foot_' + side, side * hipX * 1.08, 2.0 * scale, 3.4 * scale,
+      2.65 * scale, 1.75 * scale, 5.2 * scale);
+    addEllipsoid('ToeBox_' + side, side * hipX * 1.08, 1.75 * scale, 7.0 * scale,
+      2.55 * scale, 1.35 * scale, 2.5 * scale);
   });
 
   root.add(body);
