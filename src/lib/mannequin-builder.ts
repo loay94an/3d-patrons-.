@@ -25,11 +25,14 @@ export interface TorsoSpan {
 export function getTorsoSpan(gender: Gender, measurements: MannequinMeasurements): TorsoSpan {
   const ref = DEFAULT_MANNEQUIN_MEASUREMENTS[gender] ?? DEFAULT_MANNEQUIN_MEASUREMENTS.women;
   const headScale = gender === 'infant' ? 0.48 : gender === 'kids' ? 0.68 : 1;
-  const headAllowance = 20.7 * headScale;
-  // The viewer currently supplies a fixed 168 cm placeholder. Use the
-  // gender-specific reference height until a real height control is wired in.
-  const targetHeight = ref.height;
+  const headAllowance = 20.8 * headScale;
+  // Height is a full-body measurement in centimetres; fall back to the
+  // category reference when older projects do not contain it.
+  const requestedHeight = Number.isFinite(measurements.height) && measurements.height > 0
+    ? measurements.height
+    : ref.height;
   const torsoHeight = Math.max(1, (measurements.backLength || ref.backLength) * 1.7);
+  const targetHeight = Math.max(requestedHeight, torsoHeight + headAllowance + 1);
   return {
     yOffset: Math.max(1, targetHeight - torsoHeight - headAllowance),
     torsoHeight

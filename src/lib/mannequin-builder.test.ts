@@ -37,6 +37,23 @@ describe('3D mannequin geometry', () => {
     }
   });
 
+  it('uses the entered full-body height for every body category', () => {
+    for (const gender of genders) {
+      const base = DEFAULT_MANNEQUIN_MEASUREMENTS[gender];
+      const requestedHeight = base.height + 12;
+      const mannequin = buildParametricMannequin(gender, { ...base, height: requestedHeight });
+      let body: THREE.Group | undefined;
+      mannequin.traverse(object => {
+        if (object instanceof THREE.Group && object.name === 'MannequinBody') body = object;
+      });
+      assert.ok(body, `${gender} mannequin must contain a body group`);
+      const bounds = new THREE.Box3().setFromObject(body!);
+      const actualHeight = bounds.max.y - bounds.min.y;
+      assert.ok(Math.abs(actualHeight - requestedHeight) < 1.5,
+        `${gender}: expected body height ${requestedHeight} cm, got ${actualHeight.toFixed(2)} cm`);
+    }
+  });
+
   it('builds a finite, non-empty torso mesh for every supported body category', () => {
     for (const gender of genders) {
       const mannequin = buildParametricMannequin(gender, DEFAULT_MANNEQUIN_MEASUREMENTS[gender]);
