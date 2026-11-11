@@ -10,6 +10,7 @@ import {
   getSizeList, mapSizeBySystem, getMeasurements, computePatternValues, getGarmentLabel,
   getBaseMeasurements
 } from '../lib/pattern-logic';
+import { DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
 import {
   FabricCustomState, DEFAULT_FABRIC_STATE, FABRIC_PRESETS,
   FabricCategory, PatternPrintType, FabricDefinition
@@ -188,6 +189,7 @@ export default function PatternApp() {
   const currentStandardMeas = getBaseMeasurements(state.gender, state.size);
   const currentMeas = {
     ...currentStandardMeas,
+    height: state.customMeasurements.height ?? DEFAULT_MANNEQUIN_MEASUREMENTS[state.gender].height,
     ...state.customMeasurements
   };
 
@@ -226,6 +228,14 @@ export default function PatternApp() {
       min: isKids ? 15 : 32,
       max: isKids ? 45 : 55,
       step: 0.5
+    },
+    {
+      key: 'height',
+      labelAr: 'الطول الكلي للجسم',
+      hintAr: 'من أعلى الرأس حتى الأرض؛ يؤثر مباشرة في تناسب المانيكان ثلاثي الأبعاد',
+      min: isKids ? 45 : 140,
+      max: isKids ? 160 : 210,
+      step: 1
     },
     {
       key: 'shoulder',
