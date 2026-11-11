@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     env:
-      PYTHONPATH: \${{ github.workspace }}/vendor/GarmentCode
+      PYTHONPATH: ${{ github.workspace }}/vendor/GarmentCode
     steps:
       - name: Checkout platform
         uses: actions/checkout@v4
