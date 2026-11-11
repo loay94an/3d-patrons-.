@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
-import { buildParametricMannequin, MannequinMeasurements, DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
+import { buildParametricMannequin, resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { loadCadProjectDocument } from '../lib/cad-project-document';
@@ -403,18 +403,8 @@ export function Pattern3DViewer({
     }
 
     const meas = state.customMeasurements;
-    const refMeas = DEFAULT_MANNEQUIN_MEASUREMENTS[state.gender] || DEFAULT_MANNEQUIN_MEASUREMENTS.women;
-
-    const currentMeasurements: MannequinMeasurements = {
-      bust: meas.bust ?? meas.chest ?? refMeas.bust,
-      waist: meas.waist ?? refMeas.waist,
-      hip: meas.hip ?? refMeas.hip,
-      shoulder: meas.shoulder ?? refMeas.shoulder,
-      backLength: meas.backLength ?? refMeas.backLength,
-      height: meas.height ?? refMeas.height,
-      armCircumference: meas.armCirc ?? meas.upperArm ?? undefined,
-      thighCircumference: meas.thighCirc ?? undefined
-    };
+    const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
+    const currentMeasurements = resolvedMeasurements.body;
 
     const mannequin = buildParametricMannequin(state.gender, currentMeasurements);
     mannequin.visible = showMannequin && !annyPreviewEnabled;
@@ -438,8 +428,8 @@ export function Pattern3DViewer({
         hip: currentMeasurements.hip,
         shoulder: currentMeasurements.shoulder,
         backLength: currentMeasurements.backLength,
-        sleeveLength: meas.sleeveLength ?? 58,
-        totalLength: meas.skirtLength ?? 65,
+        sleeveLength: resolvedMeasurements.sleeveLength,
+        totalLength: resolvedMeasurements.totalLength,
         fabricState,
         showHeatmap
       },
