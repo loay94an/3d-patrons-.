@@ -7,6 +7,7 @@ import {
   getTorsoSpan,
   MannequinMeasurements
 } from './mannequin-builder';
+import { AnnyBodyProfile, sampleAnnyBodySection } from './anny-body-profile';
 
 export interface Garment3DOptions {
   garmentType: GarmentType | 'bodice';
@@ -23,6 +24,8 @@ export interface Garment3DOptions {
   fabricState: FabricCustomState;
   showSeamLines?: boolean;
   showHeatmap?: boolean;
+  /** Actual measured horizontal sections extracted from the loaded Anny mesh. */
+  annyBodyProfile?: AnnyBodyProfile;
 }
 
 export interface Garment3DResult {
@@ -80,7 +83,8 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     sleeveLength,
     totalLength,
     fabricState,
-    showHeatmap = false
+    showHeatmap = false,
+    annyBodyProfile
   } = options;
 
   const preset = FABRIC_PRESETS.find(f => f.id === fabricState.presetId) || FABRIC_PRESETS[1];
@@ -95,7 +99,9 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     height: options.height ?? (gender === 'men' ? 178 : gender === 'kids' ? 120 : gender === 'infant' ? 70 : 168)
   };
 
-  const { yOffset, torsoHeight } = getTorsoSpan(gender, bodyMeasurements);
+  const { yOffset, torsoHeight } = annyBodyProfile
+    ? { yOffset: annyBodyProfile.hipY, torsoHeight: Math.max(1, annyBodyProfile.neckY - annyBodyProfile.hipY) }
+    : getTorsoSpan(gender, bodyMeasurements);
 
   /**
    * Radial envelope of the body cross section at a given level.
@@ -108,10 +114,23 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   const BODY_SAMPLES = 96;
   const bodyEnvelope = (bodyV: number) => {
     const level = clamp(bodyV, 0, 1);
-    const pts: number[] = []; // pairs of (x, z) relative to the slice centre
+    if (annyBodyProfile) {
+      const requestedY = yOffset + torsoHeight * level;
+      // Below the hip landmark, keep the pelvis envelope as the base for a skirt
+      // or dress flare instead of accidentally sampling one of the two legs.
+      const section = sampleAnnyBodySection(annyBodyProfile, Math.max(requestedY, annyBodyProfile.hipY));
+      const pts: number[] = [];
+      for (let k = 0; k < BODY_SAMPLES; k++) {
+        const angle = (k / BODY_SAMPLES) * Math.PI * 2;
+        const radius = section.radii[Math.floor(k * section.radii.length / BODY_SAMPLES)] ?? section.radii[0];
+        pts.push(radius * Math.cos(angle), radius * Math.sin(angle));
+      }
+      return { pts, perim: section.circumference || 1, zCenter: section.centerZ, xCenter: section.centerX, y: section.y };
+    }
+
+    const pts: number[] = [];
     let zCenter = 0;
     let y = yOffset;
-
     for (let k = 0; k < BODY_SAMPLES; k++) {
       const theta = (k / BODY_SAMPLES) * Math.PI * 2;
       const p = getTorsoProfile(gender, bodyMeasurements, level, theta);
@@ -119,15 +138,13 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
       y = p.y;
       pts.push(p.rx * Math.cos(theta), p.rz * Math.sin(theta));
     }
-
     let perim = 0;
     for (let k = 0; k < BODY_SAMPLES; k++) {
       const a = k * 2;
       const b = ((k + 1) % BODY_SAMPLES) * 2;
       perim += Math.hypot(pts[b] - pts[a], pts[b + 1] - pts[a + 1]);
     }
-
-    return { pts, perim: perim || 1, zCenter, y };
+    return { pts, perim: perim || 1, zCenter, xCenter: 0, y };
   };
 
   /** Body radius in a given direction, from the slice envelope. */
@@ -155,11 +172,13 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   const WAIST_V = 0.45;
   const CROTCH_V = 0.08;
 
-  const waistY = yOffset + torsoHeight * WAIST_V;
-  const crotchY = yOffset + torsoHeight * CROTCH_V;
+  const waistY = annyBodyProfile?.waistY ?? (yOffset + torsoHeight * WAIST_V);
+  const crotchY = annyBodyProfile ? Math.max(annyBodyProfile.minY + annyBodyProfile.height * 0.36, annyBodyProfile.hipY - 7) : yOffset + torsoHeight * CROTCH_V;
 
-  let topY = yOffset + torsoHeight * NECK_V;
-  let hemY = yOffset + torsoHeight * 0.05; // shirts / blouses finish just under the hip
+  let topY = annyBodyProfile?.neckY ?? (yOffset + torsoHeight * NECK_V);
+  let hemY = annyBodyProfile
+    ? Math.max(annyBodyProfile.minY + annyBodyProfile.height * 0.2, annyBodyProfile.hipY - 5)
+    : yOffset + torsoHeight * 0.05; // shirts / blouses finish just under the hip
   let flare = 0;                           // extra circumference added below the waist
 
   if (isDress) {
@@ -219,7 +238,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
       const bodyR = envelopeRadius(env, angle) * scale;
       const radius = bodyR + SURFACE_CLEARANCE + Math.max(fold, -SURFACE_CLEARANCE * 0.5);
 
-      const x = radius * Math.cos(angle);
+      const x = env.xCenter + radius * Math.cos(angle);
       const z = env.zCenter + radius * Math.sin(angle);
 
       positions.push(x, y, z);
@@ -280,8 +299,12 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   // ------------------------------------------------------------------- sleeves
   if (!sleeveless) {
     const armholeV = 0.845;
-    const shoulderSlice = getTorsoProfile(gender, bodyMeasurements, armholeV, 0);
-    const armholeX = shoulderSlice.rx * 0.82;          // armhole sits inside the shoulder tip
+    const shoulderSlice = annyBodyProfile
+      ? bodyEnvelope(armholeV)
+      : getTorsoProfile(gender, bodyMeasurements, armholeV, 0);
+    const armholeX = (annyBodyProfile
+      ? envelopeRadius(shoulderSlice, 0)
+      : (shoulderSlice as ReturnType<typeof getTorsoProfile>).rx) * 0.82;
     const armholeY = shoulderSlice.y - 1.2;
     const armCirc = Math.max(18, bust * 0.34);         // upper arm circumference
     const armRadius = armCirc / (2 * Math.PI) + 1.6;
@@ -305,7 +328,8 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
 
   // -------------------------------------------------------------------- trousers
   if (hasLegs) {
-    const crotchEnv = bodyEnvelope(CROTCH_V);
+    const crotchBodyV = annyBodyProfile ? (crotchY - yOffset) / torsoHeight : CROTCH_V;
+    const crotchEnv = bodyEnvelope(crotchBodyV);
     const hipOuterX = envelopeRadius(crotchEnv, 0) * ((crotchEnv.perim + easeAt(CROTCH_V) + 1.2) / crotchEnv.perim);
     const thighRadius = Math.max(3, hipOuterX * 0.46);
     const ankleRadius = thighRadius * (garmentType === 'culottes' ? 0.85 : 0.6);
