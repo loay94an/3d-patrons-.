@@ -18,7 +18,7 @@ describe('Anny garment surface conform', () => {
     garment.updateMatrixWorld(true);
     const report = conformGarmentMeshToBody(garment, body, 2);
     assert.equal(report.status, 'conformed');
-    assert.ok(report.fitRatio > 0.9);
+    assert.ok(report.fitRatio > 0.9, JSON.stringify(report));
     assert.ok(report.meanDisplacementCm > 0);
     assert.notEqual(garment.geometry.getAttribute('position').getX(0), before);
     garment.geometry.dispose();
