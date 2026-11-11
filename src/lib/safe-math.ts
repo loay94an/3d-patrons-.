@@ -10,13 +10,13 @@ export function evaluateArithmeticExpression(source: string): number | null {
 
   while (offset < source.length) {
     const rest = source.slice(offset);
-    const whitespace = rest.match(/^\\s+/);
+    const whitespace = rest.match(/^\s+/);
     if (whitespace) {
       offset += whitespace[0].length;
       continue;
     }
 
-    const numeric = rest.match(/^(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?/);
+    const numeric = rest.match(/^(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/);
     if (numeric) {
       const value = Number(numeric[0]);
       if (!Number.isFinite(value)) return null;
