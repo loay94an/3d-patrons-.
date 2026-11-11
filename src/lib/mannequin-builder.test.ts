@@ -8,6 +8,7 @@ import {
   getTorsoProfile,
   measureTorsoMeshCircumference,
   limbRadiusFromCircumference,
+  getTorsoSculptDisplacement,
   type MannequinMeasurements
 } from './mannequin-builder';
 import type { Gender } from './pattern-logic';
@@ -144,4 +145,41 @@ describe('3D mannequin geometry', () => {
       assert.ok(bounds.max.y > bounds.min.y);
     }
   });
+  it('adds smooth adult torso contours without changing tape circumference', () => {
+    const women = DEFAULT_MANNEQUIN_MEASUREMENTS.women;
+    const mannequin = buildParametricMannequin('women', women);
+    let torso: THREE.Mesh | undefined;
+    mannequin.traverse(object => {
+      if (object instanceof THREE.Mesh && object.name === 'TorsoSurface') torso = object;
+    });
+    assert.ok(torso);
+    const positions = torso!.geometry.getAttribute('position');
+    const radialSegments = 64;
+    const verticalSegments = 100;
+    const row = Math.round(0.705 * verticalSegments);
+    const stride = radialSegments + 1;
+    const frontIndex = row * stride + Math.round(radialSegments / 4);
+    const profile = getTorsoProfile('women', women, row / verticalSegments);
+    const frontPointZ = positions.getZ(frontIndex);
+    assert.ok(frontPointZ > profile.rz + profile.zCenter + 0.2,
+      'female bust surface should project smoothly beyond the base ellipse');
+
+    for (const [level, expected] of [
+      [0.25, women.hip],
+      [0.5, women.waist],
+      [0.75, women.bust]
+    ] as const) {
+      const measured = measureTorsoMeshCircumference('women', women, level);
+      assert.ok(Math.abs(measured - expected) < 0.35,
+        `sculpted ring at ${level} should preserve ${expected} cm, got ${measured}`);
+    }
+  });
+
+  it('keeps child and infant torso sculpting neutral', () => {
+    for (const gender of ['kids', 'infant'] as const) {
+      assert.equal(getTorsoSculptDisplacement(gender, 0.7, 4, 12, true), 0);
+      assert.equal(getTorsoSculptDisplacement(gender, 0.2, 4, 12, false), 0);
+    }
+  });
+
 });

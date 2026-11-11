@@ -212,6 +212,37 @@ export function ellipsePerimeter(a: number, b: number): number {
   return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
 }
 
+/**
+ * Small anatomical surface offsets for the parametric torso.
+ * Positive values project toward the front (+Z); negative values toward the back.
+ * Child and infant silhouettes intentionally remain neutral.
+ */
+export function getTorsoSculptDisplacement(
+  gender: Gender,
+  v: number,
+  x: number,
+  rx: number,
+  frontFacing: boolean
+): number {
+  if (gender === 'kids' || gender === 'infant' || rx <= 0) return 0;
+  const normalizedX = x / rx;
+  const gaussian = (value: number, center: number, spread: number) =>
+    Math.exp(-0.5 * ((value - center) / spread) ** 2);
+  const sideLobes = gaussian(normalizedX, -0.29, 0.22) + gaussian(normalizedX, 0.29, 0.22);
+
+  if (frontFacing) {
+    if (gender === 'women') {
+      // Two broad, blended breast volumes, sculpted into the torso surface.
+      return 2.2 * sideLobes * gaussian(v, 0.705, 0.075);
+    }
+    // A restrained pectoral contour for the men's fitting form.
+    return 0.65 * sideLobes * gaussian(v, 0.765, 0.065);
+  }
+
+  // Gluteal projection is subtle and remains part of the continuous torso shell.
+  return -1.15 * sideLobes * gaussian(v, gender === 'women' ? 0.19 : 0.22, 0.085);
+}
+
 export function buildParametricMannequin(
   gender: Gender,
   measurements: MannequinMeasurements
@@ -240,12 +271,37 @@ export function buildParametricMannequin(
   const indices: number[] = [];
   for (let i = 0; i <= verticalSegments; i++) {
     const v = i / verticalSegments;
+    const rowStart = positions.length;
+    const profile = getTorsoProfile(gender, measurements, v);
     for (let j = 0; j <= radialSegments; j++) {
       const u = j / radialSegments;
       const a = u * Math.PI * 2;
       const p = getTorsoProfile(gender, measurements, v, a);
-      positions.push(p.rx * Math.cos(a), p.y, p.rz * Math.sin(a) + p.zCenter);
+      const x = p.rx * Math.cos(a);
+      const z = p.rz * Math.sin(a) + p.zCenter;
+      const frontFacing = Math.sin(a) > 0;
+      const sculpt = getTorsoSculptDisplacement(gender, v, x, p.rx, frontFacing);
+      positions.push(x, p.y, z + sculpt);
       uvs.push(u, v);
+    }
+
+    // Preserve the original tape circumference after adding local anatomical
+    // contours. This keeps the measured ring size stable for pattern drafting.
+    if (gender === 'women' || gender === 'men') {
+      let perimeter = 0;
+      for (let j = 0; j < radialSegments; j++) {
+        const a = rowStart + j * 3;
+        const b = a + 3;
+        perimeter += Math.hypot(positions[b] - positions[a], positions[b + 2] - positions[a + 2]);
+      }
+      const targetPerimeter = ellipsePerimeter(profile.rx, profile.rz);
+      const correction = perimeter > 0 ? targetPerimeter / perimeter : 1;
+      for (let j = 0; j <= radialSegments; j++) {
+        const offset = rowStart + j * 3;
+        positions[offset] *= correction;
+        positions[offset + 2] = profile.zCenter +
+          (positions[offset + 2] - profile.zCenter) * correction;
+      }
     }
   }
   for (let i = 0; i < verticalSegments; i++) {
