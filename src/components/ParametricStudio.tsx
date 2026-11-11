@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, BookOpen, Code2, Download, Info, Ruler, Scissors, Shirt, Sparkles } from 'lucide-react';
 import { buildKtrSource, EaseProfile, GarmentFamily, StudioMeasurements } from '../lib/ktr-bridge';
 import { GarmentType } from '../lib/pattern-logic';
+import { createMeasurementProfile, validateStudioProfile, MeasurementProfile } from '../lib/measurement-profile';
 
 type Props = {
-  onOpenCad: (garment: GarmentType, measurements: StudioMeasurements, ease: EaseProfile) => void;
+  onOpenCad: (garment: GarmentType, profile: MeasurementProfile, ease: EaseProfile) => void;
   onOpenEncyclopedia: () => void;
 };
 
@@ -50,6 +51,8 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
   const [ease, setEase] = useState(initialEase);
   const [showSources, setShowSources] = useState(false);
   const source = useMemo(() => buildKtrSource(measurements, ease), [measurements, ease]);
+  const validation = useMemo(() => validateStudioProfile(measurements, ease), [measurements, ease]);
+  const isValid = validation.errors.length === 0;
   const selected = families.find(item => item.id === family)!;
 
   const downloadSource = () => {
@@ -75,7 +78,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
             </div>
             <div className="flex flex-wrap gap-2">
               <button onClick={onOpenEncyclopedia} className="inline-flex items-center gap-2 rounded-xl border border-slate-600 px-4 py-2.5 text-sm font-bold hover:bg-white/5"><BookOpen className="h-4 w-4" /> المراجع</button>
-              <button onClick={() => onOpenCad(selected.garment, measurements, ease)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-400"><Scissors className="h-4 w-4" /> فتح محرر 2D</button>
+              <button onClick={() => onOpenCad(selected.garment, createMeasurementProfile(measurements), ease)} disabled={!isValid} className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-400"><Scissors className="h-4 w-4" /> فتح محرر 2D</button>
             </div>
           </div>
           <div className="relative mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -102,6 +105,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
             <div className="grid grid-cols-2 gap-3">
               {measurementFields.map(field => <label key={field.key} className="space-y-1.5"><span className="block text-xs font-semibold text-slate-300">{field.label}</span><div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2"><input type="number" min={field.min} max={field.max} step="0.5" value={measurements[field.key]} onChange={event => setMeasurements(prev => ({ ...prev, [field.key]: Number(event.target.value) }))} className="w-full min-w-0 bg-transparent py-2 text-sm font-bold outline-none" /><span className="text-[10px] text-slate-500">سم</span></div></label>)}
             </div>
+            {validation.errors.length > 0 && <div role="alert" className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-6 text-rose-200"><strong>لا يمكن إرسال هذه القياسات إلى المحرك قبل تصحيحها:</strong><ul className="mt-1 list-inside list-disc">{validation.errors.map(issue => <li key={issue.field}>{issue.label}: {issue.message}</li>)}</ul></div>}
           </div>
         </section>
 
@@ -114,7 +118,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
-          <div className="flex flex-col gap-3 border-b border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="flex items-center gap-2 font-bold"><Code2 className="h-4 w-4 text-emerald-300" /> 4. مصدر KTR الناتج</h2><p className="mt-1 text-xs text-slate-400">صياغة أولية باستخدام مدخلات ودوال ونقاط هندسية من مجموعة الميزات المعلنة في KTR v0.1.0.</p></div><button onClick={downloadSource} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500"><Download className="h-4 w-4" /> تنزيل ملف .ktr</button></div>
+          <div className="flex flex-col gap-3 border-b border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="flex items-center gap-2 font-bold"><Code2 className="h-4 w-4 text-emerald-300" /> 4. مصدر KTR الناتج</h2><p className="mt-1 text-xs text-slate-400">صياغة أولية باستخدام مدخلات ودوال ونقاط هندسية من مجموعة الميزات المعلنة في KTR v0.1.0.</p></div><button onClick={downloadSource} disabled={!isValid} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"><Download className="h-4 w-4" /> تنزيل ملف .ktr</button></div>
           <pre dir="ltr" className="max-h-80 overflow-auto bg-[#080d18] p-4 text-left text-xs leading-6 text-emerald-200"><code>{source}</code></pre>
           <div className="border-t border-slate-800 p-4 text-[11px] leading-5 text-slate-400">هذه أداة توليد نص للمواصفات وليست مترجم KTR مدمجاً. لم يتم إصدار ملف IR أو تشغيل solver، لأن ميزات التصدير والبحث والقيود في المستودع الأصلي ما زالت غير مكتملة وفق README الحالي.</div>
         </section>
