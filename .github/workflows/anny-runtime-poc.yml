@@ -32,6 +32,12 @@ jobs:
       - name: Install Anny proof-of-concept dependencies
         run: python -m pip install -r tools/anny-poc/requirements.txt
 
+      - name: Install Anny API dependencies
+        run: python -m pip install -r tools/anny-api/requirements.txt
+
+      - name: Test Anny API request validation
+        run: python -m unittest discover -s tools/anny-api -p 'test_*.py'
+
       - name: Generate neutral-pose Anny body
         run: |
           python tools/anny-poc/generate.py --device cpu --output artifacts/anny-neutral.glb
