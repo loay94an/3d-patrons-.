@@ -32,3 +32,20 @@ export function getAnnyHeightScale(nativeHeight: number, targetHeightCm: number)
   }
   return targetHeightCm / nativeHeight;
 }
+
+/**
+ * Convert a circumference measured in the unscaled Anny mesh into centimetres.
+ * This is valid only when the mesh is uniformly scaled from its native height
+ * to the supplied real-world stature. It does not identify anatomical landmarks
+ * or make an unvalidated section suitable as a sewing measurement.
+ */
+export function convertAnnyCircumferenceToCm(
+  nativeCircumference: number,
+  nativeHeight: number,
+  targetHeightCm: number
+): number {
+  if (!Number.isFinite(nativeCircumference) || nativeCircumference <= 0) {
+    throw new Error('Anny native circumference must be a positive finite value');
+  }
+  return nativeCircumference * getAnnyHeightScale(nativeHeight, targetHeightCm);
+}
