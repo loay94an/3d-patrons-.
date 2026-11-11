@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, Ruler, Scissors, Layers3, Sparkles, Search, CheckCircle2, Info } from 'lucide-react';
+import { BookOpen, Ruler, Scissors, Layers3, Search, CheckCircle2, Info } from 'lucide-react';
 
 type Topic = {
   id: string;
