@@ -15,6 +15,7 @@ export interface AnnyBodyProfile {
   height: number;
   hipY: number;
   waistY: number;
+  neckY: number;
   bustY: number;
   sections: AnnyBodyProfileSection[];
 }
@@ -322,6 +323,7 @@ export function buildAnnyBodyProfile(
     height,
     hipY: bounds.min.y + height * hipFraction,
     waistY: bounds.min.y + height * waistFraction,
+    neckY: bounds.min.y + height * 0.90,
     bustY: bounds.min.y + height * bustFraction,
     sections
   };
