@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadCadProjectDocument, saveCadProjectDocument, validateCadProjectDocument } from './cad-project-document';
+import { deleteCadProjectDocument, loadCadProjectDocument, saveCadProjectDocument, validateCadProjectDocument } from './cad-project-document';
 import type { CadPiece, PieceSpecSummary } from './pattern-cad-engine';
 
 const pieces: CadPiece[] = [{
@@ -25,6 +25,19 @@ describe('per-project CAD document storage', () => {
     assert.deepEqual(loaded?.pieces, pieces);
     assert.deepEqual(loaded?.summaries, summaries);
     assert.equal(loadCadProjectDocument(storage, 'project-b'), null);
+  });
+
+  it('removes the CAD document when its project is deleted', () => {
+    let stored: string | null = null;
+    const storage = {
+      getItem: () => stored,
+      setItem: (_key: string, value: string) => { stored = value; },
+      removeItem: (_key: string) => { stored = null; }
+    };
+    saveCadProjectDocument(storage, 'project-a', pieces, summaries);
+    assert.ok(loadCadProjectDocument(storage, 'project-a'));
+    assert.equal(deleteCadProjectDocument(storage, 'project-a'), true);
+    assert.equal(loadCadProjectDocument(storage, 'project-a'), null);
   });
 
   it('rejects documents belonging to a different project', () => {
