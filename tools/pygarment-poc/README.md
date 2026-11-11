@@ -1,8 +1,8 @@
 # PyGarment skirt adapter — proof of concept
 
-This isolated prototype exercises the official PyGarment package and converts
-two PyGarment Panel objects into the platform's initial neutral pattern JSON.
-It does not replace the browser CAD engine.
+This isolated prototype exercises the official PyGarment 2.0.2 source and
+converts two PyGarment Panel objects into the platform's initial neutral
+pattern JSON. It does not replace the browser CAD engine.
 
 ## Setup
 
@@ -10,10 +10,17 @@ The upstream project publishes PyGarment 2.0.2. Its installation guide lists
 additional geometry dependencies, some of which may require native build
 support. Use Python 3.9 or 3.10 for the first reproducible environment.
 
+    git clone --branch v2.0.2 --depth 1 https://github.com/maria-korosteleva/GarmentCode.git vendor/GarmentCode
     python -m venv .venv
     source .venv/bin/activate
     python -m pip install --upgrade pip
     python -m pip install -r tools/pygarment-poc/requirements.txt
+    export PYTHONPATH="$PWD/vendor/GarmentCode"
+
+The source checkout is intentional: the upstream distribution metadata and
+import-package layout do not expose \`pygarment\` consistently when installed
+as a wheel in an isolated working directory. Import from the pinned upstream
+source tree, while installing its declared runtime dependencies from PyPI.
 
 ## Generate
 
