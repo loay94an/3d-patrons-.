@@ -86,6 +86,7 @@ export default function PatternApp() {
   const [copied, setCopied] = useState(false);
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [cadInitialDraft, setCadInitialDraft] = useState<BasicSkirtDraftResult | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   // 3D Fabric Physical & Visual State
   const [fabricState, setFabricState] = useState<FabricCustomState>(DEFAULT_FABRIC_STATE);
@@ -389,6 +390,8 @@ export default function PatternApp() {
         )}
 
         {activeTab === 'projects' && <ProjectWorkspace onOpenCad={(project) => {
+          setActiveProjectId(project.id);
+          setCadInitialDraft(null);
           const profile = createMeasurementProfile(project.measurements);
           updateState({
             garment: project.garment,
@@ -449,6 +452,7 @@ export default function PatternApp() {
                 });
               }}
               onOpenCad={(garment, profile, ease, draft) => {
+                setActiveProjectId(null);
                 setCadInitialDraft(draft ?? null);
                 const measurements = profile.values;
                 updateState({
@@ -478,6 +482,8 @@ export default function PatternApp() {
         {activeTab === 'catalog' && (
           <div className="w-full h-full">
             <PatternCatalog onSelect={(garment, gender) => {
+              setActiveProjectId(null);
+              setCadInitialDraft(null);
               updateState({ garment, gender });
               setActiveTab('cad2d');
             }} />
@@ -490,6 +496,7 @@ export default function PatternApp() {
             <PatternVisualizer
               state={state}
               initialDraft={cadInitialDraft}
+              projectId={activeProjectId}
               onGarmentChange={(garment) => updateState({ garment })}
             />
           </div>
