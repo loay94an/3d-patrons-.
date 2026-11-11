@@ -84,6 +84,10 @@ export function Pattern3DViewer({
   const [showSeams, setShowSeams] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
+  // The renderer loop is created once; mirror React state into a ref so the
+  // long-lived animation callback always sees the latest toggle value.
+  const autoRotateRef = useRef(autoRotate);
+  useEffect(() => { autoRotateRef.current = autoRotate; }, [autoRotate]);
   const [activeCameraView, setActiveCameraView] = useState<'perspective' | 'front' | 'back' | 'side' | 'top'>('perspective');
 
   const updateCameraPosition = useCallback(() => {
@@ -239,7 +243,7 @@ export function Pattern3DViewer({
     const animate = () => {
       reqIdRef.current = requestAnimationFrame(animate);
 
-      if (autoRotate) {
+      if (autoRotateRef.current) {
         sphericalRef.current.theta += 0.008;
         updateCameraPosition();
       }
