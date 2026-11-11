@@ -459,6 +459,7 @@ export function Pattern3DViewer({
     // Anny is the sole body model. Resolve measurements for garment geometry.
     const meas = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
     const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
+    const currentMeasurements = resolvedMeasurements.body;
 
     // 2. Rebuild Garment Mesh
     if (garmentResultRef.current) {
