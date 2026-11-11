@@ -49,13 +49,13 @@ docker build -f tools/anny-api/Dockerfile -t 3d-patrons-anny-api .
 docker run --rm -p 8000:8000 -e ANNY_CORS_ORIGINS=https://YOUR-SITE.example 3d-patrons-anny-api
 ```
 
-Set `ANNY_GENERATION_TIMEOUT` to change the per-job timeout in seconds. Set `ANNY_CORS_ORIGINS` to a comma-separated allowlist of exact site origins. Leave CORS unconfigured rather than using a wildcard for a public deployment.
+Set `ANNY_GENERATION_TIMEOUT` to change the per-job timeout in seconds. `ANNY_MAX_CONCURRENT_GENERATIONS` bounds simultaneous CPU inference jobs (default: `1`); `ANNY_GENERATION_QUEUE_WAIT` controls how long a request waits for a free slot (default: `3` seconds). Requests that cannot obtain a slot receive HTTP `503` with `Retry-After: 5`. This is an in-process limit; run a single API worker/replica unless a distributed queue or shared capacity controller is configured. Set `ANNY_CORS_ORIGINS` to a comma-separated allowlist of exact site origins. Leave CORS unconfigured rather than using a wildcard for a public deployment.
 
 ## Production security status
 
 **This API is currently an experimental unauthenticated service. Do not expose it publicly as-is.** CORS is not authentication and does not prevent non-browser clients from calling the API.
 
-Before public deployment, implement and test authentication, per-user rate limiting, bounded concurrency/queueing, request-size limits, resource quotas, durable operational monitoring, and privacy/retention controls. Keep generated body files temporary and ensure cleanup on success and failure. Hosting selection must be based on measured CPU/RAM usage, cold-start time, inference latency, and expected cost.
+Before public deployment, implement and test authentication, per-user rate limiting, request-size limits, resource quotas, durable operational monitoring, and privacy/retention controls. The current in-process concurrency gate is a safety ceiling for a single worker, not a distributed queue or a substitute for authentication. Keep generated body files temporary and ensure cleanup on success and failure. Hosting selection must be based on measured CPU/RAM usage, cold-start time, inference latency, and expected cost.
 
 ## Operational and scientific limits
 
