@@ -13,7 +13,7 @@ import { resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
-import { conformGarmentMeshToBody, type GarmentConformReport } from '../lib/garment-anny-fit';
+import { buildAnnyBodyProfile } from '../lib/anny-body-profile';
 import { loadCadProjectDocument } from '../lib/cad-project-document';
 import type { CadPiece } from '../lib/pattern-cad-engine';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
@@ -202,7 +202,8 @@ export function Pattern3DViewer({
   const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
   const annySourceGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
-  const [annyGarmentFitReport, setAnnyGarmentFitReport] = useState<GarmentConformReport | null>(null);
+  const [annyBodyProfileSummary, setAnnyBodyProfileSummary] = useState<{ sections: number; hipY: number; waistY: number; bustY: number } | null>(null);
+  const [annyGeometryError, setAnnyGeometryError] = useState('');
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
@@ -451,7 +452,7 @@ export function Pattern3DViewer({
     if (podiumMaterial?.color) podiumMaterial.color.set(luxury ? 0x57483d : 0x1e293b);
   }, [presentationMode]);
 
-  // Synchronize Mannequin and Garment whenever State, Measurements, or Fabric changes
+  // Generate the garment's main body surface from Anny's real mesh sections.
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -461,10 +462,37 @@ export function Pattern3DViewer({
     const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
     const currentMeasurements = resolvedMeasurements.body;
 
-    // 2. Rebuild Garment Mesh
+    // Remove the previous garment before rebuilding it from the current Anny mesh.
     if (garmentResultRef.current) {
       scene.remove(garmentResultRef.current.group);
       disposeObjectResources(garmentResultRef.current.group);
+      garmentResultRef.current = null;
+    }
+    if (!annyPreviewEnabled || !annyBodyMeshRef.current) {
+      setAnnyBodyProfileSummary(null);
+      return;
+    }
+
+    let annyBodyProfile;
+    try {
+      annyGroupRef.current?.updateMatrixWorld(true);
+      annyBodyProfile = buildAnnyBodyProfile(annyBodyMeshRef.current, {
+        landmarks: (annyCalibrationSummary?.landmarks ?? []).map(item => ({
+          zone: item.zone,
+          heightFraction: item.heightFraction
+        }))
+      });
+      setAnnyGeometryError('');
+      setAnnyBodyProfileSummary({
+        sections: annyBodyProfile.sections.length,
+        hipY: annyBodyProfile.hipY,
+        waistY: annyBodyProfile.waistY,
+        bustY: annyBodyProfile.bustY
+      });
+    } catch (error) {
+      setAnnyBodyProfileSummary(null);
+      setAnnyGeometryError(error instanceof Error ? error.message : 'تعذر استخراج مقاطع جسم Anny.');
+      return;
     }
 
     const fabricMat = createFabricThreeMaterial(fabricState);
@@ -482,43 +510,20 @@ export function Pattern3DViewer({
         sleeveLength: resolvedMeasurements.sleeveLength,
         totalLength: resolvedMeasurements.totalLength,
         fabricState,
-        showHeatmap
+        showHeatmap,
+        annyBodyProfile
       },
       fabricMat
     );
 
-    setAnnyGarmentFitReport(null);
-    if (annyPreviewEnabled && showGarmentOnAnny && annyBodyMeshRef.current) {
-      annyGroupRef.current?.updateMatrixWorld(true);
-      const fitReports: GarmentConformReport[] = [];
-      garmentResult.group.traverse(object => {
-        if (object instanceof THREE.Mesh) {
-          fitReports.push(conformGarmentMeshToBody(object, annyBodyMeshRef.current!, 1.5));
-        }
-      });
-      const totalVertices = fitReports.reduce((sum, report) => sum + report.totalVertices, 0);
-      const fittedVertices = fitReports.reduce((sum, report) => sum + report.fittedVertices, 0);
-      const weightedDisplacement = fitReports.reduce(
-        (sum, report) => sum + report.meanDisplacementCm * report.fittedVertices, 0
-      );
-      const fitRatio = totalVertices ? fittedVertices / totalVertices : 0;
-      setAnnyGarmentFitReport({
-        totalVertices,
-        fittedVertices,
-        fitRatio,
-        meanDisplacementCm: fittedVertices ? weightedDisplacement / fittedVertices : 0,
-        maxDisplacementCm: Math.max(0, ...fitReports.map(report => report.maxDisplacementCm)),
-        status: fitRatio > 0.75 ? 'conformed' : fittedVertices > 0 ? 'partial' : 'no-intersections'
-      });
-    }
     garmentResult.seamLinesGroup.visible = showSeams;
-    garmentResult.group.visible = !annyPreviewEnabled || showGarmentOnAnny;
+    garmentResult.group.visible = showGarmentOnAnny;
     scene.add(garmentResult.group);
     garmentResultRef.current = garmentResult;
 
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
-  }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
+  }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showSeams, annyPreviewEnabled, annyCalibrationSummary, showGarmentOnAnny, frameScene]);
 
   useEffect(() => {
     const scene = sceneRef.current;
@@ -1272,12 +1277,11 @@ export function Pattern3DViewer({
 
       {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
         <div className="font-semibold">معاينة جسم Anny والملابس</div><div className="mt-1 text-slate-300">{annyFileName}</div>
-        {annyGarmentFitReport && <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-2 text-[10px] leading-4">
-          <div className={annyGarmentFitReport.status === 'conformed' ? 'text-emerald-200' : 'text-amber-200'}>
-            {annyGarmentFitReport.status === 'conformed' ? 'تمت مواءمة سطح الملابس مع جسم Anny' : annyGarmentFitReport.status === 'partial' ? 'مواءمة جزئية لسطح الملابس' : 'لم يتم العثور على تقاطعات كافية لمواءمة الملابس'}
-          </div>
-          <div className="text-slate-300">نقاط مطابقة: {annyGarmentFitReport.fittedVertices} / {annyGarmentFitReport.totalVertices} · متوسط الإزاحة: {annyGarmentFitReport.meanDisplacementCm.toFixed(1)} سم</div>
-          <div className="text-slate-400">هذه مواءمة هندسية للمعاينة وليست محاكاة قماش أو اعتماداً لملاءمة الباترون.</div>
+        {annyGeometryError && <div role="status" className="mt-2 rounded-lg border border-rose-500/40 bg-rose-950/50 p-2 text-[10px] leading-4 text-rose-100">تعذر بناء سطح الملابس من جسم Anny: {annyGeometryError}. لم يتم الرجوع إلى هندسة المانيكان القديمة.</div>}
+        {annyBodyProfileSummary && <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-2 text-[10px] leading-4">
+          <div className="text-emerald-200">مصدر جسم القطعة الرئيسية: مقاطع Anny الفعلية ({annyBodyProfileSummary.sections} مقطعاً)</div>
+          <div className="text-slate-300">مستويات الورك والخصر والصدر: {annyBodyProfileSummary.hipY.toFixed(1)} / {annyBodyProfileSummary.waistY.toFixed(1)} / {annyBodyProfileSummary.bustY.toFixed(1)} سم على محور العرض</div>
+          <div className="text-slate-400">هذا تحديث لسطح الجزء الرئيسي للملابس؛ الأكمام وأرجل البنطال ما زالت بحاجة إلى مواءمة مستقلة، ولا توجد محاكاة قماش مخيط بعد.</div>
         </div>}
         {annyCalibrationSummary && <div className="mt-2 space-y-1 text-[10px] leading-4">
           <div className={annyCalibrationSummary.status === 'calibrated-preview' ? 'text-emerald-200' : 'text-amber-200'}>
