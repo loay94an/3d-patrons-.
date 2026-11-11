@@ -456,91 +456,45 @@ export function generatePatternByNumbers(
     const fp_hemLeft: CadPoint = { x: fpOrig.x + halfThigh * 0.5 - halfBottom * 0.5, y: fpOrig.y + pantLength };
     const fp_kneeLeft: CadPoint = { x: fpOrig.x + halfThigh * 0.5 - halfKnee * 0.5, y: fpOrig.y + kneeLevel };
 
-    // Waist
+    // Trace the front-leg cutting contour continuously from waist to crotch,
+    // down the inseam, around the hem, and back up the outer side.
     fpSegments.push({
-      id: 'fp_waist',
-      type: 'line',
-      p1: fp_wLeft,
-      p2: fp_wRight,
-      layer: 'cutting',
-      edgeType: 'waist',
-      label: `خصر الأمام: ${quarterWaist} سم`,
+      id: 'fp_waist', type: 'line', p1: fp_wLeft, p2: fp_wRight,
+      layer: 'cutting', edgeType: 'waist', label: `خصر الأمام: ${quarterWaist} سم`,
       lengthCm: +distance(fp_wLeft, fp_wRight).toFixed(1)
     });
-
-    // Side Hip Curve
     fpSegments.push({
-      id: 'fp_side_hip',
-      type: 'quad',
-      p1: fp_wLeft,
-      p2: fp_kneeLeft,
-      cp1: { x: fpOrig.x - 1.5, y: fpOrig.y + 18 },
-      layer: 'cutting',
-      edgeType: 'side',
-      label: `جنب البنطال للأمام: ${kneeLevel} سم`,
-      lengthCm: +quadLength(fp_wLeft, { x: fpOrig.x - 1.5, y: fpOrig.y + 18 }, fp_kneeLeft).toFixed(1)
-    });
-
-    // Side Inseam down to hem
-    fpSegments.push({
-      id: 'fp_side_low',
-      type: 'line',
-      p1: fp_kneeLeft,
-      p2: fp_hemLeft,
-      layer: 'cutting',
-      edgeType: 'side',
-      label: `خارج الساق: ${(pantLength - kneeLevel).toFixed(1)} سم`,
-      lengthCm: +distance(fp_kneeLeft, fp_hemLeft).toFixed(1)
-    });
-
-    // Hem
-    fpSegments.push({
-      id: 'fp_hem',
-      type: 'line',
-      p1: fp_hemLeft,
-      p2: fp_hemRight,
-      layer: 'cutting',
-      edgeType: 'hem',
-      label: `فتحة الرجل: ${halfBottom} سم`,
-      lengthCm: +distance(fp_hemLeft, fp_hemRight).toFixed(1)
-    });
-
-    // Inseam low
-    fpSegments.push({
-      id: 'fp_inseam_low',
-      type: 'line',
-      p1: fp_hemRight,
-      p2: fp_kneeRight,
-      layer: 'cutting',
-      edgeType: 'inseam',
-      label: `داخل الساق: ${(pantLength - kneeLevel).toFixed(1)} سم`,
-      lengthCm: +distance(fp_hemRight, fp_kneeRight).toFixed(1)
-    });
-
-    // Inseam up to crotch
-    fpSegments.push({
-      id: 'fp_inseam_crotch',
-      type: 'quad',
-      p1: fp_kneeRight,
-      p2: fp_crotchRight,
-      cp1: { x: fp_kneeRight.x + 1, y: fpOrig.y + (crotchDepth + kneeLevel) * 0.5 },
-      layer: 'cutting',
-      edgeType: 'inseam',
-      label: `داخل الفخذ: ${(kneeLevel - crotchDepth).toFixed(1)} سم`,
-      lengthCm: +quadLength(fp_kneeRight, { x: fp_kneeRight.x + 1, y: fpOrig.y + (crotchDepth + kneeLevel) * 0.5 }, fp_crotchRight).toFixed(1)
-    });
-
-    // Crotch Curve Front (حجر الأمام)
-    fpSegments.push({
-      id: 'fp_crotch_curve',
-      type: 'quad',
-      p1: fp_crotchRight,
-      p2: fp_wRight,
+      id: 'fp_crotch_curve', type: 'quad', p1: fp_wRight, p2: fp_crotchRight,
       cp1: { x: fp_wRight.x + 0.5, y: fpOrig.y + crotchDepth * 0.85 },
-      layer: 'cutting',
-      edgeType: 'crotch',
-      label: `حجر الأمام: ${crotchDepth} سم`,
-      lengthCm: +quadLength(fp_crotchRight, { x: fp_wRight.x + 0.5, y: fpOrig.y + crotchDepth * 0.85 }, fp_wRight).toFixed(1)
+      layer: 'cutting', edgeType: 'crotch', label: `حجر الأمام: ${crotchDepth} سم`,
+      lengthCm: +quadLength(fp_wRight, { x: fp_wRight.x + 0.5, y: fpOrig.y + crotchDepth * 0.85 }, fp_crotchRight).toFixed(1)
+    });
+    fpSegments.push({
+      id: 'fp_inseam_crotch', type: 'quad', p1: fp_crotchRight, p2: fp_kneeRight,
+      cp1: { x: fp_kneeRight.x + 1, y: fpOrig.y + (crotchDepth + kneeLevel) * 0.5 },
+      layer: 'cutting', edgeType: 'inseam', label: `داخل الفخذ: ${(kneeLevel - crotchDepth).toFixed(1)} سم`,
+      lengthCm: +quadLength(fp_crotchRight, { x: fp_kneeRight.x + 1, y: fpOrig.y + (crotchDepth + kneeLevel) * 0.5 }, fp_kneeRight).toFixed(1)
+    });
+    fpSegments.push({
+      id: 'fp_inseam_low', type: 'line', p1: fp_kneeRight, p2: fp_hemRight,
+      layer: 'cutting', edgeType: 'inseam', label: `داخل الساق: ${(pantLength - kneeLevel).toFixed(1)} سم`,
+      lengthCm: +distance(fp_kneeRight, fp_hemRight).toFixed(1)
+    });
+    fpSegments.push({
+      id: 'fp_hem', type: 'line', p1: fp_hemRight, p2: fp_hemLeft,
+      layer: 'cutting', edgeType: 'hem', label: `فتحة الرجل: ${halfBottom} سم`,
+      lengthCm: +distance(fp_hemRight, fp_hemLeft).toFixed(1)
+    });
+    fpSegments.push({
+      id: 'fp_side_low', type: 'line', p1: fp_hemLeft, p2: fp_kneeLeft,
+      layer: 'cutting', edgeType: 'side', label: `خارج الساق: ${(pantLength - kneeLevel).toFixed(1)} سم`,
+      lengthCm: +distance(fp_hemLeft, fp_kneeLeft).toFixed(1)
+    });
+    fpSegments.push({
+      id: 'fp_side_hip', type: 'quad', p1: fp_kneeLeft, p2: fp_wLeft,
+      cp1: { x: fpOrig.x - 1.5, y: fpOrig.y + 18 },
+      layer: 'cutting', edgeType: 'side', label: `جنب البنطال للأمام: ${kneeLevel} سم`,
+      lengthCm: +quadLength(fp_kneeLeft, { x: fpOrig.x - 1.5, y: fpOrig.y + 18 }, fp_wLeft).toFixed(1)
     });
 
     const fpNotches: CadNotch[] = [
@@ -588,92 +542,45 @@ export function generatePatternByNumbers(
     const bp_hemLeft: CadPoint = { x: bpOrig.x + halfThigh * 0.5 - halfBottom * 0.5 - 1.5, y: bpOrig.y + pantLength };
     const bp_kneeLeft: CadPoint = { x: bpOrig.x + halfThigh * 0.5 - halfKnee * 0.5 - 2, y: bpOrig.y + kneeLevel };
 
-    // Back Waist
+    // Trace the back-leg contour in the same continuous order as the front.
     bpSegments.push({
-      id: 'bp_waist',
-      type: 'line',
-      p1: bp_wLeft,
-      p2: bp_wRight,
-      layer: 'cutting',
-      edgeType: 'waist',
-      label: `خصر الظهر مع بنسة: ${(quarterWaist + 2).toFixed(1)} سم`,
+      id: 'bp_waist', type: 'line', p1: bp_wLeft, p2: bp_wRight,
+      layer: 'cutting', edgeType: 'waist', label: `خصر الظهر مع بنسة: ${(quarterWaist + 2).toFixed(1)} سم`,
       lengthCm: +distance(bp_wLeft, bp_wRight).toFixed(1)
     });
-
-    // Back Side Hip
     bpSegments.push({
-      id: 'bp_side_hip',
-      type: 'quad',
-      p1: bp_wLeft,
-      p2: bp_kneeLeft,
-      cp1: { x: bpOrig.x - 2.5, y: bpOrig.y + 18 },
-      layer: 'cutting',
-      edgeType: 'side',
-      label: `جنب البنطال للخلف: ${kneeLevel} سم`,
-      lengthCm: +quadLength(bp_wLeft, { x: bpOrig.x - 2.5, y: bpOrig.y + 18 }, bp_kneeLeft).toFixed(1)
+      id: 'bp_crotch_curve', type: 'bezier', p1: bp_wRight, p2: bp_crotchRight,
+      cp1: { x: bpOrig.x + quarterWaist * 0.7, y: bpOrig.y + 8 },
+      cp2: { x: bpOrig.x + quarterHip * 0.8, y: bpOrig.y + crotchDepth + 2 },
+      layer: 'cutting', edgeType: 'crotch', label: `حجر الظهر العميق: ${(crotchDepth + 8).toFixed(1)} سم`,
+      lengthCm: +bezierLength(bp_wRight, { x: bpOrig.x + quarterWaist * 0.7, y: bpOrig.y + 8 }, { x: bpOrig.x + quarterHip * 0.8, y: bpOrig.y + crotchDepth + 2 }, bp_crotchRight).toFixed(1)
     });
-
-    // Back Side Inseam down
     bpSegments.push({
-      id: 'bp_side_low',
-      type: 'line',
-      p1: bp_kneeLeft,
-      p2: bp_hemLeft,
-      layer: 'cutting',
-      edgeType: 'side',
-      label: `خارج الساق الخلفي: ${(pantLength - kneeLevel).toFixed(1)} سم`,
-      lengthCm: +distance(bp_kneeLeft, bp_hemLeft).toFixed(1)
-    });
-
-    // Back Hem
-    bpSegments.push({
-      id: 'bp_hem',
-      type: 'line',
-      p1: bp_hemLeft,
-      p2: bp_hemRight,
-      layer: 'cutting',
-      edgeType: 'hem',
-      label: `ثنية رجل الظهر: ${(halfBottom + 3).toFixed(1)} سم`,
-      lengthCm: +distance(bp_hemLeft, bp_hemRight).toFixed(1)
-    });
-
-    // Back Inseam low
-    bpSegments.push({
-      id: 'bp_inseam_low',
-      type: 'line',
-      p1: bp_hemRight,
-      p2: bp_kneeRight,
-      layer: 'cutting',
-      edgeType: 'inseam',
-      label: `داخل الساق الخلفي: ${(pantLength - kneeLevel).toFixed(1)} سم`,
-      lengthCm: +distance(bp_hemRight, bp_kneeRight).toFixed(1)
-    });
-
-    // Back Inseam up to crotch
-    bpSegments.push({
-      id: 'bp_inseam_crotch',
-      type: 'quad',
-      p1: bp_kneeRight,
-      p2: bp_crotchRight,
+      id: 'bp_inseam_crotch', type: 'quad', p1: bp_crotchRight, p2: bp_kneeRight,
       cp1: { x: bp_kneeRight.x + 2, y: bpOrig.y + (crotchDepth + kneeLevel) * 0.5 },
-      layer: 'cutting',
-      edgeType: 'inseam',
-      label: `فخذ الظهر الداخلي: ${(kneeLevel - crotchDepth).toFixed(1)} سم`,
-      lengthCm: +quadLength(bp_kneeRight, { x: bp_kneeRight.x + 2, y: bpOrig.y + (crotchDepth + kneeLevel) * 0.5 }, bp_crotchRight).toFixed(1)
+      layer: 'cutting', edgeType: 'inseam', label: `فخذ الظهر الداخلي: ${(kneeLevel - crotchDepth).toFixed(1)} سم`,
+      lengthCm: +quadLength(bp_crotchRight, { x: bp_kneeRight.x + 2, y: bpOrig.y + (crotchDepth + kneeLevel) * 0.5 }, bp_kneeRight).toFixed(1)
     });
-
-    // Deep Back Crotch Curve (حجر الخلف العميق)
     bpSegments.push({
-      id: 'bp_crotch_curve',
-      type: 'bezier',
-      p1: bp_crotchRight,
-      p2: bp_wRight,
-      cp1: { x: bpOrig.x + quarterHip * 0.8, y: bpOrig.y + crotchDepth + 2 },
-      cp2: { x: bpOrig.x + quarterWaist * 0.7, y: bpOrig.y + 8 },
-      layer: 'cutting',
-      edgeType: 'crotch',
-      label: `حجر الظهر العميق: ${(crotchDepth + 8).toFixed(1)} سم`,
-      lengthCm: +bezierLength(bp_crotchRight, { x: bpOrig.x + quarterHip * 0.8, y: bpOrig.y + crotchDepth + 2 }, { x: bpOrig.x + quarterWaist * 0.7, y: bpOrig.y + 8 }, bp_wRight).toFixed(1)
+      id: 'bp_inseam_low', type: 'line', p1: bp_kneeRight, p2: bp_hemRight,
+      layer: 'cutting', edgeType: 'inseam', label: `داخل الساق الخلفي: ${(pantLength - kneeLevel).toFixed(1)} سم`,
+      lengthCm: +distance(bp_kneeRight, bp_hemRight).toFixed(1)
+    });
+    bpSegments.push({
+      id: 'bp_hem', type: 'line', p1: bp_hemRight, p2: bp_hemLeft,
+      layer: 'cutting', edgeType: 'hem', label: `ثنية رجل الظهر: ${(halfBottom + 3).toFixed(1)} سم`,
+      lengthCm: +distance(bp_hemRight, bp_hemLeft).toFixed(1)
+    });
+    bpSegments.push({
+      id: 'bp_side_low', type: 'line', p1: bp_hemLeft, p2: bp_kneeLeft,
+      layer: 'cutting', edgeType: 'side', label: `خارج الساق الخلفي: ${(pantLength - kneeLevel).toFixed(1)} سم`,
+      lengthCm: +distance(bp_hemLeft, bp_kneeLeft).toFixed(1)
+    });
+    bpSegments.push({
+      id: 'bp_side_hip', type: 'quad', p1: bp_kneeLeft, p2: bp_wLeft,
+      cp1: { x: bpOrig.x - 2.5, y: bpOrig.y + 18 },
+      layer: 'cutting', edgeType: 'side', label: `جنب البنطال للخلف: ${kneeLevel} سم`,
+      lengthCm: +quadLength(bp_kneeLeft, { x: bpOrig.x - 2.5, y: bpOrig.y + 18 }, bp_wLeft).toFixed(1)
     });
 
     const bpNotches: CadNotch[] = [

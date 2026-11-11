@@ -42,3 +42,39 @@ describe('parametric ease integration', () => {
     assert.notDeepEqual(narrowArm.pieces, widerArm.pieces);
   });
 });
+
+import { validatePatternPieces } from './pattern-quality';
+
+describe('generated pattern structural quality gates', () => {
+  const frame = { widthCm: 240, heightCm: 180, unit: 'cm' as const };
+  const input = {
+    ...DEFAULT_PATTERN_NUMBERS,
+    backLength: 60,
+    frontLength: 58,
+    shoulderLength: 13,
+    neckCircumference: 38,
+    neckDepthFront: 8,
+    neckDepthBack: 3,
+    bustCircumference: 92,
+    waistCircumference: 74,
+    hipCircumference: 100,
+    armholeCircumference: 42,
+    upperArmCircumference: 30,
+    sleeveLength: 60,
+    crotchDepth: 26,
+    rise: 27,
+    thighCircumference: 58,
+    additionalEase: 4,
+    seamAllowanceDefault: 1.5
+  };
+
+  for (const family of ['bodice', 'shirt', 'dress', 'pants', 'sleeve', 'skirt'] as const) {
+    it(`creates structurally export-safe closed contours for ${family}`, () => {
+      const result = generatePatternByNumbers(input, frame, family);
+      const report = validatePatternPieces(result.pieces);
+      assert.ok(result.pieces.length > 0, `${family} returned no pieces`);
+      assert.equal(report.exportSafe, true,
+        `${family} has structural CAD errors: ${report.issues.filter(issue => issue.severity === 'error').map(issue => issue.pieceId + ':' + issue.code).join(', ')}`);
+    });
+  }
+});
