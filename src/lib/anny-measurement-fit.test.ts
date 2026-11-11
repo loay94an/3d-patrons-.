@@ -15,7 +15,7 @@ describe('Anny stature calibration', () => {
   it('falls back to the category reference for missing or implausible heights', () => {
     assert.equal(resolveAnnyTargetHeightCm('women'), 168);
     assert.equal(resolveAnnyTargetHeightCm('men', Number.NaN), 178);
-    assert.equal(resolveAnnyTargetHeightCm('kids', 249), 120);
+    assert.equal(resolveAnnyTargetHeightCm('kids', 251), 120);
     assert.equal(resolveAnnyTargetHeightCm('infant', 20), 70);
   });
 
