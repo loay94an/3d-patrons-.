@@ -1,7 +1,16 @@
+import json
+import tempfile
 import threading
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
-from app import GenerationBusyError, normalize_phenotypes, run_with_generation_slot
+from app import (
+    GenerationBusyError,
+    _analyze_generated_profile,
+    normalize_phenotypes,
+    run_with_generation_slot,
+)
 
 
 class PhenotypeValidationTests(unittest.TestCase):
@@ -29,6 +38,33 @@ class PhenotypeValidationTests(unittest.TestCase):
         for label in ("", "x" * 121):
             with self.subTest(label=label), self.assertRaises(ValueError):
                 normalize_phenotypes({label: 0.5})
+
+
+
+class ProfileAnalysisTests(unittest.TestCase):
+    def test_returns_the_generated_profile_report_and_cleans_temporary_files(self):
+        with tempfile.TemporaryDirectory() as parent:
+            workdir = Path(parent) / "anny-job"
+            workdir.mkdir()
+            glb_path = workdir / "body.glb"
+            glb_path.write_bytes(b"glb")
+            expected = {
+                "height_model_units": 1.7,
+                "heuristic_candidates": {"hip_peak": None},
+                "profile": [],
+            }
+
+            def fake_analyzer(command, **_kwargs):
+                report_path = Path(command[command.index("--output") + 1])
+                report_path.write_text(json.dumps(expected), encoding="utf-8")
+
+            with patch("app._generate_glb_file", return_value=str(glb_path)), patch(
+                "app.subprocess.run", side_effect=fake_analyzer
+            ):
+                result = _analyze_generated_profile({"shape": 0.6})
+
+            self.assertEqual(result, expected)
+            self.assertFalse(workdir.exists())
 
 
 class GenerationCapacityTests(unittest.TestCase):

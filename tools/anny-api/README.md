@@ -8,6 +8,7 @@ This folder contains a CPU-oriented FastAPI wrapper around the Anny proof-of-con
 - `GET /v1/anny/phenotypes`: loads Anny and returns the exact phenotype labels published by the installed package.
 - `POST /v1/anny/generate`: accepts phenotype overrides and returns a ZIP containing `body.glb` and `report.json`.
 - `POST /v1/anny/generate/glb`: accepts phenotype overrides and returns a GLB binary for the Three.js viewer.
+- `POST /v1/anny/analyze`: generates the selected Anny phenotype and returns 121 horizontal-section diagnostics plus heuristic hip/waist/bust candidates for human review. This is not validated anthropometry.
 
 Example request:
 
@@ -25,7 +26,7 @@ Use labels returned by `GET /v1/anny/phenotypes`. Every value must be within [0,
 
 Set `VITE_ANNY_API_URL` in the frontend build environment to the public base URL of this service (without a trailing slash). The 3D viewer can also accept the service URL in its Anny API panel, fetch the exact phenotype labels, adjust values in the documented [0, 1] range, and request a GLB directly.
 
-The API service must allow the exact website origin through `ANNY_CORS_ORIGINS`. For local testing, use the local frontend origin only.
+The API service must allow the exact website origin through `ANNY_CORS_ORIGINS`. For local testing, use the local frontend origin only. The viewer's profile review panel calls `/v1/anny/analyze`; this performs a full CPU generation and mesh-section analysis and can take substantially longer than returning a GLB alone.
 
 ## Local run
 
