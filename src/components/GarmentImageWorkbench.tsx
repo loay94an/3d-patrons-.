@@ -121,18 +121,18 @@ export function GarmentImageWorkbench() {
     image.src = url;
   };
 
-  const pointFromEvent = (event: React.PointerEvent<SVGSVGElement>): Point2D | null => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return null;
+  const pointFromClient = (clientX: number, clientY: number): Point2D | null => {
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width || !rect.height) return null;
     return {
-      x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+      x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
     };
   };
 
   const placePoint = (event: React.PointerEvent<SVGSVGElement>) => {
     if (dragging) return;
-    const point = pointFromEvent(event);
+    const point = pointFromClient(event.clientX, event.clientY);
     if (!point) return;
     const target = activeLandmark || availableLandmarks.find(name => !landmarks.some(item => item.name === name && item.point));
     if (!target) {
@@ -232,6 +232,13 @@ export function GarmentImageWorkbench() {
                   preserveAspectRatio="none"
                   className={`absolute inset-0 h-full w-full ${activeLandmark ? 'cursor-crosshair' : 'cursor-default'}`}
                   onPointerDown={placePoint}
+                  onPointerMove={event => {
+                    if (!dragging) return;
+                    const next = pointFromClient(event.clientX, event.clientY);
+                    if (next) updatePoint(dragging, next);
+                  }}
+                  onPointerUp={() => setDragging(null)}
+                  onPointerCancel={() => setDragging(null)}
                 >
                   {landmarks.filter(item => item.point).map(item => {
                     const point = item.point!;
@@ -250,12 +257,6 @@ export function GarmentImageWorkbench() {
                             event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId);
                           }}
                           onPointerMove={event => {
-                            if (dragging !== item.name) return;
-                            const next = pointFromEvent(event as unknown as React.PointerEvent<SVGSVGElement>);
-                            if (next) updatePoint(item.name, next);
-                          }}
-                          onPointerUp={() => setDragging(null)}
-                          onPointerCancel={() => setDragging(null)}
                         />
                       </g>
                     );
