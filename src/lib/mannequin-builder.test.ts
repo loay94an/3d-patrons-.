@@ -6,6 +6,7 @@ import {
   DEFAULT_MANNEQUIN_MEASUREMENTS,
   ellipsePerimeter,
   getTorsoProfile,
+  measureTorsoMeshCircumference,
   type MannequinMeasurements
 } from './mannequin-builder';
 import type { Gender } from './pattern-logic';
@@ -33,6 +34,42 @@ describe('3D mannequin geometry', () => {
         const actual = ellipsePerimeter(profile.rx, profile.rz);
         assert.ok(Math.abs(actual - expected) < 0.01,
           `${gender} ${label}: expected ${expected} cm, got ${actual} cm`);
+      }
+    }
+  });
+
+
+  it('measures bust, waist, and hip from the generated local mesh rings', () => {
+    for (const gender of genders) {
+      const base = DEFAULT_MANNEQUIN_MEASUREMENTS[gender];
+      const measurements = {
+        ...base,
+        bust: base.bust + 6,
+        waist: base.waist + 4,
+        hip: base.hip + 8
+      };
+      const levels = gender === 'kids' || gender === 'infant'
+        ? [
+            ['hip', 0.3, measurements.hip],
+            ['waist', 0.6, measurements.waist],
+            ['bust', 0.85, measurements.bust]
+          ] as const
+        : gender === 'women'
+          ? [
+              ['hip', 0.25, measurements.hip],
+              ['waist', 0.5, measurements.waist],
+              ['bust', 0.75, measurements.bust]
+            ] as const
+          : [
+              ['hip', 0.25, measurements.hip],
+              ['waist', 0.5, measurements.waist],
+              ['bust', 0.78, measurements.bust]
+            ] as const;
+
+      for (const [label, level, expected] of levels) {
+        const actual = measureTorsoMeshCircumference(gender, measurements, level);
+        assert.ok(Math.abs(actual - expected) < 0.35,
+          `${gender} ${label} mesh ring: expected ${expected} cm, got ${actual.toFixed(2)} cm`);
       }
     }
   });
