@@ -414,7 +414,7 @@ export function buildParametricMannequin(
     measurements.armCircumference, 3.0 * scale, 2.0 * scale, 6.5 * scale
   );
   const thighRadius = limbRadiusFromCircumference(
-    measurements.thighCircumference, 4.35 * scale, 2.8 * limbLengthScale, 9.0 * scale
+    measurements.thighCircumference, 4.35 * scale, 2.8 * scale, 9.0 * scale
   );
 
   // Shoulder position comes from the measured torso silhouette, not a hard-coded width.
@@ -441,7 +441,7 @@ export function buildParametricMannequin(
       addSegment('Finger_' + side + '_' + finger, start, end, 0.34 * scale, 0.22 * scale);
     }
     const thumbStart = new THREE.Vector3(palm.x - side * 1.25 * limbLengthScale, palm.y + 0.1 * scale, palm.z + 0.1 * scale);
-    const thumbEnd = new THREE.Vector3(palm.x - side * 2.8 * scale, palm.y - 1.8 * scale, palm.z + 0.15 * scale);
+    const thumbEnd = new THREE.Vector3(palm.x - side * 2.8 * limbLengthScale, palm.y - 1.8 * scale, palm.z + 0.15 * scale);
     addSegment('Thumb_' + side, thumbStart, thumbEnd, 0.48 * scale, 0.31 * scale);
   });
 
