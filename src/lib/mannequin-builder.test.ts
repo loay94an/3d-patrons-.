@@ -7,6 +7,7 @@ import {
   ellipsePerimeter,
   getTorsoProfile,
   measureTorsoMeshCircumference,
+  limbRadiusFromCircumference,
   type MannequinMeasurements
 } from './mannequin-builder';
 import type { Gender } from './pattern-logic';
@@ -72,6 +73,35 @@ describe('3D mannequin geometry', () => {
           `${gender} ${label} mesh ring: expected ${expected} cm, got ${actual.toFixed(2)} cm`);
       }
     }
+  });
+
+
+  it('uses optional arm and thigh tape measurements to shape limb geometry', () => {
+    const gender: Gender = 'women';
+    const base = DEFAULT_MANNEQUIN_MEASUREMENTS[gender];
+    const measurements: MannequinMeasurements = {
+      ...base,
+      armCircumference: 30,
+      thighCircumference: 56
+    };
+    const mannequin = buildParametricMannequin(gender, measurements);
+    const meshes = new Map<string, THREE.Mesh>();
+    mannequin.traverse(object => {
+      if (object instanceof THREE.Mesh && (object.name === 'UpperArm_1' || object.name === 'Thigh_1')) {
+        meshes.set(object.name, object);
+      }
+    });
+    assert.ok(meshes.has('UpperArm_1'));
+    assert.ok(meshes.has('Thigh_1'));
+    assert.ok(Math.abs((meshes.get('UpperArm_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 30 / (2 * Math.PI)) < 0.001);
+    assert.ok(Math.abs((meshes.get('Thigh_1')!.geometry as THREE.CapsuleGeometry).parameters.radius - 56 / (2 * Math.PI)) < 0.001);
+  });
+
+  it('bounds optional limb radii and safely falls back when measurements are absent', () => {
+    assert.equal(limbRadiusFromCircumference(undefined, 3, 2, 6), 3);
+    assert.equal(limbRadiusFromCircumference(0, 3, 2, 6), 3);
+    assert.equal(limbRadiusFromCircumference(1000, 3, 2, 6), 6);
+    assert.equal(limbRadiusFromCircumference(1, 3, 2, 6), 2);
   });
 
   it('uses the entered full-body height for every body category', () => {

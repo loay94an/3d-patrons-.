@@ -8,6 +8,9 @@ export interface MannequinMeasurements {
   shoulder: number;
   backLength: number;
   height: number;
+  /** Optional tape measurements in centimetres; omitted values use category defaults. */
+  armCircumference?: number;
+  thighCircumference?: number;
 }
 
 export const DEFAULT_MANNEQUIN_MEASUREMENTS: Record<Gender, MannequinMeasurements> = {
@@ -193,6 +196,17 @@ export function measureTorsoMeshCircumference(
   return perimeter;
 }
 
+/** Converts a tape circumference into a conservative circular limb radius. */
+export function limbRadiusFromCircumference(
+  circumference: number | undefined,
+  fallback: number,
+  minimum: number,
+  maximum: number
+): number {
+  if (!Number.isFinite(circumference) || (circumference ?? 0) <= 0) return fallback;
+  return THREE.MathUtils.clamp((circumference as number) / (2 * Math.PI), minimum, maximum);
+}
+
 export function ellipsePerimeter(a: number, b: number): number {
   const h = ((a - b) ** 2) / ((a + b) ** 2);
   return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
@@ -310,6 +324,14 @@ export function buildParametricMannequin(
       1.15 * scale, 2.1 * scale, 0.85 * scale);
   });
 
+  // Optional limb tape measurements shape the local mesh without requiring a server.
+  const upperArmRadius = limbRadiusFromCircumference(
+    measurements.armCircumference, 3.0 * scale, 2.0 * scale, 6.5 * scale
+  );
+  const thighRadius = limbRadiusFromCircumference(
+    measurements.thighCircumference, 4.35 * scale, 2.8 * scale, 9.0 * scale
+  );
+
   // Shoulder position comes from the measured torso silhouette, not a hard-coded width.
   const shoulderProfile = getTorsoProfile(gender, measurements, 0.86);
   const shoulderX = shoulderProfile.rx * 0.92;
@@ -321,7 +343,7 @@ export function buildParametricMannequin(
     const palm = new THREE.Vector3(side * (shoulderX + 7.5 * scale), yOffset + 8.8 * scale, 1.0 * scale);
     addEllipsoid('Shoulder_' + side, shoulder.x, shoulder.y, shoulder.z,
       4.0 * scale, 4.1 * scale, 3.8 * scale);
-    addSegment('UpperArm_' + side, shoulder, elbow, 3.0 * scale);
+    addSegment('UpperArm_' + side, shoulder, elbow, upperArmRadius);
     addEllipsoid('Elbow_' + side, elbow.x, elbow.y, elbow.z, 2.35 * scale, 2.35 * scale, 2.35 * scale);
     addSegment('Forearm_' + side, elbow, wrist, 2.25 * scale);
     addEllipsoid('Wrist_' + side, wrist.x, wrist.y, wrist.z, 1.5 * scale, 1.45 * scale, 1.5 * scale);
@@ -349,7 +371,7 @@ export function buildParametricMannequin(
     const ankle = new THREE.Vector3(side * hipX * 1.08, ankleY, 0.1 * scale);
     addEllipsoid('HipJoint_' + side, hip.x, hip.y, hip.z,
       4.7 * scale, 5.2 * scale, 4.9 * scale);
-    addSegment('Thigh_' + side, hip, knee, 4.35 * scale);
+    addSegment('Thigh_' + side, hip, knee, thighRadius);
     addEllipsoid('Knee_' + side, knee.x, knee.y, knee.z, 3.0 * scale, 3.1 * scale, 3.0 * scale);
     addSegment('Calf_' + side, knee, ankle, 2.8 * scale);
     addEllipsoid('Ankle_' + side, ankle.x, ankle.y, ankle.z, 1.8 * scale, 2.0 * scale, 1.8 * scale);

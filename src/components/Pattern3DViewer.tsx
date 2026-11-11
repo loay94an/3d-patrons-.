@@ -295,7 +295,9 @@ export function Pattern3DViewer({
       hip: meas.hip ?? refMeas.hip,
       shoulder: meas.shoulder ?? refMeas.shoulder,
       backLength: meas.backLength ?? refMeas.backLength,
-      height: meas.height ?? refMeas.height
+      height: meas.height ?? refMeas.height,
+      armCircumference: meas.armCirc ?? meas.upperArm ?? undefined,
+      thighCircumference: meas.thighCirc ?? undefined
     };
 
     const mannequin = buildParametricMannequin(state.gender, currentMeasurements);
