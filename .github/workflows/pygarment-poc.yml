@@ -1,0 +1,61 @@
+name: PyGarment proof of concept
+
+on:
+  pull_request:
+    paths:
+      - "tools/pygarment-poc/**"
+      - ".github/workflows/pygarment-poc.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-and-validate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    env:
+      PYTHONPATH: ${{ github.workspace }}/vendor/GarmentCode
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream PyGarment source
+        uses: actions/checkout@v4
+        with:
+          repository: maria-korosteleva/GarmentCode
+          ref: v2.0.2
+          path: vendor/GarmentCode
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: tools/pygarment-poc/requirements.txt
+
+      - name: Install PyGarment dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r tools/pygarment-poc/requirements.txt
+
+      - name: Verify upstream module import
+        run: |
+          python -c "import pygarment; print('PyGarment source:', pygarment.__file__)"
+
+      - name: Run geometry acceptance tests
+        working-directory: tools/pygarment-poc
+        run: python -m unittest -v test_generate_skirt.py
+
+      - name: Generate sample pattern
+        run: |
+          python tools/pygarment-poc/generate_skirt.py \
+            --waist 70 --hip 96 --waist-to-hip 20 --length 60 \
+            --output artifacts/pygarment-skirt.json
+
+      - name: Upload generated pattern artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pygarment-skirt-poc
+          path: artifacts/pygarment-skirt.json
+          if-no-files-found: error
