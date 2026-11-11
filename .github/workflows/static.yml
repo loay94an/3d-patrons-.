@@ -80,7 +80,7 @@ jobs:
       - name: Test Anny profile analyzer with a synthetic closed mesh
         if: github.event_name == 'pull_request'
         run: |
-          python -m pip install trimesh networkx
+          python -m pip install trimesh networkx scipy
           python - <<'PY'
           import trimesh
           mesh = trimesh.creation.cylinder(radius=1.0, height=2.0, sections=64)
