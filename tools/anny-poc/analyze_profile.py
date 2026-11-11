@@ -20,7 +20,6 @@ def contour_metrics(points: np.ndarray) -> dict | None:
     if len(points) < 4 or not np.allclose(points[0], points[-1], atol=1e-5):
         return None
 
-    # Anny's vertical axis is Z; horizontal section coordinates are X/Y.
     polygon = points[:, :2]
     edges = np.diff(polygon, axis=0)
     perimeter = float(np.linalg.norm(edges, axis=1).sum())
@@ -61,24 +60,51 @@ def closed_contours(section) -> list[dict]:
     return sorted(contours, key=lambda item: item["perimeter_model_units"], reverse=True)
 
 
+def _contour_selection_score(contour: dict, center_xy: np.ndarray, body_span_xy: np.ndarray) -> tuple[float, float]:
+    """Rank section loops by centeredness and shape; this is not anatomy recognition."""
+    center_offset = float(np.linalg.norm(np.asarray(contour["centroid_xy"]) - center_xy))
+    span_diagonal = max(float(np.linalg.norm(body_span_xy)), 1e-12)
+    normalized_offset = center_offset / span_diagonal
+    offset_penalty = min(normalized_offset / 0.20, 1.0)
+
+    compactness = float(contour["compactness"])
+    compactness_penalty = min(max(0.40 - compactness, 0.0) / 0.40, 1.0)
+
+    ratio = max(float(contour["width_depth_ratio"]), 1e-12)
+    if 0.40 <= ratio <= 2.50:
+        aspect_penalty = 0.0
+    else:
+        distance = np.log(ratio / 2.50) if ratio > 2.50 else np.log(0.40 / ratio)
+        aspect_penalty = min(abs(float(distance)) / np.log(4.0), 1.0)
+
+    score = 1.0 - 0.50 * offset_penalty - 0.30 * compactness_penalty - 0.20 * aspect_penalty
+    return round(float(score), 4), center_offset
+
+
 def summarize_section(contours: list[dict], center_xy: np.ndarray, body_span_xy: np.ndarray) -> dict:
     if not contours:
         return {
             "contour_count": 0,
             "circumference_model_units": None,
             "selected_contour": None,
+            "candidate_selection": [],
             "diagnostics": ["no_closed_contour"],
             "confidence": 0.0,
         }
 
-    # Keep the largest contour as a reproducible baseline, but expose all
-    # competing contours and geometry warnings instead of hiding ambiguity.
-    selected = contours[0]
-    center_offset = float(np.linalg.norm(np.asarray(selected["centroid_xy"]) - center_xy))
+    ranked = []
+    for contour in contours:
+        score, center_offset = _contour_selection_score(contour, center_xy, body_span_xy)
+        ranked.append((score, float(contour["perimeter_model_units"]), center_offset, contour))
+    ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
+
+    selected_score, _, center_offset, selected = ranked[0]
     normalized_offset = center_offset / max(float(np.linalg.norm(body_span_xy)), 1e-12)
     diagnostics = []
     if len(contours) > 1:
         diagnostics.append("multiple_closed_contours_possible_limbs_or_disconnected_parts")
+        if len(ranked) > 1 and selected_score - ranked[1][0] < 0.05:
+            diagnostics.append("contour_selection_ambiguous_similar_candidate_scores")
     if normalized_offset > 0.12:
         diagnostics.append("selected_contour_centroid_off_body_center")
     if selected["compactness"] < 0.35:
@@ -87,14 +113,29 @@ def summarize_section(contours: list[dict], center_xy: np.ndarray, body_span_xy:
         diagnostics.append("unusual_section_aspect_ratio")
 
     confidence = 0.55
+    confidence += (selected_score - 0.5) * 0.25
     if diagnostics:
-        confidence = max(0.15, confidence - 0.12 * len(diagnostics))
+        confidence -= 0.10 * len(diagnostics)
+    confidence = min(0.75, max(0.10, confidence))
+
+    candidate_selection = [
+        {
+            "perimeter_model_units": item[1],
+            "centroid_xy": item[3]["centroid_xy"],
+            "selection_score": item[0],
+            "selected": index == 0,
+        }
+        for index, item in enumerate(ranked)
+    ]
     return {
         "contour_count": len(contours),
         "circumference_model_units": selected["perimeter_model_units"],
         "selected_contour": selected,
+        "selected_contour_score": selected_score,
         "center_offset_model_units": center_offset,
         "normalized_center_offset": normalized_offset,
+        "candidate_selection": candidate_selection,
+        "selection_method": "centeredness_compactness_aspect_heuristic_not_anatomical_segmentation",
         "diagnostics": diagnostics,
         "confidence": round(confidence, 2),
     }
@@ -154,6 +195,7 @@ def main() -> None:
             "height_cm_at_168cm": selected["height_cm_at_168cm"],
             "circumference_model_units": selected["circumference_model_units"],
             "contour_count": selected["contour_count"],
+            "selected_contour_score": selected["selected_contour_score"],
             "confidence": selected["confidence"],
             "diagnostics": selected["diagnostics"],
             "selection": f"{label} profile extremum; requires anatomical validation",
@@ -171,6 +213,7 @@ def main() -> None:
             "sections_with_warnings": sum(bool(row["diagnostics"]) for row in valid),
             "mean_heuristic_confidence": round(float(np.mean([row["confidence"] for row in valid])), 3),
             "confidence_note": "heuristic geometry warning score, not a validated probability",
+            "contour_selection_note": "ranks loops geometrically; does not segment arms from torso",
         },
         "heuristic_candidates": {
             "hip_peak": candidate(0.30, 0.58, True, "hip"),
