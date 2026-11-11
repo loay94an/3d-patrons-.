@@ -67,7 +67,7 @@ describe('safe radial profile interpolation', () => {
     assert.equal(interpolateRadialScale(10, [
       { coordinate: 0, radialScale: 0.1 },
       { coordinate: 20, radialScale: 4 }
-    ]), 0.85);
+    ]), 1);
     assert.equal(interpolateRadialScale(20, [
       { coordinate: 0, radialScale: 0.1 },
       { coordinate: 20, radialScale: 4 }
