@@ -55,15 +55,32 @@ function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
   let cursorZ = 0;
   let rowDepth = 0;
   pieces.forEach((piece, index) => {
-    if (piece.segments.length < 3) return;
-    const first = piece.segments[0];
+    const contour = piece.segments.filter(segment => segment.layer === 'cutting');
+    if (contour.length < 3) return;
+    const first = contour[0];
+    const ordered: CadPiece['segments'] = [first];
+    const remaining = contour.slice(1);
+    let current = first.p2;
+    while (remaining.length) {
+      const nextIndex = remaining.findIndex(segment =>
+        Math.hypot(current.x - segment.p1.x, current.y - segment.p1.y) < 0.15 ||
+        Math.hypot(current.x - segment.p2.x, current.y - segment.p2.y) < 0.15
+      );
+      if (nextIndex < 0) break;
+      const next = remaining.splice(nextIndex, 1)[0];
+      if (Math.hypot(current.x - next.p2.x, current.y - next.p2.y) < 0.15) {
+        ordered.push({ ...next, p1: next.p2, p2: next.p1, cp1: next.cp2 ?? next.cp1, cp2: next.cp1 ?? next.cp2 });
+        current = next.p1;
+      } else {
+        ordered.push(next);
+        current = next.p2;
+      }
+    }
+    const closed = remaining.length === 0 && Math.hypot(current.x - first.p1.x, current.y - first.p1.y) < 0.15;
+    if (!closed) return;
     const shape = new THREE.Shape();
     shape.moveTo(first.p1.x, first.p1.y);
-    let current = { x: first.p1.x, y: first.p1.y };
-    piece.segments.forEach(segment => {
-      if (Math.hypot(current.x - segment.p1.x, current.y - segment.p1.y) > 0.001) {
-        shape.lineTo(segment.p1.x, segment.p1.y);
-      }
+    ordered.forEach(segment => {
       if (segment.type === 'quad' && segment.cp1) {
         shape.quadraticCurveTo(segment.cp1.x, segment.cp1.y, segment.p2.x, segment.p2.y);
       } else if (segment.type === 'bezier' && segment.cp1 && segment.cp2) {
@@ -71,7 +88,6 @@ function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
       } else {
         shape.lineTo(segment.p2.x, segment.p2.y);
       }
-      current = { x: segment.p2.x, y: segment.p2.y };
     });
     shape.closePath();
     const geometry = new THREE.ShapeGeometry(shape, 12);
