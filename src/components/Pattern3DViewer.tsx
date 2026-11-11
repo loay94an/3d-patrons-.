@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import {
   RotateCcw, Eye, EyeOff, Camera, Layers,
   Activity, Play, Pause, Compass, ZoomIn, ZoomOut,
@@ -81,6 +82,7 @@ export function Pattern3DViewer({
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
   const [annyFileName, setAnnyFileName] = useState('');
   const [annyLoadError, setAnnyLoadError] = useState('');
+  const [glbExportError, setGlbExportError] = useState('');
   const [showSeams, setShowSeams] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
@@ -503,6 +505,28 @@ export function Pattern3DViewer({
     link.click();
   };
 
+  // Export the generated garment as a self-contained GLB with supported materials.
+  const handleExportGlb = async () => {
+    const garment = garmentResultRef.current;
+    if (!garment) return;
+    setGlbExportError('');
+    try {
+      const exporter = new GLTFExporter();
+      const result = await exporter.parseAsync(garment.group, { binary: true, onlyVisible: true, trs: true });
+      if (!(result instanceof ArrayBuffer)) throw new Error('لم يُنتج المُصدّر ملف GLB ثنائياً.');
+      const blob = new Blob([result], { type: 'model/gltf-binary' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'garment_' + state.gender + '_' + state.garment + '.glb';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setGlbExportError(error instanceof Error ? error.message : 'تعذر تصدير GLB.');
+    }
+  };
   // Export 3D OBJ
   const handleExportObj = () => {
     if (!garmentResultRef.current) return;
@@ -574,6 +598,7 @@ export function Pattern3DViewer({
       </div>
 
       {annyLoadError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{annyLoadError}</div>}
+      {glbExportError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{glbExportError}</div>}
 
       {/* Main 3D Canvas */}
       <div
@@ -674,6 +699,15 @@ export function Pattern3DViewer({
           <span>لقطة شاشة</span>
         </button>
 
+        {/* Export portable GLB with supported materials */}
+        <button
+          onClick={() => { void handleExportGlb(); }}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/30 transition-colors"
+          title="تصدير الملابس بصيغة GLB مع المواد المدعومة"
+        >
+          <Download className="w-3.5 h-3.5 text-cyan-300" />
+          <span>تصدير GLB</span>
+        </button>
         {/* Export OBJ */}
         <button
           onClick={handleExportObj}
