@@ -102,3 +102,98 @@ export function interpolateRadialScale(
   const upperScale = clamp(upper.radialScale);
   return lowerScale + (upperScale - lowerScale) * smoothT;
 }
+
+
+export type AnnyCalibrationZone = 'hip' | 'waist' | 'bust';
+
+export interface AnnyCalibrationCandidate {
+  zone: AnnyCalibrationZone;
+  heightFraction: number;
+  circumferenceCm: number;
+  contourCount: number;
+  selectionScore: number | null;
+  heuristicConfidence: number;
+  diagnostics: string[];
+  status: 'review_required';
+  targetCircumferenceCm: number | null;
+  differenceCm: number | null;
+}
+
+export interface AnnyProfileReport {
+  height_model_units: number;
+  heuristic_candidates: Partial<Record<AnnyCalibrationZone extends infer Z
+    ? Z extends 'hip' ? 'hip_peak' : Z extends 'waist' ? 'waist_minimum' : 'bust_peak'
+    : never, {
+      height_fraction: number;
+      circumference_model_units: number;
+      contour_count?: number;
+      selected_contour_score?: number;
+      confidence: number;
+      diagnostics?: string[];
+    } | null>>;
+}
+
+/**
+ * Convert heuristic Anny profile extrema into review-only centimetre candidates.
+ * The report's confidence is a geometry warning heuristic, never a probability.
+ * Every candidate remains review_required until a human validates the anatomy.
+ */
+export function buildAnnyCalibrationCandidates(
+  report: AnnyProfileReport,
+  targetHeightCm: number,
+  targets: Partial<Record<AnnyCalibrationZone, number>> = {}
+): AnnyCalibrationCandidate[] {
+  if (!Number.isFinite(report.height_model_units) || report.height_model_units <= 0) {
+    throw new Error('Anny report height must be a positive finite value');
+  }
+  if (!Number.isFinite(targetHeightCm) || targetHeightCm <= 0) {
+    throw new Error('Target stature must be a positive finite value');
+  }
+
+  const mapping = [
+    ['hip', 'hip_peak'],
+    ['waist', 'waist_minimum'],
+    ['bust', 'bust_peak']
+  ] as const;
+
+  return mapping.flatMap(([zone, key]) => {
+    const candidate = report.heuristic_candidates[key];
+    if (!candidate) return [];
+    const values = [
+      candidate.height_fraction,
+      candidate.circumference_model_units,
+      candidate.confidence
+    ];
+    if (!values.every(Number.isFinite) ||
+        candidate.height_fraction < 0 || candidate.height_fraction > 1 ||
+        candidate.circumference_model_units <= 0 ||
+        candidate.confidence < 0 || candidate.confidence > 1) {
+      return [];
+    }
+    const target = targets[zone];
+    if (target !== undefined && (!Number.isFinite(target) || target <= 0)) {
+      throw new Error(`Target ${zone} circumference must be a positive finite value`);
+    }
+    const circumferenceCm = convertAnnyCircumferenceToCm(
+      candidate.circumference_model_units,
+      report.height_model_units,
+      targetHeightCm
+    );
+    return [{
+      zone,
+      heightFraction: candidate.height_fraction,
+      circumferenceCm,
+      contourCount: Number.isFinite(candidate.contour_count) ? candidate.contour_count! : 0,
+      selectionScore: Number.isFinite(candidate.selected_contour_score)
+        ? candidate.selected_contour_score!
+        : null,
+      heuristicConfidence: candidate.confidence,
+      diagnostics: Array.isArray(candidate.diagnostics)
+        ? candidate.diagnostics.filter((item): item is string => typeof item === 'string')
+        : [],
+      status: 'review_required' as const,
+      targetCircumferenceCm: target ?? null,
+      differenceCm: target === undefined ? null : circumferenceCm - target
+    }];
+  });
+}
