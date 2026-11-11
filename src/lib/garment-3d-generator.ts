@@ -299,13 +299,17 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   // ------------------------------------------------------------------- sleeves
   if (!sleeveless) {
     const armholeV = 0.845;
-    const shoulderSlice = annyBodyProfile
-      ? bodyEnvelope(armholeV)
-      : getTorsoProfile(gender, bodyMeasurements, armholeV, 0);
-    const armholeX = (annyBodyProfile
-      ? envelopeRadius(shoulderSlice, 0)
-      : (shoulderSlice as ReturnType<typeof getTorsoProfile>).rx) * 0.82;
-    const armholeY = shoulderSlice.y - 1.2;
+    let armholeX: number;
+    let armholeY: number;
+    if (annyBodyProfile) {
+      const shoulderSlice = bodyEnvelope(armholeV);
+      armholeX = envelopeRadius(shoulderSlice, 0) * 0.82;
+      armholeY = shoulderSlice.y - 1.2;
+    } else {
+      const shoulderSlice = getTorsoProfile(gender, bodyMeasurements, armholeV, 0);
+      armholeX = shoulderSlice.rx * 0.82;
+      armholeY = shoulderSlice.y - 1.2;
+    }
     const armCirc = Math.max(18, bust * 0.34);         // upper arm circumference
     const armRadius = armCirc / (2 * Math.PI) + 1.6;
     const tilt = (14 * Math.PI) / 180;                 // arms hang slightly away from the body
