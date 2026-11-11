@@ -26,4 +26,19 @@ describe('parametric ease integration', () => {
     }, frame, 'bodice');
     assert.notDeepEqual(base.pieces, roomier.pieces);
   });
+
+  it('uses upper-arm circumference for sleeve bicep width, not armhole depth ease', () => {
+    const frame = { widthCm: 110, heightCm: 85, unit: 'cm' as const };
+    const narrowArm = generatePatternByNumbers({
+      ...DEFAULT_PATTERN_NUMBERS,
+      upperArmCircumference: 28,
+      easeProfile: { bust: 2, waist: 2, hip: 2, upperArm: 1 }
+    }, frame, 'sleeve');
+    const widerArm = generatePatternByNumbers({
+      ...DEFAULT_PATTERN_NUMBERS,
+      upperArmCircumference: 36,
+      easeProfile: { bust: 2, waist: 2, hip: 2, upperArm: 1 }
+    }, frame, 'sleeve');
+    assert.notDeepEqual(narrowArm.pieces, widerArm.pieces);
+  });
 });
