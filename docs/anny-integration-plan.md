@@ -37,9 +37,9 @@ The product is a Vite/React/Three.js static site deployed through GitHub Pages. 
 
 The `tools/anny-poc` utility uses the upstream Anny package to produce a neutral-pose mesh and a reproducibility report. The runtime workflow validates finite vertices and triangular faces. This proves that the model can run in CI; it does not prove anthropometric accuracy or production service capacity.
 
-## Phase 2 — Anthropometric calibration: measurement foundation added; Anny fitting not implemented
+## Phase 2 — Anthropometric calibration: bounded preview fitting added; validation still required
 
-`src/lib/mesh-anthropometry.ts` now measures triangle-mesh section perimeters along an explicitly selected axis and computes diagnostic radial scale factors for ordered measurement landmarks. Unit tests use a known synthetic cylinder. This utility does not infer Anny landmarks, deform a GLB, establish centimetres, or claim a fitted result.
+`src/lib/mesh-anthropometry.ts` measures triangle-mesh section perimeters along an explicitly selected axis. `src/lib/anny-body-calibration.ts` now samples the bundled Anny Z-up mesh, estimates hip/waist/bust levels from section extrema, applies bounded radial deformation from the selected standard size plus saved tape overrides, and reports predicted circumferences and residuals. It always remains a review-only preview: the section extrema are heuristic, not anatomical landmarks, and this is not yet a validated anthropometric fit.
 
 Do not map bust/waist/hip measurements directly to phenotype labels by name. Build a separate fitting layer only after:
 
@@ -82,13 +82,13 @@ The core Anny code is Apache-2.0 and upstream README identifies MakeHuman/MPFB2-
 
 The GitHub Pages build now generates a neutral Anny v0.6.2 GLB on CPU and publishes it at `models/anny-neutral.glb`. The viewer's **عرض جسم Anny** action loads this static asset without requiring a separately hosted API. The generated reference mesh currently contains 13,718 vertices and 27,420 triangles (about 0.5 MB in the verified runtime run).
 
-The bundled body is a neutral-pose visual reference. The viewer normalizes its displayed height only; this does not calibrate its coordinates to centimetres or adapt the mesh to the user's tape measurements. The Anny API and manual GLB upload remain optional alternatives. The runtime proof-of-concept workflow is now manual-only to avoid generating the same model twice on every main-branch deployment.
+The bundled body is a neutral-pose visual reference. The viewer now normalizes its height to the resolved measurement profile and applies bounded radial preview adjustments at estimated hip/waist/bust sections. The source geometry is retained so each edit recalculates from the original rather than accumulating deformation. The on-screen report shows target and predicted circumferences with residuals. This is still a heuristic preview, not a validated body scan or production measurement guarantee. The Anny API and manual GLB upload remain optional alternatives. The runtime proof-of-concept workflow is now manual-only to avoid generating the same model twice on every main-branch deployment.
 
 The Pages build runs Anny inference only for non-pull-request builds. Pull-request checks validate TypeScript, tests, and the site build without installing CPU PyTorch.
 
 
 ## Updated default-viewer behavior
 
-The bundled Anny GLB is now loaded automatically when the 3D viewer opens. If the asset cannot be fetched or parsed, the viewer keeps the local procedural mannequin available and displays the Anny load error. Garment overlay on Anny starts disabled because the current pattern mesh has not yet been calibrated to Anny's physical scale and body landmarks. Users can explicitly enable the overlay for visual inspection, but it must not be interpreted as validated fit.
+The bundled Anny GLB is now loaded automatically when the 3D viewer opens. If the asset cannot be fetched or parsed, the viewer keeps the local procedural mannequin available and displays the Anny load error. Garment overlay on Anny starts disabled. When enabled, the garment preview now uses the same resolved stature and tape profile as the Anny preview, so the floor and vertical body scale stay aligned. Its procedural garment surface remains an inspection overlay, not sewn pattern-panel assembly, collision detection, or cloth simulation; it must not be interpreted as validated fit.
 
 The uploaded repository GLB assets are treated as reference candidates. A pull-request CI audit reports their mesh topology, bounds, connected components, skin joints, animation and morph-target metadata. The audit does not modify, redistribute, or automatically select any uploaded model as the fitting body.

@@ -28,8 +28,9 @@ describe('Anny body geometry calibration', () => {
     assert.throws(() => calibrateAnnyBodyGeometry(geometry, {
       heightCm: 170, bustCm: 0, waistCm: 72, hipCm: 98
     }), /positive finite/);
-    const unrotated = calibrateAnnyBodyGeometry;
-    assert.equal(typeof unrotated, 'function');
+    assert.throws(() => calibrateAnnyBodyGeometry(geometry, {
+      heightCm: 170, bustCm: 92, waistCm: 72, hipCm: 98
+    }), /Z-up vertical axis/);
     geometry.dispose();
   });
 
