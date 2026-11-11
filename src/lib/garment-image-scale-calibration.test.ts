@@ -39,10 +39,10 @@ test('calibrates scale using the true image aspect ratio', () => {
     distanceCm: 10
   });
   assert.deepEqual(calibrated.issues, []);
-  assert.equal(calibrated.value?.pixelsPerCm, 20);
+  assert.ok(Math.abs((calibrated.value?.pixelsPerCm ?? 0) - 20) < 1e-9);
   const vertical = measureGarmentLandmarkDistanceCm(result, calibrated.value!, 'shoulder_left', 'waist_left');
   assert.deepEqual(vertical.issues, []);
-  assert.equal(vertical.value, 10);
+  assert.ok(Math.abs((vertical.value ?? 0) - 10) < 1e-9);
 });
 
 test('rejects non-positive physical reference distances', () => {
