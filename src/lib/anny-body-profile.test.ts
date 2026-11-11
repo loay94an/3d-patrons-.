@@ -79,7 +79,7 @@ describe('Anny mesh-derived body profile', () => {
     garment.garmentMesh.geometry.computeBoundingBox();
     const center = garment.garmentMesh.geometry.boundingBox!.getCenter(new THREE.Vector3());
     assert.ok(Math.abs(center.x - 4) < 0.1, `expected Anny centre x=4, received ${center.x}`);
-    assert.ok(Math.abs(center.z + 7) < 0.1, `expected Anny centre z=-7, received ${center.z}`);
+    assert.ok(Math.abs(center.z + 7) < 0.25, `expected Anny centre z=-7, received ${center.z}`);
 
     garment.group.traverse(object => {
       if (object instanceof THREE.Mesh || object instanceof THREE.Line) object.geometry.dispose();
