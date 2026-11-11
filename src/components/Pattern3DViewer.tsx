@@ -61,6 +61,7 @@ export function Pattern3DViewer({
 }: Pattern3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const [presentationMode, setPresentationMode] = useState<'atelier' | 'luxury'>('atelier');
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const mannequinGroupRef = useRef<THREE.Group | null>(null);
@@ -199,16 +200,19 @@ export function Pattern3DViewer({
     keyLight.shadow.camera.right = 60;
     keyLight.shadow.camera.top = 100;
     keyLight.shadow.camera.bottom = -40;
+    keyLight.name = 'studio-key-light';
     scene.add(keyLight);
 
     // Fill Light
     const fillLight = new THREE.DirectionalLight(0xdbeafe, 1.3);
     fillLight.position.set(-70, 80, -40);
+    fillLight.name = 'studio-fill-light';
     scene.add(fillLight);
 
     // Rim / Back Light (creates elegant fashion studio edge highlight)
     const rimLight = new THREE.DirectionalLight(0xfef08a, 1.8);
     rimLight.position.set(0, 110, -90);
+    rimLight.name = 'studio-rim-light';
     scene.add(rimLight);
 
     // Studio Circular Podium Floor
@@ -221,6 +225,7 @@ export function Pattern3DViewer({
     const floor = new THREE.Mesh(floorGeom, floorMat);
     floor.position.set(0, -1, 0);
     floor.receiveShadow = true;
+    floor.name = 'studio-podium';
     scene.add(floor);
 
     // Circular Gold Trim on Podium
@@ -281,6 +286,29 @@ export function Pattern3DViewer({
       reqIdRef.current = null;
     };
   }, []);
+
+  // Switch between technical atelier lighting and a warm luxury product-showcase look.
+  // This changes presentation only; it never alters garment or body geometry.
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const renderer = rendererRef.current;
+    if (!scene || !renderer) return;
+
+    const luxury = presentationMode === 'luxury';
+    scene.background = new THREE.Color(luxury ? 0xe8dfd1 : 0x0f172a);
+    renderer.toneMappingExposure = luxury ? 1.28 : 1.15;
+
+    const key = scene.getObjectByName('studio-key-light') as THREE.DirectionalLight | undefined;
+    const fill = scene.getObjectByName('studio-fill-light') as THREE.DirectionalLight | undefined;
+    const rim = scene.getObjectByName('studio-rim-light') as THREE.DirectionalLight | undefined;
+    if (key) { key.intensity = luxury ? 2.8 : 2.4; key.color.set(luxury ? 0xffe4c4 : 0xfff6ed); }
+    if (fill) { fill.intensity = luxury ? 1.05 : 1.3; fill.color.set(luxury ? 0xffead6 : 0xdbeafe); }
+    if (rim) { rim.intensity = luxury ? 2.1 : 1.8; rim.color.set(luxury ? 0xffd58a : 0xfef08a); }
+
+    const podium = scene.getObjectByName('studio-podium') as THREE.Mesh | undefined;
+    const podiumMaterial = podium?.material as THREE.MeshStandardMaterial | undefined;
+    if (podiumMaterial?.color) podiumMaterial.color.set(luxury ? 0x57483d : 0x1e293b);
+  }, [presentationMode]);
 
   // Synchronize Mannequin and Garment whenever State, Measurements, or Fabric changes
   useEffect(() => {
@@ -842,6 +870,14 @@ export function Pattern3DViewer({
           <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الملابس فوق Anny بعد التحقق؛ المحاذاة الحالية غير معايرة">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
           <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
         </>}
+
+        <button
+          onClick={() => setPresentationMode(mode => mode === 'luxury' ? 'atelier' : 'luxury')}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-colors ${presentationMode === 'luxury' ? 'bg-amber-500/20 text-amber-200 border-amber-400/50' : 'text-slate-300 border-slate-700 hover:bg-slate-800'}`}
+          title="تبديل إضاءة وخلفية عرض المنتج؛ لا يغيّر هندسة الجسم أو الملابس"
+        >
+          <Sparkles className="w-3.5 h-3.5" /><span>{presentationMode === 'luxury' ? 'عرض فاخر' : 'استوديو فاخر'}</span>
+        </button>
 
         {/* Turntable Auto-rotate */}
         <button
