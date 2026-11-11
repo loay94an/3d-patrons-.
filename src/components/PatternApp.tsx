@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet, FolderOpen,
+  Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet, FolderOpen, ImagePlus,
   FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
   Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2, Home, MoreHorizontal
 } from 'lucide-react';
