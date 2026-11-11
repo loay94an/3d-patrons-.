@@ -20,6 +20,7 @@ import {
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { offsetCadContour } from '../lib/offset-geometry';
 import { validatePatternPieces } from '../lib/pattern-quality';
+import { loadCadProjectDocument, saveCadProjectDocument } from '../lib/cad-project-document';
 import { adaptPyGarmentPattern } from '../lib/pygarment-adapter';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
 import { CadFloatingProperties } from './CadFloatingProperties';
@@ -42,9 +43,10 @@ interface PatternVisualizerProps {
   /** Tells the app which garment is being drafted, so the 3D mannequin wears it. */
   onGarmentChange?: (garment: GarmentType) => void;
   initialDraft?: BasicSkirtDraftResult | null;
+  projectId?: string | null;
 }
 
-export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, initialDraft }: PatternVisualizerProps) {
+export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, initialDraft, projectId }: PatternVisualizerProps) {
   // Unit setup
   const isInch = state.unit === 'in';
   const unitLabel = isInch ? 'إنش' : 'سم';
@@ -108,11 +110,16 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
   const [draftingRules, setDraftingRules] = useState<DraftingRulesConfig>(DEFAULT_DRAFTING_RULES);
 
   // Active Pieces & Summaries
+  const savedCadDocument = useMemo(() => projectId && typeof window !== 'undefined'
+    ? loadCadProjectDocument(window.localStorage, projectId) : null, [projectId]);
+  const skipInitialMeasurementSync = useRef(Boolean(savedCadDocument));
   const [pieces, setPieces] = useState<CadPiece[]>(() => {
+    if (savedCadDocument) return savedCadDocument.pieces;
     return state.garment === 'skirt' && initialDraft ? initialDraft.pieces : generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).pieces;
   });
 
   const [summaries, setSummaries] = useState<PieceSpecSummary[]>(() => {
+    if (savedCadDocument) return savedCadDocument.summaries;
     return state.garment === 'skirt' && initialDraft ? initialDraft.summaries : generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).summaries;
   });
 
@@ -120,6 +127,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
 
   // Synchronize 2D CAD pattern pieces whenever state.customMeasurements or size changes
   useEffect(() => {
+    if (skipInitialMeasurementSync.current) {
+      skipInitialMeasurementSync.current = false;
+      return;
+    }
     const meas = state.customMeasurements;
     const std = getBaseMeasurements(state.gender, state.size);
     const effectiveBust = meas.bust ?? meas.chest ?? std.bust ?? std.chest ?? 88;
@@ -170,6 +181,11 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
     ]);
     setSummaries(result.summaries);
   }, [state.gender, state.size, state.garment, state.customMeasurements, initialDraft]);
+
+  useEffect(() => {
+    if (!projectId || typeof window === 'undefined') return;
+    saveCadProjectDocument(window.localStorage, projectId, pieces, summaries);
+  }, [projectId, pieces, summaries]);
 
   // Active CAD Tool & Modes
   const [activeTool, setActiveTool] = useState<CadActiveTool>('select_move');
