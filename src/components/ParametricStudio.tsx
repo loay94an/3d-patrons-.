@@ -62,19 +62,15 @@ export function ParametricStudio({
   const [showSources, setShowSources] = useState(false);
 
   const updateMeasurement = (key: keyof StudioMeasurements, value: number) => {
-    setMeasurements(previous => {
-      const next = { ...previous, [key]: value };
-      onDraftChange?.(next, ease);
-      return next;
-    });
+    const next = { ...measurements, [key]: value };
+    setMeasurements(next);
+    onDraftChange?.(next, ease);
   };
 
   const updateEase = (key: keyof EaseProfile, value: number) => {
-    setEase(previous => {
-      const next = { ...previous, [key]: value };
-      onDraftChange?.(measurements, next);
-      return next;
-    });
+    const next = { ...ease, [key]: value };
+    setEase(next);
+    onDraftChange?.(measurements, next);
   };
   const source = useMemo(() => buildKtrSource(measurements, ease), [measurements, ease]);
   const validation = useMemo(() => validateStudioProfile(measurements, ease), [measurements, ease]);
