@@ -95,6 +95,8 @@ export interface PatternByNumbersInput {
   additionalEase: number;        // قيمة توافقية افتراضية عند غياب ملف الراحة المحلي
   easeProfile?: Partial<PatternEaseProfile>;
   seamAllowanceDefault: number;  // سماحة الخياطة الافتراضية (سم)
+  hipDepth?: number;              // المسافة من الخصر إلى خط الورك (سم)
+  waistToKnee?: number;           // المسافة من الخصر إلى الركبة (سم)
 }
 
 export interface PatternEaseProfile {
@@ -155,7 +157,9 @@ export const DEFAULT_PATTERN_NUMBERS: PatternByNumbersInput = {
   rise: 24,
   thighCircumference: 56,
   additionalEase: 1.5,
-  seamAllowanceDefault: 1.5
+  seamAllowanceDefault: 1.5,
+  hipDepth: 19,
+  waistToKnee: 53
 };
 
 export interface ReferencePointInfo {
@@ -438,7 +442,10 @@ export function generatePatternByNumbers(
   if (garmentType === 'pants') {
     const pantLength = input.backLength > 70 ? input.backLength : 100;
     const crotchDepth = input.crotchDepth || 26;
-    const kneeLevel = +(crotchDepth + (pantLength - crotchDepth) * 0.5).toFixed(1);
+    const kneeLevel = input.waistToKnee && input.waistToKnee > crotchDepth
+      ? input.waistToKnee
+      : +(crotchDepth + (pantLength - crotchDepth) * 0.5).toFixed(1);
+    const hipDepth = input.hipDepth ?? 18;
     const halfThigh = +(input.thighCircumference ? input.thighCircumference / 2 : (quarterHip + 4)).toFixed(1);
     const halfKnee = +(halfThigh * 0.75).toFixed(1);
     const halfBottom = 19; // اسفل الرجل
@@ -449,7 +456,7 @@ export function generatePatternByNumbers(
 
     const fp_wLeft: CadPoint = { x: fpOrig.x, y: fpOrig.y }; // خط الخصر يسار
     const fp_wRight: CadPoint = { x: fpOrig.x + quarterWaist, y: fpOrig.y }; // خط الخصر يمين
-    const fp_hipRight: CadPoint = { x: fpOrig.x + quarterHip, y: fpOrig.y + 18 }; // خط الورك
+    const fp_hipRight: CadPoint = { x: fpOrig.x + quarterHip, y: fpOrig.y + hipDepth }; // خط الورك
     const fp_crotchRight: CadPoint = { x: fpOrig.x + quarterHip + 4.5, y: fpOrig.y + crotchDepth }; // رأس الحجر للأمام
     const fp_kneeRight: CadPoint = { x: fpOrig.x + halfThigh * 0.5 + halfKnee * 0.5, y: fpOrig.y + kneeLevel };
     const fp_hemRight: CadPoint = { x: fpOrig.x + halfThigh * 0.5 + halfBottom * 0.5, y: fpOrig.y + pantLength };
@@ -492,9 +499,9 @@ export function generatePatternByNumbers(
     });
     fpSegments.push({
       id: 'fp_side_hip', type: 'quad', p1: fp_kneeLeft, p2: fp_wLeft,
-      cp1: { x: fpOrig.x - 1.5, y: fpOrig.y + 18 },
+      cp1: { x: fpOrig.x - 1.5, y: fpOrig.y + hipDepth },
       layer: 'cutting', edgeType: 'side', label: `جنب البنطال للأمام: ${kneeLevel} سم`,
-      lengthCm: +quadLength(fp_kneeLeft, { x: fpOrig.x - 1.5, y: fpOrig.y + 18 }, fp_wLeft).toFixed(1)
+      lengthCm: +quadLength(fp_kneeLeft, { x: fpOrig.x - 1.5, y: fpOrig.y + hipDepth }, fp_wLeft).toFixed(1)
     });
 
     const fpNotches: CadNotch[] = [
@@ -578,9 +585,9 @@ export function generatePatternByNumbers(
     });
     bpSegments.push({
       id: 'bp_side_hip', type: 'quad', p1: bp_kneeLeft, p2: bp_wLeft,
-      cp1: { x: bpOrig.x - 2.5, y: bpOrig.y + 18 },
+      cp1: { x: bpOrig.x - 2.5, y: bpOrig.y + hipDepth },
       layer: 'cutting', edgeType: 'side', label: `جنب البنطال للخلف: ${kneeLevel} سم`,
-      lengthCm: +quadLength(bp_kneeLeft, { x: bpOrig.x - 2.5, y: bpOrig.y + 18 }, bp_wLeft).toFixed(1)
+      lengthCm: +quadLength(bp_kneeLeft, { x: bpOrig.x - 2.5, y: bpOrig.y + hipDepth }, bp_wLeft).toFixed(1)
     });
 
     const bpNotches: CadNotch[] = [
@@ -664,7 +671,7 @@ export function generatePatternByNumbers(
   // ==========================================
   if (garmentType === 'skirt') {
     const skirtLen = input.backLength > 40 ? input.backLength : 65;
-    const hipDepth = 19;
+    const hipDepth = input.hipDepth ?? 19;
     const flareEase = 8; // اتساع الذيل
 
     // 1. FRONT SKIRT (تنورة الأمام)
@@ -863,7 +870,7 @@ export function generatePatternByNumbers(
   if (garmentType === 'dress') {
     const dressLen = input.backLength > 80 ? input.backLength : 105;
     const waistLevel = input.backLength < 80 ? input.backLength : 42;
-    const hipLevel = +(waistLevel + 19).toFixed(1);
+    const hipLevel = +(waistLevel + (input.hipDepth ?? 19)).toFixed(1);
     const hemFlare = 14; // اتساع كلوش للفستان
 
     // 1. BACK DRESS (فستان الظهر)

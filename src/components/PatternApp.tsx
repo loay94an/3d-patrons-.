@@ -298,6 +298,54 @@ export default function PatternApp() {
       min: isKids ? 15 : 40,
       max: isKids ? 70 : 120,
       step: 1.0
+    },
+    {
+      key: 'legLength',
+      labelAr: 'طول البنطال الخارجي',
+      hintAr: 'من خط الخصر إلى أسفل الساق؛ يستخدم لقالب البنطال',
+      min: isKids ? 25 : 65,
+      max: isKids ? 90 : 125,
+      step: 0.5
+    },
+    {
+      key: 'crotchHeight',
+      labelAr: 'عمق الحجر',
+      hintAr: 'من خط الخصر إلى مستوى التقاء الساقين أثناء الجلوس',
+      min: isKids ? 12 : 18,
+      max: isKids ? 32 : 42,
+      step: 0.5
+    },
+    {
+      key: 'thighCirc',
+      labelAr: 'محيط الفخذ',
+      hintAr: 'حول أعرض منطقة أعلى الفخذ',
+      min: isKids ? 20 : 38,
+      max: isKids ? 55 : 85,
+      step: 0.5
+    },
+    {
+      key: 'waistToHip',
+      labelAr: 'عمق الورك',
+      hintAr: 'من خط الخصر إلى خط أعرض منطقة الورك',
+      min: isKids ? 8 : 14,
+      max: isKids ? 28 : 32,
+      step: 0.5
+    },
+    {
+      key: 'waistToKnee',
+      labelAr: 'طول الخصر إلى الركبة',
+      hintAr: 'من خط الخصر حتى منتصف الركبة',
+      min: isKids ? 20 : 35,
+      max: isKids ? 55 : 75,
+      step: 0.5
+    },
+    {
+      key: 'frontLength',
+      labelAr: 'طول الأمام حتى الخصر',
+      hintAr: 'الطول الأمامي الكامل من نقطة الرقبة إلى خط الخصر؛ أدخله وفق طريقة التفصيل',
+      min: isKids ? 25 : 38,
+      max: isKids ? 55 : 75,
+      step: 0.5
     }
   ];
 
@@ -637,7 +685,7 @@ export default function PatternApp() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {measurementFields.map(f => {
-                  const rawVal = currentMeas[f.key] ?? f.min;
+                  const rawVal = currentMeas[f.key] ?? (f.key === 'frontLength' ? 62 : f.min);
                   const displayVal = state.unit === 'in' ? rawVal / 2.54 : rawVal;
 
                   return (

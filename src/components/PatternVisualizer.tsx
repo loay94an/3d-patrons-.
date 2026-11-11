@@ -20,6 +20,7 @@ import {
 import { closestQuadraticParameter, closestCubicParameter } from '../lib/path-geometry';
 import { offsetCadContour } from '../lib/offset-geometry';
 import { validatePatternPieces } from '../lib/pattern-quality';
+import { mapMeasurementsToPatternInput } from '../lib/pattern-measurement-mapper';
 import { loadCadProjectDocument, saveCadProjectDocument } from '../lib/cad-project-document';
 import { adaptPyGarmentPattern } from '../lib/pygarment-adapter';
 import { CadSidePanel, CadActiveTool } from './CadSidePanel';
@@ -133,26 +134,10 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
     }
     const meas = state.customMeasurements;
     const std = getBaseMeasurements(state.gender, state.size);
-    const effectiveBust = meas.bust ?? meas.chest ?? std.bust ?? std.chest ?? 88;
-    const effectiveWaist = meas.waist ?? std.waist ?? 70;
-    const effectiveHip = meas.hip ?? std.hip ?? 94;
-    const effectiveBackLength = meas.backLength ?? std.backLength ?? 40;
-    const effectiveShoulder = meas.shoulder ?? std.shoulder ?? 12;
-    const effectiveArmhole = meas.armholeCirc ?? std.armholeCirc ?? 42;
-    const effectiveSleeve = meas.sleeveLength ?? std.sleeveLength ?? 58;
-    const effectiveNeck = meas.neckCirc ?? std.neckCirc ?? 36;
-
+    const combinedMeasurements: Record<string, number> = { ...std, ...meas };
+    const cadGarmentType = mapGarmentToCadType(state.garment);
     const updatedInputs: PatternByNumbersInput = {
-      ...patternInputs,
-      bustCircumference: effectiveBust,
-      waistCircumference: effectiveWaist,
-      hipCircumference: effectiveHip,
-      backLength: effectiveBackLength,
-      shoulderLength: effectiveShoulder,
-      armholeCircumference: effectiveArmhole,
-      upperArmCircumference: meas.armCirc ?? std.armCirc ?? 30,
-      sleeveLength: effectiveSleeve,
-      neckCircumference: effectiveNeck,
+      ...mapMeasurementsToPatternInput(patternInputs, combinedMeasurements, cadGarmentType),
       easeProfile: {
         bust: meas.bustEase ?? patternInputs.easeProfile?.bust ?? patternInputs.additionalEase,
         waist: meas.waistEase ?? patternInputs.easeProfile?.waist ?? patternInputs.additionalEase,
@@ -162,7 +147,6 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, 
     };
 
     setPatternInputs(updatedInputs);
-    const cadGarmentType = mapGarmentToCadType(state.garment);
     setActiveGarmentType(cadGarmentType);
     const result = generatePatternByNumbers(updatedInputs, workFrame, cadGarmentType);
     // Keep the explicit skirt draft from the parametric studio as the active CAD geometry.
