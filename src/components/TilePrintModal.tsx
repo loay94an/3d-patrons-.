@@ -39,9 +39,17 @@ export function TilePrintModal({
   const overlapCm = overlapMarginMm / 10;
   const effectivePageW = pageDim.w - pageMarginCm * 2 - overlapCm;
   const effectivePageH = pageDim.h - headerBandCm - pageMarginCm - overlapCm;
-
-  const cols = Math.max(1, Math.ceil(workFrame.widthCm / effectivePageW));
-  const rows = Math.max(1, Math.ceil(workFrame.heightCm / effectivePageH));
+  const validContours = pieces.map(piece => ({ piece, points: getCadPieceContourPoints(piece) }))
+    .filter((item): item is { piece: CadPiece; points: { x: number; y: number }[] } => Boolean(item.points));
+  const allPoints = validContours.flatMap(item => item.points);
+  const minX = allPoints.length ? Math.min(...allPoints.map(point => point.x)) : 0;
+  const minY = allPoints.length ? Math.min(...allPoints.map(point => point.y)) : 0;
+  const maxX = allPoints.length ? Math.max(...allPoints.map(point => point.x)) : workFrame.widthCm;
+  const maxY = allPoints.length ? Math.max(...allPoints.map(point => point.y)) : workFrame.heightCm;
+  const patternWidthCm = Math.max(0, maxX - minX);
+  const patternHeightCm = Math.max(0, maxY - minY);
+  const cols = Math.max(1, Math.ceil(patternWidthCm / effectivePageW));
+  const rows = Math.max(1, Math.ceil(patternHeightCm / effectivePageH));
   const totalPages = cols * rows;
 
   const handlePrintTiles = () => {
@@ -56,9 +64,6 @@ export function TilePrintModal({
       const pageHMm = pageDim.h * 10;
       const stepWMm = effectivePageW * 10;
       const stepHMm = effectivePageH * 10;
-      const validContours = pieces.map(piece => ({ piece, points: getCadPieceContourPoints(piece) }))
-        .filter((item): item is { piece: CadPiece; points: { x: number; y: number }[] } => Boolean(item.points));
-
       if (!validContours.length) throw new Error('لا توجد قطع مغلقة صالحة للطباعة. أكمل حدود القطع أولاً.');
 
       for (let row = 0; row < rows; row++) {
@@ -96,8 +101,8 @@ export function TilePrintModal({
           }
 
           // Draw full-size vector contours; page boundaries clip each overlapping tile.
-          const offsetX = pageMarginCm * 10 - column * stepWMm;
-          const offsetY = headerBandCm * 10 - row * stepHMm;
+          const offsetX = pageMarginCm * 10 - minX * 10 - column * stepWMm;
+          const offsetY = headerBandCm * 10 - minY * 10 - row * stepHMm;
           validContours.forEach(({ piece, points }) => {
             doc.setDrawColor(25, 45, 80);
             doc.setLineWidth(0.45);
@@ -223,7 +228,7 @@ export function TilePrintModal({
                 <span>مخطط تجميع الصفحات: {cols} أعمدة × {rows} صفوف ({totalPages} صفحة إجمالاً)</span>
               </span>
               <span className="text-slate-500 dark:text-slate-400">
-                إطار العمل: {workFrame.widthCm} × {workFrame.heightCm} سم
+                امتداد القطع: {patternWidthCm.toFixed(1)} × {patternHeightCm.toFixed(1)} سم
               </span>
             </div>
 
