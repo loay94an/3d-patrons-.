@@ -25,6 +25,40 @@ jobs:
       - name: Validate Anny generator syntax
         run: python -m compileall -q tools/anny-poc
 
+      # The static site cannot run PyTorch in the browser. Generate one
+      # neutral Anny GLB during the Pages build and serve it as a static asset.
+      - name: Install CPU PyTorch for the bundled Anny body
+        if: github.event_name != 'pull_request'
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2"
+
+      - name: Install Anny model generation dependencies
+        if: github.event_name != 'pull_request'
+        run: python -m pip install -r tools/anny-poc/requirements.txt
+
+      - name: Generate bundled Anny body model
+        if: github.event_name != 'pull_request'
+        run: python tools/anny-poc/generate.py --device cpu --output public/models/anny-neutral.glb
+
+      - name: Validate bundled Anny model
+        if: github.event_name != 'pull_request'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import trimesh
+
+          model = Path("public/models/anny-neutral.glb")
+          report = json.loads(model.with_suffix(".json").read_text(encoding="utf-8"))
+          scene = trimesh.load(model, force="scene")
+          meshes = [item for item in scene.geometry.values() if isinstance(item, trimesh.Trimesh)]
+          assert model.is_file() and model.stat().st_size > 1000
+          assert meshes and report["vertex_count"] > 0 and report["triangle_count"] > 0
+          assert "Not calibrated" in report["measurement_status"]
+          print(f"Validated bundled Anny GLB: {report['vertex_count']} vertices, {report['triangle_count']} triangles")
+          PY
+
       - name: Install Anny API test dependencies
         run: python -m pip install -r tools/anny-api/requirements.txt
 
