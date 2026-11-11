@@ -186,6 +186,22 @@ export function calibrateAnnyBodyGeometry(
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
 
+  // Measure the deformed geometry again instead of reporting only the requested
+  // scale ratio; torso-local weighting can make the achieved circumference differ.
+  landmarks.forEach(item => {
+    try {
+      const coordinate = bounds.min.z + item.heightFraction * height;
+      const measuredCm = measureMeshSectionCircumference(geometry, 'z', coordinate) * heightScale;
+      item.predictedCircumferenceCm = measuredCm;
+      item.residualCm = measuredCm - item.targetCircumferenceCm;
+      if (Math.abs(item.residualCm) > 1) {
+        warnings.push(`الفرق المتبقي في قياس ${item.zone} يتجاوز 1 سم بعد التشوه المحدود`);
+      }
+    } catch {
+      warnings.push(`تعذر إعادة قياس مقطع ${item.zone} بعد المعايرة`);
+    }
+  });
+
   return {
     geometry,
     nativeHeight: height,
