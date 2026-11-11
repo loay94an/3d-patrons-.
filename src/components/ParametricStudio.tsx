@@ -6,6 +6,9 @@ import { createMeasurementProfile, validateStudioProfile, MeasurementProfile } f
 import { BasicSkirtDraftPanel } from './BasicSkirtDraftPanel';
 
 type Props = {
+  initialMeasurements?: StudioMeasurements;
+  initialEase?: EaseProfile;
+  onDraftChange?: (measurements: StudioMeasurements, ease: EaseProfile) => void;
   onOpenCad: (garment: GarmentType, profile: MeasurementProfile, ease: EaseProfile) => void;
   onOpenEncyclopedia: () => void;
 };
@@ -46,11 +49,33 @@ const sourceNotes = [
   { title: 'Armstrong وIl Modellismo والمراجع السابقة', detail: 'تُستخدم لتوثيق القياسات ونقاط الاستدلال والبنس والتحويلات والملاءمة وإكمال الباترون، مع مراجعة كل قاعدة قبل تحويلها إلى معادلة.' }
 ];
 
-export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
+export function ParametricStudio({
+  initialMeasurements: sharedMeasurements,
+  initialEase: sharedEase,
+  onDraftChange,
+  onOpenCad,
+  onOpenEncyclopedia
+}: Props) {
   const [family, setFamily] = useState<GarmentFamily>('bodice');
-  const [measurements, setMeasurements] = useState(initialMeasurements);
-  const [ease, setEase] = useState(initialEase);
+  const [measurements, setMeasurements] = useState(() => sharedMeasurements ?? initialMeasurements);
+  const [ease, setEase] = useState(() => sharedEase ?? initialEase);
   const [showSources, setShowSources] = useState(false);
+
+  const updateMeasurement = (key: keyof StudioMeasurements, value: number) => {
+    setMeasurements(previous => {
+      const next = { ...previous, [key]: value };
+      onDraftChange?.(next, ease);
+      return next;
+    });
+  };
+
+  const updateEase = (key: keyof EaseProfile, value: number) => {
+    setEase(previous => {
+      const next = { ...previous, [key]: value };
+      onDraftChange?.(measurements, next);
+      return next;
+    });
+  };
   const source = useMemo(() => buildKtrSource(measurements, ease), [measurements, ease]);
   const validation = useMemo(() => validateStudioProfile(measurements, ease), [measurements, ease]);
   const isValid = validation.errors.length === 0;
@@ -104,7 +129,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
           <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
             <div className="flex items-center justify-between"><div><h2 className="font-bold">2. القياسات الأساسية</h2><p className="mt-1 text-xs text-slate-400">القيم بالسنتيمتر ويمكن تعديلها.</p></div><Ruler className="h-5 w-5 text-sky-300" /></div>
             <div className="grid grid-cols-2 gap-3">
-              {measurementFields.map(field => <label key={field.key} className="space-y-1.5"><span className="block text-xs font-semibold text-slate-300">{field.label}</span><div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2"><input type="number" min={field.min} max={field.max} step="0.5" value={measurements[field.key]} onChange={event => setMeasurements(prev => ({ ...prev, [field.key]: Number(event.target.value) }))} className="w-full min-w-0 bg-transparent py-2 text-sm font-bold outline-none" /><span className="text-[10px] text-slate-500">سم</span></div></label>)}
+              {measurementFields.map(field => <label key={field.key} className="space-y-1.5"><span className="block text-xs font-semibold text-slate-300">{field.label}</span><div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2"><input type="number" min={field.min} max={field.max} step="0.5" value={measurements[field.key]} onChange={event => updateMeasurement(field.key, Number(event.target.value))} className="w-full min-w-0 bg-transparent py-2 text-sm font-bold outline-none" /><span className="text-[10px] text-slate-500">سم</span></div></label>)}
             </div>
             {validation.errors.length > 0 && <div role="alert" className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-6 text-rose-200"><strong>لا يمكن إرسال هذه القياسات إلى المحرك قبل تصحيحها:</strong><ul className="mt-1 list-inside list-disc">{validation.errors.map(issue => <li key={issue.field}>{issue.label}: {issue.message}</li>)}</ul></div>}
           </div>
@@ -115,7 +140,7 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">3. توزيع الراحة حسب المنطقة</h2><p className="mt-1 text-xs leading-5 text-slate-400">قيم مستقلة بالسنتيمتر. فصل الراحة عن قياس الجسم يمنع خلط القياس التشريحي مع مقدار الاتساع التصميمي.</p></div><div className="rounded-xl bg-indigo-500/10 px-3 py-2 text-xs text-indigo-200">4 مناطق مستقلة قابلة للضبط</div></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {easeFields.map(field => <div key={field.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3"><div className="flex items-center justify-between gap-2"><label htmlFor={`ease-${field.key}`} className="text-xs font-bold">{field.label}</label><span className="font-mono text-sm font-bold text-indigo-300">{ease[field.key].toFixed(1)} سم</span></div><input id={`ease-${field.key}`} type="range" min="-3" max="12" step="0.5" value={ease[field.key]} onChange={event => setEase(prev => ({ ...prev, [field.key]: Number(event.target.value) }))} className="mt-3 w-full accent-indigo-400" /><p className="mt-2 text-[10px] leading-5 text-slate-500">{field.hint}</p></div>)}
+            {easeFields.map(field => <div key={field.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3"><div className="flex items-center justify-between gap-2"><label htmlFor={`ease-${field.key}`} className="text-xs font-bold">{field.label}</label><span className="font-mono text-sm font-bold text-indigo-300">{ease[field.key].toFixed(1)} سم</span></div><input id={`ease-${field.key}`} type="range" min="-3" max="12" step="0.5" value={ease[field.key]} onChange={event => updateEase(field.key, Number(event.target.value))} className="mt-3 w-full accent-indigo-400" /><p className="mt-2 text-[10px] leading-5 text-slate-500">{field.hint}</p></div>)}
           </div>
           <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-5 text-amber-200/80">تنبيه منهجي: القيم هنا سماحات إضافية بالسنتيمتر لكل منطقة، وليست معاملات EASE المنشورة. بحث EASE يعبّر عن الراحة بمقاييس محلية متباينة الاتجاهات لكل مثلث على سطح الجسم (مثل ρweft وρwarp)، ويحتاج إلى تحويل هندسي وتحسين وقيود درز قبل اعتباره مطبقاً. هذه القيم الأولية ليست توصيات قياسية، ويجب توزيعها على القطع وربطها بالقماش والموديل والحركة قبل اعتمادها.</p>
         </section>
