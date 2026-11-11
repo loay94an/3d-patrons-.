@@ -1,8 +1,6 @@
 name: Anny runtime proof of concept
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 permissions:
