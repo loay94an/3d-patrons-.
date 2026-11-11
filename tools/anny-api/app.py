@@ -23,6 +23,7 @@ from starlette.concurrency import run_in_threadpool
 
 ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = ROOT / "tools" / "anny-poc" / "generate.py"
+PROFILE_ANALYZER = ROOT / "tools" / "anny-poc" / "analyze_profile.py"
 MAX_PARAMETERS = 40
 GENERATION_TIMEOUT_SECONDS = int(os.getenv("ANNY_GENERATION_TIMEOUT", "420"))
 MAX_CONCURRENT_GENERATIONS = max(1, int(os.getenv("ANNY_MAX_CONCURRENT_GENERATIONS", "1")))
@@ -160,6 +161,46 @@ def _generate_archive(phenotypes: dict[str, float]) -> str:
         raise
 
 
+def _analyze_generated_profile(phenotypes: dict[str, float]) -> dict[str, Any]:
+    """Generate Anny and return a diagnostic horizontal-section profile report."""
+    import shutil
+
+    glb_path = _generate_glb_file(phenotypes)
+    workdir = Path(glb_path).parent
+    report_path = workdir / "profile-report.json"
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                str(PROFILE_ANALYZER),
+                "--model",
+                glb_path,
+                "--output",
+                str(report_path),
+                "--samples",
+                "121",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=GENERATION_TIMEOUT_SECONDS,
+        )
+        if not report_path.is_file():
+            raise RuntimeError("Anny profile analyzer did not produce a JSON report")
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if not isinstance(report, dict) or not isinstance(report.get("heuristic_candidates"), dict):
+            raise RuntimeError("Anny profile analyzer returned an invalid report")
+        return report
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError("Anny profile analysis exceeded the configured time limit") from exc
+    except subprocess.CalledProcessError as exc:
+        message = (exc.stderr or exc.stdout or "Anny profile analysis failed")[-3000:]
+        raise RuntimeError(message) from exc
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)
+
+
 def _generate_glb_file(phenotypes: dict[str, float]) -> str:
     """Generate a standalone GLB file for browser clients."""
     workdir = tempfile.mkdtemp(prefix="anny-glb-job-")
@@ -243,3 +284,31 @@ async def generate_body(request: GenerateRequest, background_tasks: BackgroundTa
         filename="anny-body-result.zip",
         background=background_tasks,
     )
+
+
+@app.post("/v1/anny/analyze")
+async def analyze_body_profile(request: GenerateRequest) -> dict[str, Any]:
+    """Generate an Anny body and return review-only section diagnostics.
+
+    The returned hip/waist/bust extrema are geometric candidates, not validated
+    anatomical landmarks or sewing measurements.
+    """
+    try:
+        phenotypes = normalize_phenotypes(request.phenotypes)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    try:
+        return await run_in_threadpool(
+            run_with_generation_slot, _analyze_generated_profile, phenotypes
+        )
+    except GenerationBusyError as exc:
+        raise HTTPException(
+            status_code=503, detail=str(exc), headers={"Retry-After": "5"}
+        ) from exc
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=503, detail=f"Anny profile analysis failed: {exc}"
+        ) from exc
