@@ -17,7 +17,7 @@ from typing import Any
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -128,8 +128,12 @@ def _generate_archive(phenotypes: dict[str, float]) -> str:
             bundle.write(report, "report.json")
         return str(archive)
     except subprocess.TimeoutExpired as exc:
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
         raise TimeoutError("Anny generation exceeded the configured time limit") from exc
     except subprocess.CalledProcessError as exc:
+        import shutil
+        shutil.rmtree(workdir, ignore_errors=True)
         message = (exc.stderr or exc.stdout or "Anny generation failed")[-3000:]
         raise RuntimeError(message) from exc
     except Exception:
