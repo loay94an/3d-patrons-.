@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createProject, exportProjects, importProjects, loadProjects, persistProjects, saveProject, PROJECT_STORAGE_KEY } from './project-store';
+import { createProject, createStudioProject, exportProjects, importProjects, loadProjects, persistProjects, saveProject, PROJECT_STORAGE_KEY } from './project-store';
 
 describe('project workspace storage', () => {
   it('creates projects with independent measurement and ease profiles', () => {
@@ -8,6 +8,16 @@ describe('project workspace storage', () => {
     assert.equal(project.name, 'اختبار');
     assert.equal(project.version, 1);
     assert.equal(project.measurements.bust, 88);
+  });
+  it('creates a saved studio project with its chosen garment, measurements, and ease', () => {
+    const project = createStudioProject('بلوزة تجريبية', 'blouse',
+      { bust: 96, waist: 78, hip: 102, backLength: 42, sleeveLength: 60, upperArm: 32 },
+      { bust: 5, waist: 3, hip: 4, upperArm: 3.5 }, '2026-01-04T00:00:00.000Z');
+    assert.equal(project.garment, 'blouse');
+    assert.equal(project.family, 'bodice');
+    assert.equal(project.measurements.bust, 96);
+    assert.equal(project.ease.bust, 5);
+    assert.equal(project.version, 1);
   });
   it('creates immutable versions only when content changes', () => {
     const initial = createProject('نسخة', '2026-01-01T00:00:00.000Z');

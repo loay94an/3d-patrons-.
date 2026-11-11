@@ -27,6 +27,7 @@ import { ProjectWorkspace } from './ProjectWorkspace';
 import { createMeasurementProfile, validateStudioProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
+import { createStudioProject, loadProjects, persistProjects, type ProjectGarment, type ProjectMeasurements, type ProjectEase } from '../lib/project-store';
 
 export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'garment_image' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
 
@@ -195,6 +196,23 @@ export default function PatternApp() {
     ...currentStandardMeas,
     height: state.customMeasurements.height ?? DEFAULT_MANNEQUIN_MEASUREMENTS[state.gender].height,
     ...state.customMeasurements
+  };
+
+  const startProjectForCad = (garment: GarmentType, measurements: ProjectMeasurements, ease: ProjectEase) => {
+    const supportedGarments: ProjectGarment[] = ['blouse', 'dress', 'shirt', 'skirt', 'pants', 'tshirt', 'abaya', 'coat', 'hoodie', 'blazer'];
+    const projectGarment: ProjectGarment = supportedGarments.includes(garment as ProjectGarment)
+      ? garment as ProjectGarment : 'blouse';
+    const project = createStudioProject(
+      `مشروع ${getGarmentLabel(garment)} - ${new Date().toLocaleDateString('ar')}`,
+      projectGarment, measurements, ease
+    );
+    const saved = typeof window !== 'undefined'
+      && persistProjects(window.localStorage, [project, ...loadProjects(window.localStorage)]);
+    setActiveProjectId(saved ? project.id : null);
+    if (!saved && typeof window !== 'undefined') {
+      window.alert('تعذر حفظ المشروع محلياً؛ يمكنك متابعة الرسم لكن احفظ نسخة احتياطية قبل إغلاق الصفحة.');
+    }
+    return project;
   };
 
   const isWomen = state.gender === 'women';
@@ -452,9 +470,11 @@ export default function PatternApp() {
                 });
               }}
               onOpenCad={(garment, profile, ease, draft) => {
-                setActiveProjectId(null);
-                setCadInitialDraft(draft ?? null);
                 const measurements = profile.values;
+                startProjectForCad(garment, measurements, {
+                  bust: ease.bust, waist: ease.waist, hip: ease.hip, upperArm: ease.upperArm
+                });
+                setCadInitialDraft(draft ?? null);
                 updateState({
                   garment,
                   useCustomMode: true,
@@ -482,7 +502,19 @@ export default function PatternApp() {
         {activeTab === 'catalog' && (
           <div className="w-full h-full">
             <PatternCatalog onSelect={(garment, gender) => {
-              setActiveProjectId(null);
+              startProjectForCad(garment, {
+                bust: currentMeas.bust ?? currentMeas.chest ?? 88,
+                waist: currentMeas.waist ?? 70,
+                hip: currentMeas.hip ?? 94,
+                backLength: currentMeas.backLength ?? 40,
+                sleeveLength: currentMeas.sleeveLength ?? 58,
+                upperArm: currentMeas.armCirc ?? 30
+              }, {
+                bust: state.customMeasurements.bustEase ?? 4,
+                waist: state.customMeasurements.waistEase ?? 2,
+                hip: state.customMeasurements.hipEase ?? 4,
+                upperArm: state.customMeasurements.upperArmEase ?? 3
+              });
               setCadInitialDraft(null);
               updateState({ garment, gender });
               setActiveTab('cad2d');

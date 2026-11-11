@@ -23,6 +23,26 @@ export function createProject(name = 'مشروع جديد', now = new Date().toI
 function createId(): string {
   return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
+export function createStudioProject(
+  name: string,
+  garment: ProjectGarment,
+  measurements: ProjectMeasurements,
+  ease: ProjectEase,
+  now = new Date().toISOString()
+): ProjectSnapshot {
+  const base = createProject(name, now);
+  const family: ProjectFamily = garment === 'pants' ? 'trousers'
+    : garment === 'skirt' ? 'skirt'
+    : garment === 'coat' || garment === 'blazer' ? 'jacket'
+    : 'bodice';
+  return {
+    ...base,
+    garment,
+    family,
+    measurements: { ...measurements },
+    ease: { ...ease }
+  };
+}
 export function saveProject(project: ProjectSnapshot, patch: Partial<Pick<ProjectSnapshot, 'name' | 'garment' | 'family' | 'measurements' | 'ease' | 'notes'>>, now = new Date().toISOString()): ProjectSnapshot {
   const changed = { ...project, ...patch };
   const snapshot = { version: project.version, savedAt: now, measurements: clone(project.measurements), ease: clone(project.ease), notes: project.notes };
