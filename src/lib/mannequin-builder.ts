@@ -184,7 +184,7 @@ export function measureTorsoMeshCircumference(
     );
   }
   mannequin.traverse(object => {
-    if (object instanceof THREE.Mesh) {
+    if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
       object.geometry.dispose();
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.forEach(material => material.dispose());
