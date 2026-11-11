@@ -502,8 +502,26 @@ export function Pattern3DViewer({
     setAnnyGarmentFitReport(null);
     if (annyPreviewEnabled && showGarmentOnAnny && annyBodyMeshRef.current) {
       annyGroupRef.current?.updateMatrixWorld(true);
-      const fitReport = conformGarmentMeshToBody(garmentResult.garmentMesh, annyBodyMeshRef.current, 1.5);
-      setAnnyGarmentFitReport(fitReport);
+      const fitReports: GarmentConformReport[] = [];
+      garmentResult.group.traverse(object => {
+        if (object instanceof THREE.Mesh) {
+          fitReports.push(conformGarmentMeshToBody(object, annyBodyMeshRef.current!, 1.5));
+        }
+      });
+      const totalVertices = fitReports.reduce((sum, report) => sum + report.totalVertices, 0);
+      const fittedVertices = fitReports.reduce((sum, report) => sum + report.fittedVertices, 0);
+      const weightedDisplacement = fitReports.reduce(
+        (sum, report) => sum + report.meanDisplacementCm * report.fittedVertices, 0
+      );
+      const fitRatio = totalVertices ? fittedVertices / totalVertices : 0;
+      setAnnyGarmentFitReport({
+        totalVertices,
+        fittedVertices,
+        fitRatio,
+        meanDisplacementCm: fittedVertices ? weightedDisplacement / fittedVertices : 0,
+        maxDisplacementCm: Math.max(0, ...fitReports.map(report => report.maxDisplacementCm)),
+        status: fitRatio > 0.75 ? 'conformed' : fittedVertices > 0 ? 'partial' : 'no-intersections'
+      });
     }
     garmentResult.seamLinesGroup.visible = showSeams;
     garmentResult.group.visible = !annyPreviewEnabled || showGarmentOnAnny;
