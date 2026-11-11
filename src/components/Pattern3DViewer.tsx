@@ -688,10 +688,10 @@ export function Pattern3DViewer({
     }
     annyNativeHeightRef.current = size.y;
     const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
-    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, measurementValues.height);
+    const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, resolved.body.height);
     if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
       try {
-        const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
         const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
           heightCm: targetHeightCm,
           bustCm: resolved.body.bust,
@@ -736,8 +736,8 @@ export function Pattern3DViewer({
     if (!group || !nativeHeight || !annyPreviewEnabled) return;
 
     const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
-    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, measurementValues.height);
     const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, resolved.body.height);
     if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
       try {
         const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
