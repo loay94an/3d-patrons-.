@@ -1,13 +1,8 @@
 export type GarmentFamily = 'bodice' | 'skirt' | 'trousers' | 'jacket';
 
-export interface StudioMeasurements {
-  bust: number;
-  waist: number;
-  hip: number;
-  backLength: number;
-  sleeveLength: number;
-  upperArm: number;
-}
+import type { StudioMeasurementValues } from './measurement-profile';
+
+export type StudioMeasurements = StudioMeasurementValues;
 
 export interface EaseProfile {
   bust: number;
