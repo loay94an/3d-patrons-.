@@ -4,6 +4,7 @@ import { buildKtrSource, EaseProfile, GarmentFamily, StudioMeasurements } from '
 import { GarmentType } from '../lib/pattern-logic';
 import { createMeasurementProfile, validateStudioProfile, MeasurementProfile } from '../lib/measurement-profile';
 import { BasicSkirtDraftPanel } from './BasicSkirtDraftPanel';
+import { MeasurementProfileLibrary } from './MeasurementProfileLibrary';
 import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
 
 type Props = {
@@ -129,6 +130,7 @@ export function ParametricStudio({
               {measurementFields.map(field => <label key={field.key} className="space-y-1.5"><span className="block text-xs font-semibold text-slate-300">{field.label}</span><div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-950 px-2"><input type="number" min={field.min} max={field.max} step="0.5" value={measurements[field.key]} onChange={event => updateMeasurement(field.key, Number(event.target.value))} className="w-full min-w-0 bg-transparent py-2 text-sm font-bold outline-none" /><span className="text-[10px] text-slate-500">سم</span></div></label>)}
             </div>
             {validation.errors.length > 0 && <div role="alert" className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs leading-6 text-rose-200"><strong>لا يمكن إرسال هذه القياسات إلى المحرك قبل تصحيحها:</strong><ul className="mt-1 list-inside list-disc">{validation.errors.map(issue => <li key={issue.field}>{issue.label}: {issue.message}</li>)}</ul></div>}
+            <MeasurementProfileLibrary values={measurements} onLoad={next => { setMeasurements(next); onDraftChange?.(next, ease); }} />
           </div>
         </section>
 
