@@ -13,6 +13,7 @@ import { buildParametricMannequin, resolve3DMeasurements } from '../lib/mannequi
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
+import { conformGarmentMeshToBody, type GarmentConformReport } from '../lib/garment-anny-fit';
 import { loadCadProjectDocument } from '../lib/cad-project-document';
 import type { CadPiece } from '../lib/pattern-cad-engine';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
@@ -202,6 +203,7 @@ export function Pattern3DViewer({
   const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
   const annySourceGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
+  const [annyGarmentFitReport, setAnnyGarmentFitReport] = useState<GarmentConformReport | null>(null);
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
@@ -497,6 +499,12 @@ export function Pattern3DViewer({
       fabricMat
     );
 
+    setAnnyGarmentFitReport(null);
+    if (annyPreviewEnabled && showGarmentOnAnny && annyBodyMeshRef.current) {
+      annyGroupRef.current?.updateMatrixWorld(true);
+      const fitReport = conformGarmentMeshToBody(garmentResult.garmentMesh, annyBodyMeshRef.current, 1.5);
+      setAnnyGarmentFitReport(fitReport);
+    }
     garmentResult.seamLinesGroup.visible = showSeams;
     garmentResult.group.visible = !annyPreviewEnabled || showGarmentOnAnny;
     scene.add(garmentResult.group);
@@ -1169,7 +1177,7 @@ export function Pattern3DViewer({
           <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'إعادة تحميل Anny'}</span>
         </button>
         {annyPreviewEnabled && <>
-          <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الملابس فوق Anny بعد التحقق؛ المحاذاة الحالية غير معايرة">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
+          <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="تشكيل سطح الملابس ليتبع شبكة جسم Anny الفعلية">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
           <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
         </>}
 
@@ -1285,7 +1293,14 @@ export function Pattern3DViewer({
       </div>
 
       {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
-        <div className="font-semibold">معاينة جسم Anny</div><div className="mt-1 text-slate-300">{annyFileName}</div>
+        <div className="font-semibold">معاينة جسم Anny والملابس</div><div className="mt-1 text-slate-300">{annyFileName}</div>
+        {annyGarmentFitReport && <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-2 text-[10px] leading-4">
+          <div className={annyGarmentFitReport.status === 'conformed' ? 'text-emerald-200' : 'text-amber-200'}>
+            {annyGarmentFitReport.status === 'conformed' ? 'تمت مواءمة سطح الملابس مع جسم Anny' : annyGarmentFitReport.status === 'partial' ? 'مواءمة جزئية لسطح الملابس' : 'لم يتم العثور على تقاطعات كافية لمواءمة الملابس'}
+          </div>
+          <div className="text-slate-300">نقاط مطابقة: {annyGarmentFitReport.fittedVertices} / {annyGarmentFitReport.totalVertices} · متوسط الإزاحة: {annyGarmentFitReport.meanDisplacementCm.toFixed(1)} سم</div>
+          <div className="text-slate-400">هذه مواءمة هندسية للمعاينة وليست محاكاة قماش أو اعتماداً لملاءمة الباترون.</div>
+        </div>}
         {annyCalibrationSummary && <div className="mt-2 space-y-1 text-[10px] leading-4">
           <div className={annyCalibrationSummary.status === 'calibrated-preview' ? 'text-emerald-200' : 'text-amber-200'}>
             {annyCalibrationSummary.status === 'calibrated-preview' ? 'تم تطبيق معايرة شكل أولية' : annyCalibrationSummary.status === 'limited-preview' ? 'معايرة محدودة — تحتاج مراجعة' : 'تعذرت المعايرة الكاملة'}
