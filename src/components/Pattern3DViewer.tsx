@@ -84,6 +84,7 @@ export function Pattern3DViewer({
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
   const [annyFileName, setAnnyFileName] = useState('');
+  const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
   const [annyLoadError, setAnnyLoadError] = useState('');
   const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
   const [annyApiPanelOpen, setAnnyApiPanelOpen] = useState(false);
@@ -485,6 +486,27 @@ export function Pattern3DViewer({
     requestAnimationFrame(() => frameScene(true));
   };
 
+  const handleLoadBundledAnny = async () => {
+    setAnnyBundledBusy(true);
+    setAnnyLoadError('');
+    try {
+      const modelUrl = `${import.meta.env.BASE_URL}models/anny-neutral.glb`;
+      const response = await fetch(modelUrl, { cache: 'no-cache' });
+      if (!response.ok) {
+        throw new Error('لم يُنشر نموذج Anny الأساسي بعد. أعد المحاولة بعد اكتمال نشر الموقع.');
+      }
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength < 1000) throw new Error('ملف Anny الأساسي غير مكتمل.');
+      const gltf = await new GLTFLoader().parseAsync(buffer, '');
+      installAnnyScene(gltf.scene, 'Anny • النموذج الأساسي');
+      setAnnyLoadError('');
+    } catch (error) {
+      setAnnyLoadError(error instanceof Error ? error.message : 'تعذر تحميل نموذج Anny الأساسي.');
+    } finally {
+      setAnnyBundledBusy(false);
+    }
+  };
+
   const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
 
   const readAnnyApiError = async (response: Response) => {
@@ -779,6 +801,9 @@ export function Pattern3DViewer({
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
+        <button disabled={annyBundledBusy} onClick={() => void handleLoadBundledAnny()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/40 border border-emerald-700/40 disabled:opacity-50" title="تحميل جسم Anny الأساسي المضمّن في الموقع؛ القياسات غير معايرة">
+          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'عرض جسم Anny'}</span>
+        </button>
         {annyPreviewEnabled && <>
           <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الباترون فوق جسم Anny؛ المحاذاة تقريبية حتى معايرة القياسات">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
           <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
@@ -888,8 +913,8 @@ export function Pattern3DViewer({
       </div>
 
       {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
-        <div className="font-semibold">معاينة جسم Anny فقط</div><div className="mt-1 text-slate-300">{annyFileName}</div>
-        <div className="mt-1 text-amber-200">ضُبط الارتفاع للعرض التقريبي فقط. القياسات غير معايرة، والباترون مخفي في هذه المعاينة.</div>
+        <div className="font-semibold">معاينة جسم Anny</div><div className="mt-1 text-slate-300">{annyFileName}</div>
+        <div className="mt-1 text-amber-200">ضُبط الارتفاع للعرض فقط. القياسات غير معايرة، ومحاذاة الملابس تقريبية.</div>
       </div>}
 
       {/* Heatmap Legend when active */}
