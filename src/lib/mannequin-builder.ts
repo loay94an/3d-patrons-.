@@ -245,12 +245,13 @@ export function buildParametricMannequin(
   // bridges the open lower torso to the thighs; gluteal forms add a natural
   // posterior contour instead of leaving a flat, tube-like back.
   const pelvisProfile = getTorsoProfile(gender, measurements, gender === 'kids' || gender === 'infant' ? 0.34 : 0.28);
-  addEllipsoid('PelvisCore', 0, pelvisProfile.y + 1.2 * scale, -0.15 * scale,
-    pelvisProfile.rx * 0.94, 7.2 * scale, pelvisProfile.rz * 0.98);
+  const pelvisCenterY = yOffset + torsoHeight * 0.16;
+  addEllipsoid('PelvisCore', 0, pelvisCenterY, -0.15 * scale,
+    pelvisProfile.rx * 0.94, 8.2 * scale, pelvisProfile.rz * 0.98);
   [-1, 1].forEach(side => {
     addEllipsoid('Gluteal_' + side, side * pelvisProfile.rx * 0.39,
-      pelvisProfile.y + 0.4 * scale, -pelvisProfile.rz * 0.56,
-      pelvisProfile.rx * 0.43, 6.2 * scale, pelvisProfile.rz * 0.56);
+      pelvisCenterY - 0.4 * scale, -pelvisProfile.rz * 0.56,
+      pelvisProfile.rx * 0.43, 6.8 * scale, pelvisProfile.rz * 0.56);
   });
 
   // Tapered anatomical segments replace uniform capsules: real limbs narrow
