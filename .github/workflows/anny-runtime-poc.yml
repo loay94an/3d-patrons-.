@@ -2,7 +2,7 @@ name: Anny runtime proof of concept
 
 on:
   push:
-    branches: ["feature/anny-human-model-poc"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -21,6 +21,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tools/anny-poc/requirements.txt
 
       - name: Install CPU PyTorch
         run: |
@@ -46,23 +48,29 @@ jobs:
           report_path = glb.with_suffix(".json")
           assert glb.is_file() and glb.stat().st_size > 1000, "GLB is missing or unexpectedly small"
           assert report_path.is_file(), "JSON report is missing"
+
           report = json.loads(report_path.read_text(encoding="utf-8"))
           assert report["model"] == "Anny"
           assert report["device"] == "cpu"
           assert report["vertex_count"] > 0
           assert report["triangle_count"] > 0
           assert "Not calibrated" in report["measurement_status"]
+
           scene = trimesh.load(glb, force="scene")
-          meshes = [g for g in scene.geometry.values() if isinstance(g, trimesh.Trimesh)]
+          meshes = [geometry for geometry in scene.geometry.values()
+                    if isinstance(geometry, trimesh.Trimesh)]
           assert meshes, "GLB contains no triangle mesh"
-          vertices = np.concatenate([m.vertices for m in meshes], axis=0)
+          vertices = np.concatenate([mesh.vertices for mesh in meshes], axis=0)
+          faces_count = sum(len(mesh.faces) for mesh in meshes)
           assert np.isfinite(vertices).all(), "GLB contains non-finite vertices"
-          assert sum(len(m.faces) for m in meshes) > 0, "GLB contains no faces"
+          assert faces_count > 0, "GLB contains no faces"
+
           print(json.dumps({
               "glb_bytes": glb.stat().st_size,
               "mesh_count": len(meshes),
               "vertex_count_reported": report["vertex_count"],
               "triangle_count_reported": report["triangle_count"],
+              "triangle_count_in_glb": faces_count,
               "bounds_model_units": report["bounds_model_units"],
               "measurement_status": report["measurement_status"],
           }, indent=2))
