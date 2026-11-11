@@ -1,5 +1,6 @@
 // CAD Geometry & Pattern-by-Numbers Engine
 import { quadraticBezierLength, cubicBezierLength } from './path-geometry';
+import { evaluateArithmeticExpression } from './safe-math';
 // Computes parametric clothing patterns, layers, notches, seam allowances, and numeric specs.
 
 export type CadLayerType = 'cutting' | 'stitch' | 'seam' | 'notches' | 'notes' | 'dimensions' | 'guideline';
@@ -206,33 +207,29 @@ export function evaluateDraftingRule(
   },
   defaultVal: number
 ): number {
-  try {
-    const sanitized = formula
-      .replace(/backLength/g, `${vars.backLength}`)
-      .replace(/frontLength/g, `${vars.frontLength}`)
-      .replace(/shoulderLength/g, `${vars.shoulderLength}`)
-      .replace(/neckCirc/g, `${vars.neckCirc}`)
-      .replace(/bustCirc/g, `${vars.bustCirc}`)
-      .replace(/waistCirc/g, `${vars.waistCirc}`)
-      .replace(/hipCirc/g, `${vars.hipCirc}`)
-      .replace(/armholeCirc/g, `${vars.armholeCirc}`)
-      .replace(/sleeveLength/g, `${vars.sleeveLength}`)
-      .replace(/ease/g, `${vars.ease}`)
-      .replace(/π/g, `${Math.PI}`)
-      .replace(/PI/g, `${Math.PI}`);
+  const variables = {
+    backLength: vars.backLength,
+    frontLength: vars.frontLength,
+    shoulderLength: vars.shoulderLength,
+    neckCirc: vars.neckCirc,
+    bustCirc: vars.bustCirc,
+    waistCirc: vars.waistCirc,
+    hipCirc: vars.hipCirc,
+    armholeCirc: vars.armholeCirc,
+    sleeveLength: vars.sleeveLength,
+    ease: vars.ease
+  };
 
-    // Safe mathematical evaluation (basic arithmetic only)
-    if (/^[0-9+\-*/().\sMathPI]+$/.test(sanitized)) {
-      // eslint-disable-next-line no-new-func
-      const result = Function(`'use strict'; return (${sanitized})`)();
-      if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
-        return Math.max(0.1, +result.toFixed(2));
-      }
-    }
-  } catch {
-    // fallback
+  let expression = formula;
+  for (const [name, value] of Object.entries(variables)) {
+    if (!Number.isFinite(value)) return defaultVal;
+    expression = expression.replace(new RegExp(`\\b${name}\\b`, 'g'), String(value));
   }
-  return defaultVal;
+  expression = expression.replace(/π|\bPI\b/g, String(Math.PI));
+
+  const result = evaluateArithmeticExpression(expression);
+  if (result === null) return defaultVal;
+  return Math.max(0.1, +result.toFixed(2));
 }
 
 // Generate Reference Points (P1, P2... with coordinates and descriptions)
