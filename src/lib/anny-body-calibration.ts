@@ -86,7 +86,8 @@ export function calibrateAnnyBodyGeometry(
     throw new Error('Anny body geometry has no usable vertex bounds');
   }
   const height = bounds.max.z - bounds.min.z;
-  if (!Number.isFinite(height) || height <= 0) {
+  const horizontalSpan = Math.max(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y);
+  if (!Number.isFinite(height) || height <= 0 || height < horizontalSpan * 1.2) {
     geometry.dispose();
     throw new Error('Anny body must use its documented Z-up vertical axis');
   }
