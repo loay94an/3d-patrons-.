@@ -78,7 +78,6 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   const [showSpecsTable, setShowSpecsTable] = useState(false);
   const [showSeamAllowanceControl, setShowSeamAllowanceControl] = useState(false);
   const [showQualityReport, setShowQualityReport] = useState(false);
-  const qualityReport = useMemo(() => validatePatternPieces(pieces), [pieces]);
 
   // Pattern By Numbers Data State (16 fields)
   const [patternInputs, setPatternInputs] = useState<PatternByNumbersInput>(() => {
@@ -113,6 +112,8 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
   const [summaries, setSummaries] = useState<PieceSpecSummary[]>(() => {
     return generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).summaries;
   });
+
+  const qualityReport = useMemo(() => validatePatternPieces(pieces), [pieces]);
 
   // Synchronize 2D CAD pattern pieces whenever state.customMeasurements or size changes
   useEffect(() => {
