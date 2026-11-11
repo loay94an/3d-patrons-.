@@ -80,6 +80,9 @@ export function Pattern3DViewer({
   // Visual toggles
   const [showMannequin, setShowMannequin] = useState(true);
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
+  // Garment geometry is drafted from the project's tape measurements; keep this
+  // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
+  const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
   const [annyFileName, setAnnyFileName] = useState('');
   const [annyLoadError, setAnnyLoadError] = useState('');
   const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
@@ -331,13 +334,13 @@ export function Pattern3DViewer({
     );
 
     garmentResult.seamLinesGroup.visible = showSeams;
-    garmentResult.group.visible = !annyPreviewEnabled;
+    garmentResult.group.visible = !annyPreviewEnabled || showGarmentOnAnny;
     scene.add(garmentResult.group);
     garmentResultRef.current = garmentResult;
 
     // Re-frame only while the user has not taken control of the camera.
     frameScene();
-  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, frameScene]);
+  }, [state.gender, state.garment, state.customMeasurements, fabricState, showHeatmap, showMannequin, showSeams, annyPreviewEnabled, showGarmentOnAnny, frameScene]);
 
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -615,6 +618,9 @@ export function Pattern3DViewer({
     const exportObjects: THREE.Object3D[] = [];
     if (annyPreviewEnabled && annyGroupRef.current) {
       exportObjects.push(annyGroupRef.current);
+      if (showGarmentOnAnny && garmentResultRef.current?.group.visible) {
+        exportObjects.push(garmentResultRef.current.group);
+      }
     } else {
       if (mannequinGroupRef.current?.visible) exportObjects.push(mannequinGroupRef.current);
       if (garmentResultRef.current?.group.visible) exportObjects.push(garmentResultRef.current.group);
@@ -773,7 +779,10 @@ export function Pattern3DViewer({
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
-        {annyPreviewEnabled && <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>}
+        {annyPreviewEnabled && <>
+          <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="عرض الباترون فوق جسم Anny؛ المحاذاة تقريبية حتى معايرة القياسات">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
+          <button onClick={handleRemoveAnnyPreview} className="px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-600/20 text-amber-200 border border-amber-500/40">إغلاق Anny</button>
+        </>}
 
         {/* Turntable Auto-rotate */}
         <button
