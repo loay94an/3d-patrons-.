@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Ruler, Scissors } from 'lucide-react';
 import { generateBasicSkirtDraft } from '../lib/basic-skirt-pattern';
 import { segmentToSvgPath } from '../lib/pattern-cad-engine';
@@ -35,10 +35,32 @@ function PanelPreview({ piece, originX }: { piece: ReturnType<typeof generateBas
   );
 }
 
-export function BasicSkirtDraftPanel() {
-  const [measurements, setMeasurements] = useState(initial);
+type BasicSkirtDraftPanelProps = {
+  initialMeasurements?: { waist?: number; hip?: number };
+  onApply?: (result: ReturnType<typeof generateBasicSkirtDraft>) => void;
+  onMeasurementsChange?: (key: 'waist' | 'hip', value: number) => void;
+};
+
+export function BasicSkirtDraftPanel({ initialMeasurements, onApply, onMeasurementsChange }: BasicSkirtDraftPanelProps) {
+  const [measurements, setMeasurements] = useState(() => ({
+    ...initial,
+    waistCircumferenceCm: initialMeasurements?.waist ?? initial.waistCircumferenceCm,
+    hipCircumferenceCm: initialMeasurements?.hip ?? initial.hipCircumferenceCm
+  }));
+
+  useEffect(() => {
+    setMeasurements(current => ({
+      ...current,
+      waistCircumferenceCm: initialMeasurements?.waist ?? current.waistCircumferenceCm,
+      hipCircumferenceCm: initialMeasurements?.hip ?? current.hipCircumferenceCm
+    }));
+  }, [initialMeasurements?.waist, initialMeasurements?.hip]);
   const result = useMemo(() => generateBasicSkirtDraft(measurements), [measurements]);
-  const update = (key: keyof typeof initial, value: number) => setMeasurements(current => ({ ...current, [key]: value }));
+  const update = (key: keyof typeof initial, value: number) => {
+    setMeasurements(current => ({ ...current, [key]: value }));
+    if (key === 'waistCircumferenceCm') onMeasurementsChange?.('waist', value);
+    if (key === 'hipCircumferenceCm') onMeasurementsChange?.('hip', value);
+  };
 
   return (
     <section className="space-y-4 rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-4 sm:p-5">
@@ -92,6 +114,17 @@ export function BasicSkirtDraftPanel() {
           </div>
         </>
       )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] leading-6 text-slate-500">يمكن إرسال القطع الناتجة إلى محرر 2D لمتابعة العمل عليها.</p>
+        <button
+          type="button"
+          onClick={() => onApply?.(result)}
+          disabled={!result.validation.valid || result.pieces.length !== 2 || !onApply}
+          className="rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          فتح البلوك في محرر 2D
+        </button>
+      </div>
       <p className="text-[11px] leading-6 text-slate-500">حدود هذه النسخة: بلوك مستقيم أولي، وليس باترون إنتاج معتمداً. لم تُضف بعد تحويلات البنَس إلى قصّات، أو التدريج، أو فحص عينة فعلية، أو اختبار توازن القماش والملاءمة على الجسم.</p>
     </section>
   );

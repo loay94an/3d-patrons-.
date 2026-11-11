@@ -26,6 +26,7 @@ import { CadFloatingProperties } from './CadFloatingProperties';
 import { PatternByNumbersModal } from './PatternByNumbersModal';
 import { TilePrintModal } from './TilePrintModal';
 import { CadHistoryModal, HistoryEntry } from './CadHistoryModal';
+import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
 
 function mapGarmentToCadType(garment: GarmentType): 'bodice' | 'shirt' | 'dress' | 'pants' | 'sleeve' | 'skirt' {
   if (garment === 'dress') return 'dress';
@@ -40,9 +41,10 @@ interface PatternVisualizerProps {
   onBackToCalculator?: () => void;
   /** Tells the app which garment is being drafted, so the 3D mannequin wears it. */
   onGarmentChange?: (garment: GarmentType) => void;
+  initialDraft?: BasicSkirtDraftResult | null;
 }
 
-export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }: PatternVisualizerProps) {
+export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange, initialDraft }: PatternVisualizerProps) {
   // Unit setup
   const isInch = state.unit === 'in';
   const unitLabel = isInch ? 'إنش' : 'سم';
@@ -107,11 +109,11 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
 
   // Active Pieces & Summaries
   const [pieces, setPieces] = useState<CadPiece[]>(() => {
-    return generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).pieces;
+    return state.garment === 'skirt' && initialDraft ? initialDraft.pieces : generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).pieces;
   });
 
   const [summaries, setSummaries] = useState<PieceSpecSummary[]>(() => {
-    return generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).summaries;
+    return state.garment === 'skirt' && initialDraft ? initialDraft.summaries : generatePatternByNumbers(DEFAULT_PATTERN_NUMBERS, { widthCm: 110, heightCm: 85, unit: 'cm' }).summaries;
   });
 
   const qualityReport = useMemo(() => validatePatternPieces(pieces), [pieces]);
@@ -152,13 +154,22 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
     const cadGarmentType = mapGarmentToCadType(state.garment);
     setActiveGarmentType(cadGarmentType);
     const result = generatePatternByNumbers(updatedInputs, workFrame, cadGarmentType);
+    // Keep the explicit skirt draft from the parametric studio as the active CAD geometry.
+    if (state.garment === 'skirt' && initialDraft) {
+      setPieces(currentPieces => [
+        ...initialDraft.pieces,
+        ...currentPieces.filter(piece => piece.garmentType === 'custom')
+      ]);
+      setSummaries(initialDraft.summaries);
+      return;
+    }
     // Refresh generated garment pieces without discarding user-created freehand geometry.
     setPieces(currentPieces => [
       ...result.pieces,
       ...currentPieces.filter(piece => piece.garmentType === 'custom')
     ]);
     setSummaries(result.summaries);
-  }, [state.gender, state.size, state.garment, state.customMeasurements]);
+  }, [state.gender, state.size, state.garment, state.customMeasurements, initialDraft]);
 
   // Active CAD Tool & Modes
   const [activeTool, setActiveTool] = useState<CadActiveTool>('select_move');
