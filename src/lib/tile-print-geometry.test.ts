@@ -33,7 +33,7 @@ describe('CAD tiled-print contour geometry', () => {
       segment('left', [0, 10], [0, 0])
     ]), 8);
     assert.ok(result);
-    assert.equal(result.length, 11);
+    assert.equal(result.length, 12);
     assert.deepEqual(result[0], result[result.length - 1]);
   });
 
@@ -48,7 +48,7 @@ describe('CAD tiled-print contour geometry', () => {
     const result = getCadPieceContourPoints(piece([
       segment('top', [0, 0], [10, 0]), segment('right', [10, 0], [10, 10]),
       segment('bottom', [10, 10], [0, 10]), segment('left', [0, 10], [0, 0]),
-      segment('guide', [2, 2], [8, 2], { layer: 'construction' as CadSegment['layer'] })
+      segment('guide', [2, 2], [8, 2], { layer: 'guideline' })
     ]));
     assert.ok(result);
     assert.equal(result.length, 5);
