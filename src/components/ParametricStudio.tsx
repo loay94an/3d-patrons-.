@@ -51,7 +51,6 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
   const [showSources, setShowSources] = useState(false);
   const source = useMemo(() => buildKtrSource(measurements, ease), [measurements, ease]);
   const selected = families.find(item => item.id === family)!;
-  const totalEase = ease.bust + ease.waist + ease.hip + ease.upperArm;
 
   const downloadSource = () => {
     const blob = new Blob([source], { type: 'text/plain;charset=utf-8' });
@@ -107,11 +106,11 @@ export function ParametricStudio({ onOpenCad, onOpenEncyclopedia }: Props) {
         </section>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">3. توزيع الراحة حسب المنطقة</h2><p className="mt-1 text-xs leading-5 text-slate-400">قيم مستقلة بالسنتيمتر. فصل الراحة عن قياس الجسم يمنع خلط القياس التشريحي مع مقدار الاتساع التصميمي.</p></div><div className="rounded-xl bg-indigo-500/10 px-3 py-2 text-xs text-indigo-200">مجموع القيم المدخلة: {totalEase.toFixed(1)} سم</div></div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">3. توزيع الراحة حسب المنطقة</h2><p className="mt-1 text-xs leading-5 text-slate-400">قيم مستقلة بالسنتيمتر. فصل الراحة عن قياس الجسم يمنع خلط القياس التشريحي مع مقدار الاتساع التصميمي.</p></div><div className="rounded-xl bg-indigo-500/10 px-3 py-2 text-xs text-indigo-200">4 مناطق مستقلة قابلة للضبط</div></div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {easeFields.map(field => <div key={field.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3"><div className="flex items-center justify-between gap-2"><label htmlFor={`ease-${field.key}`} className="text-xs font-bold">{field.label}</label><span className="font-mono text-sm font-bold text-indigo-300">{ease[field.key].toFixed(1)} سم</span></div><input id={`ease-${field.key}`} type="range" min="-3" max="12" step="0.5" value={ease[field.key]} onChange={event => setEase(prev => ({ ...prev, [field.key]: Number(event.target.value) }))} className="mt-3 w-full accent-indigo-400" /><p className="mt-2 text-[10px] leading-5 text-slate-500">{field.hint}</p></div>)}
           </div>
-          <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-5 text-amber-200/80">تنبيه منهجي: قيم الراحة الحالية إعدادات أولية وليست توصيات قياسية. يجب تحديد هل القيمة إجمالية أم موزعة على أجزاء الباترون، وربطها بنوع القماش والموديل والحركة قبل اعتمادها.</p>
+          <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[11px] leading-5 text-amber-200/80">تنبيه منهجي: القيم هنا سماحات إضافية بالسنتيمتر لكل منطقة، وليست معاملات EASE المنشورة. بحث EASE يعبّر عن الراحة بمقاييس محلية متباينة الاتجاهات لكل مثلث على سطح الجسم (مثل ρweft وρwarp)، ويحتاج إلى تحويل هندسي وتحسين وقيود درز قبل اعتباره مطبقاً. هذه القيم الأولية ليست توصيات قياسية، ويجب توزيعها على القطع وربطها بالقماش والموديل والحركة قبل اعتمادها.</p>
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
