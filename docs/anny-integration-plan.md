@@ -2,15 +2,15 @@
 
 ## Architecture decision: local-first body model
 
-The site does not need a server to generate its everyday fitting mannequin. The React/Three.js client already builds a parametric body locally from bust, waist, hip, shoulder, back length, height, and body category. This path works on GitHub Pages and can be extended without Python, PyTorch, network requests, or inference hosting.
+Anny is the default visual human body in the 3D viewer. The GitHub Pages build generates a neutral Anny GLB and the browser loads it automatically; no hosted inference API is needed to display the bundled model. The local Three.js mannequin remains as a fallback and as a measurement-driven geometry reference while Anny calibration is developed.
 
-The local mannequin is the primary interactive fitting body. Anny is an optional advanced model-generation path, not a runtime dependency. Keep Anny server-side only if later experiments show a clear visual or anatomical benefit that the local model cannot reach. Do not require a hosted Anny service for basic measurement adaptation.
+Do not treat automatic loading or display-height normalization as anthropometric fitting. Anny is the preferred anatomical surface, but bust/waist/hip and other tape measurements must not be claimed to fit it until mesh landmarks, physical scale, and deformation have been validated. The optional Python API remains a separate route for generating phenotype variants; it is not required for the default viewer.
 
 The local model is currently a procedural fitting mannequin, not a photorealistic anatomical digital human. Its torso profile uses ellipse-based circumference targets; limbs and detailed anatomy remain approximations. Calibrating physical scale and validating real body-shape diversity are still required before claiming production measurement accuracy.
 
 ## Current implementation status
 
-The product is a Vite/React/Three.js static site deployed through GitHub Pages. The Anny integration is split between browser-side viewer code and a separate Python API.
+The product is a Vite/React/Three.js static site deployed through GitHub Pages. The Anny integration combines a bundled static GLB for default viewing, browser-side Three.js display, and an optional separate Python API for phenotype generation.
 
 ### Completed
 
@@ -85,3 +85,10 @@ The GitHub Pages build now generates a neutral Anny v0.6.2 GLB on CPU and publis
 The bundled body is a neutral-pose visual reference. The viewer normalizes its displayed height only; this does not calibrate its coordinates to centimetres or adapt the mesh to the user's tape measurements. The Anny API and manual GLB upload remain optional alternatives. The runtime proof-of-concept workflow is now manual-only to avoid generating the same model twice on every main-branch deployment.
 
 The Pages build runs Anny inference only for non-pull-request builds. Pull-request checks validate TypeScript, tests, and the site build without installing CPU PyTorch.
+
+
+## Updated default-viewer behavior
+
+The bundled Anny GLB is now loaded automatically when the 3D viewer opens. If the asset cannot be fetched or parsed, the viewer keeps the local procedural mannequin available and displays the Anny load error. Garment overlay on Anny starts disabled because the current pattern mesh has not yet been calibrated to Anny's physical scale and body landmarks. Users can explicitly enable the overlay for visual inspection, but it must not be interpreted as validated fit.
+
+The uploaded repository GLB assets are treated as reference candidates. A pull-request CI audit reports their mesh topology, bounds, connected components, skin joints, animation and morph-target metadata. The audit does not modify, redistribute, or automatically select any uploaded model as the fitting body.
