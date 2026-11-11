@@ -121,6 +121,7 @@ export function measureMeshSectionCircumference(
   if (!Number.isFinite(circumference) || circumference <= 0) {
     throw new Error('The section plane did not produce a measurable closed contour');
   }
+  return circumference;
 }
 
 /**
