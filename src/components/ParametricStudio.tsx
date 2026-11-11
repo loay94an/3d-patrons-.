@@ -4,12 +4,13 @@ import { buildKtrSource, EaseProfile, GarmentFamily, StudioMeasurements } from '
 import { GarmentType } from '../lib/pattern-logic';
 import { createMeasurementProfile, validateStudioProfile, MeasurementProfile } from '../lib/measurement-profile';
 import { BasicSkirtDraftPanel } from './BasicSkirtDraftPanel';
+import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
 
 type Props = {
   initialMeasurements?: StudioMeasurements;
   initialEase?: EaseProfile;
   onDraftChange?: (measurements: StudioMeasurements, ease: EaseProfile) => void;
-  onOpenCad: (garment: GarmentType, profile: MeasurementProfile, ease: EaseProfile) => void;
+  onOpenCad: (garment: GarmentType, profile: MeasurementProfile, ease: EaseProfile, draft?: BasicSkirtDraftResult) => void;
   onOpenEncyclopedia: () => void;
 };
 
@@ -131,7 +132,12 @@ export function ParametricStudio({
           </div>
         </section>
 
-        {family === 'skirt' && <BasicSkirtDraftPanel />}
+         {family === 'skirt' && (
+          <BasicSkirtDraftPanel
+            initialMeasurements={{ waist: measurements.waist, hip: measurements.hip }}
+            onApply={draft => onOpenCad('skirt', createMeasurementProfile(measurements), ease, draft)}
+          />
+        )}
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold">3. توزيع الراحة حسب المنطقة</h2><p className="mt-1 text-xs leading-5 text-slate-400">قيم مستقلة بالسنتيمتر. فصل الراحة عن قياس الجسم يمنع خلط القياس التشريحي مع مقدار الاتساع التصميمي.</p></div><div className="rounded-xl bg-indigo-500/10 px-3 py-2 text-xs text-indigo-200">4 مناطق مستقلة قابلة للضبط</div></div>
