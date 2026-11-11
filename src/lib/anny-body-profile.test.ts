@@ -45,7 +45,6 @@ describe('Anny mesh-derived body profile', () => {
   it('rejects meshes that do not provide enough closed body sections', () => {
     const geometry = new THREE.PlaneGeometry(20, 20);
     const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
-    mesh.rotation.x = Math.PI / 2;
     mesh.updateMatrixWorld(true);
     assert.throws(() => buildAnnyBodyProfile(mesh), /مقاطع جسم مغلقة كافية/);
     geometry.dispose();
