@@ -256,7 +256,6 @@ export function GarmentImageWorkbench() {
                             setDragging(item.name);
                             event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId);
                           }}
-                          onPointerMove={event => {
                         />
                       </g>
                     );
