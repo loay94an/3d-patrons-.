@@ -630,7 +630,9 @@ export function Pattern3DViewer({
       if (!response.ok) throw new Error(await readAnnyApiError(response));
       const report = await response.json() as AnnyProfileReport;
       const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
-      const candidates = buildAnnyCalibrationCandidates(report, targetHeightCm);
+      const tape = state.measurementProfile?.values;
+      const targets = tape ? { hip: tape.hip, waist: tape.waist, bust: tape.bust } : {};
+      const candidates = buildAnnyCalibrationCandidates(report, targetHeightCm, targets);
       setAnnyProfileCandidates(candidates);
       setAnnyProfileMessage(
         candidates.length
@@ -882,6 +884,7 @@ export function Pattern3DViewer({
         {annyProfileCandidates.length > 0 && <div className="mt-3 rounded-xl border border-amber-500/30 bg-slate-900/80 p-3">
           <div className="font-bold text-amber-200">مرشحات محيط الجسم • مراجعة فقط</div>
           <p className="mt-1 text-[10px] leading-4 text-slate-400">القيم التالية مستخرجة من مقاطع هندسية استدلالية ومحوّلة بمقياس الطول الحالي. ليست قياسات خياطة مؤكدة ولا تعديلاً لشكل المجسم.</p>
+          {!state.measurementProfile && <p className="mt-1 text-[10px] text-amber-200">أدخل قياسات الصدر والخصر والورك في ملف القياسات لمقارنة المرشحات بها.</p>}
           <div className="mt-2 space-y-2">
             {annyProfileCandidates.map(candidate => <div key={candidate.zone} className="rounded-lg border border-slate-700 bg-slate-950/70 p-2">
               <div className="flex items-center justify-between gap-2">
@@ -893,6 +896,8 @@ export function Pattern3DViewer({
                 <span>موضع الارتفاع: <b>{(candidate.heightFraction * 100).toFixed(1)}%</b></span>
                 <span>المسارات المغلقة: <b>{candidate.contourCount}</b></span>
                 <span>مؤشر هندسي: <b>{(candidate.heuristicConfidence * 100).toFixed(0)}%</b></span>
+                {candidate.targetCircumferenceCm !== null && <span>قياسك المسجل: <b className="text-white">{candidate.targetCircumferenceCm.toFixed(1)} سم</b></span>}
+                {candidate.differenceCm !== null && <span>الفرق عن قياسك: <b className={Math.abs(candidate.differenceCm) > 3 ? 'text-amber-200' : 'text-emerald-200'}>{candidate.differenceCm > 0 ? '+' : ''}{candidate.differenceCm.toFixed(1)} سم</b></span>}
               </div>
               {candidate.diagnostics.length > 0 && <p className="mt-1 text-[10px] leading-4 text-amber-300">تنبيهات: {candidate.diagnostics.join('، ')}</p>}
             </div>)}
