@@ -17,4 +17,4 @@ COPY tools/anny-poc /app/tools/anny-poc
 COPY tools/anny-api /app/tools/anny-api
 
 EXPOSE 8000
-CMD ["uvicorn", "tools.anny-api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--app-dir", "/app/tools/anny-api", "--host", "0.0.0.0", "--port", "8000"]
