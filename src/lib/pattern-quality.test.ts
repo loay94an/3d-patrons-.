@@ -5,6 +5,7 @@ import { validatePatternPieces } from './pattern-quality';
 
 const piece = (): CadPiece => ({
   id: 'front', name: 'Front', nameAr: 'الأمام', garmentType: 'bodice',
+  notes: 'Fixture used for geometry validation tests',
   segments: [
     { id: 'a', type: 'line', p1: {x:0,y:0}, p2: {x:10,y:0}, layer: 'cutting', edgeType: 'waist', lengthCm: 10 },
     { id: 'b', type: 'line', p1: {x:10,y:0}, p2: {x:10,y:20}, layer: 'cutting', edgeType: 'side', lengthCm: 20 },
