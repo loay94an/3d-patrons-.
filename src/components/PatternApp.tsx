@@ -341,10 +341,12 @@ export default function PatternApp() {
         {activeTab === 'parametric' && (
           <div className="w-full h-full">
             <ParametricStudio
-              onOpenCad={(garment, measurements, ease) => {
+              onOpenCad={(garment, profile, ease) => {
+                const measurements = profile.values;
                 updateState({
                   garment,
                   useCustomMode: true,
+                  measurementProfile: profile,
                   customMeasurements: {
                     bust: measurements.bust,
                     waist: measurements.waist,
