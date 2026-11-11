@@ -687,21 +687,29 @@ export function Pattern3DViewer({
       throw new Error('ملف Anny لا يحتوي على مجسم صالح.');
     }
     annyNativeHeightRef.current = size.y;
-    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
+    const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, measurementValues.height);
     if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
-      const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
-      const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
-      const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
-        heightCm: targetHeightCm,
-        bustCm: resolved.body.bust,
-        waistCm: resolved.body.waist,
-        hipCm: resolved.body.hip
-      });
-      const previousGeometry = annyBodyMeshRef.current.geometry;
-      annyBodyMeshRef.current.geometry = calibration.geometry;
-      previousGeometry.dispose();
-      const { geometry: _geometry, ...summary } = calibration;
-      setAnnyCalibrationSummary(summary);
+      try {
+        const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
+        const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
+          heightCm: targetHeightCm,
+          bustCm: resolved.body.bust,
+          waistCm: resolved.body.waist,
+          hipCm: resolved.body.hip
+        });
+        const previousGeometry = annyBodyMeshRef.current.geometry;
+        annyBodyMeshRef.current.geometry = calibration.geometry;
+        previousGeometry.dispose();
+        const { geometry: _geometry, ...summary } = calibration;
+        setAnnyCalibrationSummary(summary);
+      } catch (error) {
+        setAnnyCalibrationSummary({
+          nativeHeight: size.y, targetHeightCm, heightScale: getAnnyHeightScale(size.y, targetHeightCm),
+          landmarks: [], status: 'review-required',
+          warnings: [error instanceof Error ? error.message : 'تعذر معايرة جسم Anny؛ تم تحميله دون تغيير محيطي.']
+        });
+      }
     }
     group.scale.setScalar(getAnnyHeightScale(size.y, targetHeightCm));
     const scaledBounds = new THREE.Box3().setFromObject(group);
@@ -727,8 +735,8 @@ export function Pattern3DViewer({
     const nativeHeight = annyNativeHeightRef.current;
     if (!group || !nativeHeight || !annyPreviewEnabled) return;
 
-    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, state.customMeasurements.height);
     const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
+    const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, measurementValues.height);
     const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
     if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
       try {
