@@ -19,7 +19,7 @@ const measurementFields = [
 ] as const;
 const easeFields = [{ key: 'bust', label: 'الصدر' }, { key: 'waist', label: 'الخصر' }, { key: 'hip', label: 'الورك' }, { key: 'upperArm', label: 'أعلى الذراع' }] as const;
 
-export function ProjectWorkspace() {
+export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSnapshot) => void }) {
   const [projects, setProjects] = useState<ProjectSnapshot[]>(() => loadProjects(typeof window === 'undefined' ? null : window.localStorage));
   const [activeId, setActiveId] = useState<string | null>(() => loadProjects(typeof window === 'undefined' ? null : window.localStorage)[0]?.id ?? null);
   const [status, setStatus] = useState('تُحفظ التغييرات تلقائياً على هذا الجهاز');
@@ -98,6 +98,7 @@ export function ProjectWorkspace() {
             <input aria-label="اسم المشروع" value={active.name} onChange={event => update({ name: event.target.value })} className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-lg font-black" />
             <div className="flex flex-wrap gap-2">
               <button onClick={download} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs"><Download className="h-4 w-4" /> تصدير المشروع</button>
+              <button onClick={() => onOpenCad(active)} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold"><Save className="h-4 w-4" /> فتح في محرر 2D</button>
               <button onClick={() => setShowHistory(value => !value)} className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-3 py-2 text-xs"><History className="h-4 w-4" /> سجل النسخ ({active.history.length})</button>
               <button onClick={remove} className="inline-flex items-center gap-2 rounded-lg border border-rose-900/70 px-3 py-2 text-xs text-rose-300"><Trash2 className="h-4 w-4" /> حذف</button>
             </div>
