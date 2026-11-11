@@ -33,7 +33,15 @@ describe('Anny mesh-derived body profile', () => {
     const geometry = new THREE.CylinderGeometry(8, 12, 100, 64, 40, false);
     const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
     mesh.updateMatrixWorld(true);
-    const profile = buildAnnyBodyProfile(mesh, { sectionCount: 40, radialSamples: 64 });
+    const profile = buildAnnyBodyProfile(mesh, {
+      sectionCount: 40,
+      radialSamples: 64,
+      landmarks: [
+        { zone: 'hip', heightFraction: 0.35 },
+        { zone: 'waist', heightFraction: 0.55 },
+        { zone: 'bust', heightFraction: 0.75 }
+      ]
+    });
     const middle = sampleAnnyBodySection(profile, (profile.sections[10].y + profile.sections[11].y) / 2);
     assert.ok(Number.isFinite(middle.circumference));
     assert.ok(middle.circumference > 0);
