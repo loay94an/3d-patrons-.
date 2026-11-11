@@ -1,56 +1,62 @@
-# Anny integration: staged technical plan
+# Anny integration: current status and staged technical plan
 
-## Repository findings
+## Current implementation status
 
-The current product is a Vite/React/Three.js static site deployed through
-GitHub Pages. Its current 3D viewer builds a local procedural mannequin from
-a small set of measurements. There is no configured Python inference service
-in the deployment workflow.
+The product is a Vite/React/Three.js static site deployed through GitHub Pages. The Anny integration is split between browser-side viewer code and a separate Python API.
 
-Anny is a PyTorch differentiable human mesh model. It cannot be imported
-directly into the browser bundle or executed by GitHub Pages.
+### Completed
 
-## Phase 1 — isolated model-generation proof of concept
+- **Runtime proof of concept:** `tools/anny-poc` runs upstream Anny v0.6.2 on CPU, exports a neutral-pose GLB and a JSON report, and validates the mesh. The runtime workflow passed on 2026-11-11: [run 42962889281](https://github.com/loay94an/3d-patrons-./actions/runs/42962889281).
+- **Python API foundation:** `tools/anny-api` exposes health, phenotype-label, ZIP-generation, and direct-GLB endpoints.
+- **Viewer transport:** PR #44 added an Anny API panel to `Pattern3DViewer`. It can load the exact phenotype labels from the API, submit changed phenotype values, load the returned GLB into Three.js, and retain manual GLB upload as a fallback.
+- **Frontend deployment:** PR #44 was merged to `main` at `edcf6a085a3e32da65f8b4ef0940a98e89ea91bf`. Type-check, unit tests, production build, and GitHub Pages deployment all passed in [run 42962889468](https://github.com/loay94an/3d-patrons-./actions/runs/42962889468).
 
-The `tools/anny-poc` utility uses the upstream v0.6.2 Python API to produce a
-neutral-pose GLB mesh and a JSON report. It exposes actual phenotype labels
-rather than inventing a fixed semantic mapping. The report explicitly marks
-units and anthropometric measurements as uncalibrated.
+### Not yet completed
 
-Acceptance criteria:
-- Generate a finite triangular mesh with valid face indices.
-- Export a GLB and reproducibility report.
-- Record runtime, device, vertex/triangle counts, bounds, and phenotype values.
-- Run at least two different phenotype configurations and confirm that the
-  resulting meshes differ.
-- Record first-run and warm-run resource use on the intended deployment hardware.
+- The Python API is **not hosted**. GitHub Pages only serves the frontend; it does not run PyTorch or the Anny Python process.
+- The viewer needs a reachable API base URL, supplied through `VITE_ANNY_API_URL` at build time or entered in the Anny API panel.
+- No validated mapping exists from bust, waist, hip, height, or other tape measurements to Anny phenotype parameters.
+- The displayed GLB normalization is for viewer presentation only. It is not physical-unit calibration.
+- No garment-to-body collision, cloth drape, pressure, ease, or fit simulation is provided by this integration.
 
-## Phase 2 — anthropometric calibration (not implemented)
+## Phase 1 — Anny model runtime proof of concept: complete
 
-Do not map a bust/waist/hip measurement directly to a phenotype label by name.
-Build a measurement-fitting layer only after:
-- documenting the exact Anny phenotype labels and their effects;
-- establishing mesh coordinate orientation and scale;
-- implementing validated cross-section/landmark measurement extraction;
-- defining target measurement landmarks and a numerical error metric;
-- testing fitting across varied body shapes and age groups.
+The `tools/anny-poc` utility uses the upstream Anny package to produce a neutral-pose mesh and a reproducibility report. The runtime workflow validates finite vertices and triangular faces. This proves that the model can run in CI; it does not prove anthropometric accuracy or production service capacity.
 
-## Phase 3 — viewer transport (not implemented)
+## Phase 2 — Anthropometric calibration: not implemented
 
-After Phase 1 is validated, add a GLB import path to the existing Three.js
-viewer or a separate Anny preview panel. Preserve the current mannequin as a
-fallback. Do not represent a static body mesh as cloth simulation.
+Do not map bust/waist/hip measurements directly to phenotype labels by name. Build a separate fitting layer only after:
 
-## Phase 4 — hosted inference (not implemented)
+1. Documenting the exact phenotype labels and experimentally measuring their effects.
+2. Establishing mesh orientation, scale, landmarks, and consistent body-region cross-sections.
+3. Implementing circumference extraction from the mesh with tests on known synthetic geometry.
+4. Defining target measurement landmarks and a numerical error metric in explicit units.
+5. Implementing a bounded optimizer over phenotype parameters and validating it across varied body shapes, heights, and age groups.
+6. Reporting per-measurement residuals and rejecting unsupported or out-of-range targets rather than silently claiming a fit.
 
-GitHub Pages cannot host the PyTorch runtime. Select and configure a separate
-Python service only after measuring model initialization, inference latency,
-memory, concurrency, asset caching, and operating cost. Keep model generation
-behind a versioned API and return GLB plus a calibration report.
+The calibration report must distinguish user-entered measurements, measured mesh circumferences, residuals, and any inferred values.
+
+## Phase 3 — Browser viewer integration: complete as a frontend feature
+
+The Anny API panel in `src/components/Pattern3DViewer.tsx` supports API URL configuration, phenotype discovery, parameter adjustment, GLB generation/loading, and manual GLB fallback. The frontend build and Pages deployment passed. End-to-end use still depends on deploying and configuring the separate API.
+
+## Phase 4 — Hosted inference service: not deployed
+
+Before public exposure:
+
+- Choose a hosting target only after checking CPU/RAM limits, persistent cache behavior, cold-start time, request latency, concurrency, and cost.
+- Add authentication, per-user rate limits, bounded concurrency/queueing, request-size limits, timeouts, and operational health checks.
+- Configure exact-origin CORS for the production website.
+- Add privacy/retention controls; do not persist generated body meshes or measurements unless explicitly required and disclosed.
+- Pin and audit dependencies, publish container image provenance, and monitor failures and resource use.
+- Test the deployed service from the actual GitHub Pages origin, including CORS preflight and GLB loading.
+
+Do not publish a public unauthenticated inference endpoint.
+
+## Phase 5 — Pattern and garment fitting: not implemented
+
+Only after calibrated body geometry exists should the pattern engine consume the body model. Validate pattern dimensions and seam relationships independently, then add garment panels, seam assembly, collision detection, cloth simulation, and fit/ease analysis. A static GLB body or garment mesh must not be described as cloth simulation.
 
 ## Licensing
 
-The core Anny code is Apache-2.0 and upstream README identifies MakeHuman/
-MPFB2-derived assets under CC0. The optional SMPL-X topology is non-commercial
-only unless separately licensed. Verify package and dependency notices for the
-exact release before commercial distribution.
+The core Anny code is Apache-2.0 and upstream README identifies MakeHuman/MPFB2-derived assets under CC0. Optional SMPL-X topology may carry non-commercial restrictions unless separately licensed. Verify the exact release's package and dependency notices before commercial distribution.
