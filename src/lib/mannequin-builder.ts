@@ -211,18 +211,6 @@ export function buildParametricMannequin(
   torso.receiveShadow = true;
   body.add(torso);
 
-  // Soft anatomical volumes blend into the torso silhouette. The pelvis
-  // bridges the open lower torso to the thighs; gluteal forms add a natural
-  // posterior contour instead of leaving a flat, tube-like back.
-  const pelvisProfile = getTorsoProfile(gender, measurements, gender === 'kids' || gender === 'infant' ? 0.34 : 0.28);
-  addEllipsoid('PelvisCore', 0, pelvisProfile.y + 1.2 * scale, -0.15 * scale,
-    pelvisProfile.rx * 0.94, 7.2 * scale, pelvisProfile.rz * 0.98);
-  [-1, 1].forEach(side => {
-    addEllipsoid('Gluteal_' + side, side * pelvisProfile.rx * 0.39,
-      pelvisProfile.y + 0.4 * scale, -pelvisProfile.rz * 0.56,
-      pelvisProfile.rx * 0.43, 6.2 * scale, pelvisProfile.rz * 0.56);
-  });
-
   // Measurement tape follows the exact waist cross-section used by the garment generator.
   const waistV = gender === 'kids' || gender === 'infant' ? 0.6 : 0.5;
   const waistProfile = getTorsoProfile(gender, measurements, waistV);
@@ -252,6 +240,18 @@ export function buildParametricMannequin(
     body.add(mesh);
     return mesh;
   };
+
+  // Soft anatomical volumes blend into the torso silhouette. The pelvis
+  // bridges the open lower torso to the thighs; gluteal forms add a natural
+  // posterior contour instead of leaving a flat, tube-like back.
+  const pelvisProfile = getTorsoProfile(gender, measurements, gender === 'kids' || gender === 'infant' ? 0.34 : 0.28);
+  addEllipsoid('PelvisCore', 0, pelvisProfile.y + 1.2 * scale, -0.15 * scale,
+    pelvisProfile.rx * 0.94, 7.2 * scale, pelvisProfile.rz * 0.98);
+  [-1, 1].forEach(side => {
+    addEllipsoid('Gluteal_' + side, side * pelvisProfile.rx * 0.39,
+      pelvisProfile.y + 0.4 * scale, -pelvisProfile.rz * 0.56,
+      pelvisProfile.rx * 0.43, 6.2 * scale, pelvisProfile.rz * 0.56);
+  });
 
   // Tapered anatomical segments replace uniform capsules: real limbs narrow
   // towards wrists/ankles and widen at their muscle origins.
