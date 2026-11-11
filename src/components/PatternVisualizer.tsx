@@ -132,6 +132,7 @@ export function PatternVisualizer({ state, onBackToCalculator, onGarmentChange }
       backLength: effectiveBackLength,
       shoulderLength: effectiveShoulder,
       armholeCircumference: effectiveArmhole,
+      upperArmCircumference: meas.armCirc ?? std.armCirc ?? 30,
       sleeveLength: effectiveSleeve,
       neckCircumference: effectiveNeck,
       easeProfile: {

@@ -1,4 +1,5 @@
 import { womenSizes, menSizes, kidsSizes, infantMeasurements } from './measurements';
+import type { MeasurementProfile } from './measurement-profile';
 
 export type Gender = 'women' | 'men' | 'kids' | 'infant';
 export type SizeSystem = 'eu' | 'us' | 'arab' | 'asian';
@@ -41,6 +42,7 @@ export interface AppState {
   includeSeam: boolean;
   useCustomMode: boolean;
   customMeasurements: Record<string, number>;
+  measurementProfile?: MeasurementProfile;
 }
 
 export const detailedNames = ["عرض الظهر","طول الكتف","طول الظهر","طول الكم","محيط الذراع","محيط الأسوارة","محيط الرقبة","محيط الصدر","محيط الخصر","محيط الورك","المسافة من الخصر إلى الورك","المسافة من الخصر إلى الركبة","طول الساق من الخصر إلى أسفل القدم","طول التنورة","طول الصدر (من أعلى الكتف مروراً فوق الصدر)","محيط الإبط (دوران الإبط)","المسافة من الخصر إلى الإبط","المسافة من أعلى الكتف إلى الثدي","المسافة بين الثديين","محيط الفخذ","محيط الركبة","محيط الكاحل","ارتفاع السرج","طول الجنب"];
