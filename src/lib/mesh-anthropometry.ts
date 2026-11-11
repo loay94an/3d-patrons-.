@@ -27,7 +27,7 @@ export function measureMeshSectionCircumference(
   geometry: THREE.BufferGeometry,
   axis: MeshSectionAxis,
   coordinate: number
-): number {
+) {
   if (!Number.isFinite(coordinate)) throw new Error('Section coordinate must be finite');
   const positions = geometry.getAttribute('position');
   if (!positions || positions.itemSize < 3 || positions.count < 3) {
