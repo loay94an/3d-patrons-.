@@ -1111,13 +1111,6 @@ export function Pattern3DViewer({
           <div>
             <div className="font-bold text-sm text-cyan-200">ربط نموذج Anny مباشرة</div>
             <div className="text-[10px] text-slate-400 mt-1">خدمة Python منفصلة عن استضافة GitHub Pages</div>
-            <a
-              href={`${import.meta.env.BASE_URL}assets/engines/anny-source.zip`}
-              download="anny-source.zip"
-              className="inline-flex mt-2 text-[10px] font-semibold text-cyan-300 underline underline-offset-2"
-            >
-              تنزيل حزمة مصدر Anny الرسمية
-            </a>
           </div>
           <button onClick={() => setAnnyApiPanelOpen(false)} className="rounded-lg px-2 py-1 bg-slate-800 text-slate-300">إغلاق</button>
         </div>
