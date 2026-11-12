@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "1.0.0",
+  "sources": [
+    {
+      "id": "ref-costumy",
+      "repository": "cdrinmatane/Costumy",
+      "url": "https://github.com/cdrinmatane/Costumy",
+      "branch": "main",
+      "commit": "86e75519f19a69829faba41a36f474fcff22537d",
+      "license": "GPL-3.0",
+      "licenseFileSha": "871ce8e638ad6d763308e44411d2c4a2e658cf55",
+      "role": [
+        "body-measurement",
+        "parametric-pattern-generation",
+        "2d-svg-json-import-export",
+        "2d-to-3d-garment-conversion"
+      ],
+      "evidence": "README describes 3D mesh measurement, FreeSewing-based pattern generation, pattern import/export, draping and an Aaron sleeveless-shirt example.",
+      "integrationDecision": "study-interface-and-adapter; inspect license obligations and code dependencies before copying or linking implementation"
+    },
+    {
+      "id": "ref-cloth2tex",
+      "repository": "tomguluson92/cloth2tex",
+      "url": "https://github.com/tomguluson92/cloth2tex",
+      "branch": "main",
+      "commit": "6f8738f88a155c7b54b0c51d39cc76966fdefce2",
+      "license": "GPL-3.0",
+      "licenseFileSha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+      "role": [
+        "garment-category-taxonomy",
+        "catalog-to-3d-texture-research"
+      ],
+      "evidence": "README lists tanktop, polo, T-shirt, shorts, trousers, zipup, windcoat, jacket and skirt categories; it says this repository is deprecated and points to HumanAIGC/Cloth2Tex.",
+      "integrationDecision": "use-category-taxonomy-only; do not assume pattern geometry or automatic scaling is available"
+    },
+    {
+      "id": "ref-awesome-vton",
+      "repository": "Zheng-Chong/Awesome-Try-On-Models",
+      "url": "https://github.com/Zheng-Chong/Awesome-Try-On-Models",
+      "branch": "main",
+      "commit": "02ddc570dd79fcde0d32aece4762ec62a04dfa4f",
+      "license": "not-verified-for-aggregated-models",
+      "role": [
+        "virtual-try-on-model-discovery",
+        "research-tracking"
+      ],
+      "evidence": "README indexes image-, video- and 3D-based virtual try-on research models; it is not a source of sewing patterns.",
+      "integrationDecision": "research-index-only; verify each downstream model license and weights separately"
+    },
+    {
+      "id": "ref-neural-cloth-sim",
+      "repository": "hbertiche/NeuralClothSim",
+      "url": "https://github.com/hbertiche/NeuralClothSim",
+      "branch": "main",
+      "commit": "13367d6978762cb7c495acf68a06c4f6fd665dbd",
+      "license": "custom-non-commercial-only",
+      "licenseFileSha": "66015f324e69c0e53667ea3b4fb826097f185209",
+      "role": [
+        "neural-cloth-dynamics-research",
+        "garment-animation"
+      ],
+      "evidence": "README describes body-specific garment OBJ inputs, pose sequences, training/prediction and Blender visualization.",
+      "integrationDecision": "research-reference-only; explicitly prohibited from commercial product use under its current license"
+    },
+    {
+      "id": "ref-dressing-tools",
+      "repository": "poi-vrc/DressingTools",
+      "url": "https://github.com/poi-vrc/DressingTools",
+      "branch": "master",
+      "commit": "f968a1b559ef2d3bbec186349b29a48f57cad90b",
+      "license": "GPL-3.0",
+      "licenseFileSha": "e72bfddabc15be5718a7cc061ac10e47741d8219",
+      "role": [
+        "avatar-wardrobe-management"
+      ],
+      "evidence": "README describes a non-destructive cabinet system for managing avatar clothing.",
+      "integrationDecision": "not-added-to-pattern-catalog; potentially relevant only to future avatar wardrobe UX"
+    }
+  ],
+  "guardrails": [
+    "Repository license does not automatically license datasets, pretrained weights, images, garment designs or third-party assets.",
+    "Do not copy source code into the website until license compatibility is reviewed.",
+    "NeuralClothSim current license expressly excludes commercial use.",
+    "Cloth2Tex README marks this repository deprecated; inspect the successor before any engineering integration."
+  ]
+}
