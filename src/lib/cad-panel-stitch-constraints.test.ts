@@ -34,8 +34,10 @@ describe('CAD panel stitch constraint adapter', () => {
     assert.equal(result[0].restLengthCm, 0);
     assert.equal(result[0].samples.length, 8);
     assert.equal(result[0].samples[0].first[0].vertexIndex, 0);
-    assert.equal(result[0].samples[0].second[0].vertexIndex, 1);
+    assert.equal(result[0].samples[0].second[1].vertexIndex, 1);
+    assert.equal(result[0].samples[0].second[1].weight, 1);
     assert.equal(result[0].samples.at(-1)?.second[0].vertexIndex, 0);
+    assert.equal(result[0].samples.at(-1)?.second[0].weight, 1);
   });
 
   it('preserves explicitly selected ease metadata', () => {
