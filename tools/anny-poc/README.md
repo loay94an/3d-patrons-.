@@ -1,11 +1,10 @@
 # Anny body-model proof of concept
 
-This folder is an isolated Python experiment for the fashion-pattern platform.
-It does **not** replace the existing Three.js mannequin or run on GitHub Pages.
+This folder generates the platform's default Anny body asset. The pinned official Anny source archive is downloaded during the Pages build, used for GLB generation, and published under `public/assets/engines/anny-source.zip`. Python/PyTorch still runs in GitHub Actions during the build, not inside the visitor's browser.
 
 ## What it does
 
-- Loads NAVER LABS Anny v0.6.2 with the native `anny` rig/topology.
+- Loads the pinned NAVER LABS Anny source revision `8f35dc2df1c4062fd2fae86734f9705de50c0c2b` with the native `anny` rig/topology.
 - Creates a symmetric relaxed-down arm pose using Anny's native upper-arm rig bones.
 - Starts from the midpoint (0.5) of every published phenotype parameter.
 - Allows explicit phenotype overrides in the documented [0, 1] range.
@@ -57,22 +56,19 @@ Replace `SOME_LABEL` with a real label printed by the command. Values outside
 
 ## Preview the generated GLB in the website
 
-After generating a file, open the website's 3D viewer and choose **تحميل Anny GLB** (Load Anny GLB), then select the `.glb` file. The viewer scales the mesh to an approximate display height and centers it on the stage. This is visual-only normalization: the viewer hides the existing procedural mannequin and garment while the Anny preview is active, so no unvalidated pattern fit is implied. Choose **إغلاق Anny** (Close Anny) to return to the existing mannequin and garment preview.
+The production Pages build generates `public/models/anny-neutral.glb` from the pinned upstream source and the viewer auto-loads it as the default body. The viewer scales the mesh for display and centers it on the stage; this is visual normalization only, not centimetre calibration. The official source archive is downloadable from the Anny viewer panel.
 
 ## Current limitations and next validation gate
 
-1. This experiment has not yet been executed in the project's GitHub Actions
-   environment or on the target Android device. A successful repository build
-   does not prove that Anny's PyTorch model runs on either environment.
+1. GitHub Actions runs the CPU model-generation and geometry-validation workflow on relevant pull requests and on production Pages builds. A successful CI run still does not prove identical performance on the target Android device.
 2. Mesh coordinates are not assumed to be centimetres. A scale/orientation
    calibration against known reference geometry is required.
 3. No circumference extraction, anthropometric fitting, measurement-error
    report, or pattern-to-body collision test is implemented yet.
 4. GLB export is a transport format for the viewer; materials, skeleton/rig
    animation, and UV fidelity must be verified separately before production use.
-5. GitHub Pages is static hosting. Production inference requires a separately
-   deployed Python service (or pre-generated model assets); this repository
-   currently does not configure such a service.
+5. The source archive download is not a browser-executable engine. Live phenotype changes require a separately hosted, secured Python API.
+6. GitHub Pages is static hosting. This repository includes the API service and Docker configuration, but does not deploy that service or assign it a public URL.
 
 Do not use the optional `smplx` topology for commercial work without obtaining
 the separate SMPL-X license. The core Anny code is Apache-2.0; its README also

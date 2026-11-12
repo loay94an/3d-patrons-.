@@ -1056,6 +1056,15 @@ export function Pattern3DViewer({
               المقاس
             </button>
           )}
+
+          <a
+            href={`${import.meta.env.BASE_URL}assets/engines/anny-source.zip`}
+            download="anny-source.zip"
+            className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-200 border border-cyan-500/40 transition-colors whitespace-nowrap"
+            title="تنزيل مصدر محرك Anny الرسمي"
+          >
+            ملفات Anny
+          </a>
         </div>
 
         {/* Right Side: Camera View Angle Buttons */}
