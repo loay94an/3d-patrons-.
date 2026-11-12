@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="380mm" height="590mm" viewBox="0 0 380 590">
+<title>مسودة أساس صدري أمامي بارامتري – مثال توضيحي</title>
+<desc>رسم أولي نصف أمامي، صدر 92 سم، خصر 76 سم، طول 42 سم، راحة 8 سم. ليس باترون إنتاج.</desc>
+<rect width="380" height="590" fill="#fff"/>
+<path d="M50 129 Q53 59 86 45 L211 73 Q280 92 246 242 L223 465 L50 465 Z" fill="#dceafe" fill-opacity=".55" stroke="#173b67" stroke-width="2"/>
+<path d="M50 30 V485" stroke="#c2410c" stroke-width="1.5" stroke-dasharray="6 5"/>
+<path d="M50 242 H246 M50 465 H223" stroke="#64748b" stroke-width="1" stroke-dasharray="4 4"/>
+<text x="58" y="20" font-size="13" fill="#111827">مثال بارامتري — نصف الأمام</text>
+<text x="58" y="520" font-size="12" fill="#9a3412">خط منتصف الأمام / على الثنية</text>
+<text x="58" y="545" font-size="11" fill="#334155">الصدر 92 سم | الخصر 76 سم | الطول 42 سم | الراحة 8 سم</text>
+<text x="58" y="565" font-size="10" fill="#64748b">مسودة تعليمية: يلزم إضافة البنسات ومعايرة الحردات وسماحات الخياطة.</text>
+</svg>
