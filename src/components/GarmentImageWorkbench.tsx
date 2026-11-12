@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Download, ImagePlus, RotateCcw, MousePointer2, CheckCircle2,
   AlertCircle, Trash2, Crosshair
@@ -56,6 +56,11 @@ export function GarmentImageWorkbench() {
   const svgRef = useRef<SVGSVGElement>(null);
   const objectUrlRef = useRef<string | null>(null);
 
+  useEffect(() => () => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = null;
+  }, []);
+
   const availableLandmarks = useMemo(
     () => [...(GARMENT_LANDMARK_NAMES[category as keyof typeof GARMENT_LANDMARK_NAMES] ?? [])],
     [category]
@@ -107,17 +112,30 @@ export function GarmentImageWorkbench() {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const url = URL.createObjectURL(file);
     objectUrlRef.current = url;
+    setImageUrl(null);
+    setImageName('');
+    setImageSize({ width: 0, height: 0 });
+    setLandmarks([]);
+    setSelectedLandmark(null);
+    setActiveLandmark('');
+    setDragging(null);
     const image = new Image();
     image.onload = () => {
+      if (objectUrlRef.current !== url) return;
       setImageUrl(url);
       setImageName(file.name);
       setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
-      setLandmarks([]);
-      setSelectedLandmark(null);
-      setActiveLandmark('');
       setNotice('تم تحميل الصورة. اختر معلماً ثم اضغط على موضعه في الصورة.');
     };
-    image.onerror = () => setNotice('تعذر قراءة الصورة.');
+    image.onerror = () => {
+      if (objectUrlRef.current !== url) return;
+      URL.revokeObjectURL(url);
+      objectUrlRef.current = null;
+      setImageUrl(null);
+      setImageName('');
+      setImageSize({ width: 0, height: 0 });
+      setNotice('تعذر قراءة الصورة؛ اختر ملف صورة آخر.');
+    };
     image.src = url;
   };
 
@@ -173,6 +191,7 @@ export function GarmentImageWorkbench() {
     setLandmarks([]);
     setSelectedLandmark(null);
     setActiveLandmark('');
+    setDragging(null);
     setNotice('تم مسح جميع المعالم.');
   };
 
@@ -275,7 +294,7 @@ export function GarmentImageWorkbench() {
           <aside className="space-y-3">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
               <label className="mb-2 block text-sm font-bold">نوع قطعة الملابس</label>
-              <select value={category} onChange={event => { setCategory(event.target.value as GarmentCategory); setLandmarks([]); setSelectedLandmark(null); }} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
+              <select value={category} onChange={event => { setCategory(event.target.value as GarmentCategory); setLandmarks([]); setSelectedLandmark(null); setActiveLandmark(''); setDragging(null); }} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm">
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
               <div className="mt-4 flex items-center gap-2 text-sm font-bold"><MousePointer2 className="h-4 w-4 text-cyan-300" /> اختر المعلم ثم انقر الصورة</div>
