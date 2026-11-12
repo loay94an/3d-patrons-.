@@ -98,6 +98,13 @@ export default function PatternApp() {
     try { const savedMode = localStorage.getItem('pattern-user-mode'); if (savedMode === 'beginner' || savedMode === 'expert') setUserMode(savedMode); } catch { /* optional persistence */ }
   }, []);
   useEffect(() => { try { localStorage.setItem('pattern-user-mode', userMode); } catch { /* session fallback */ } }, [userMode]);
+  const switchUserMode = (mode: 'beginner' | 'expert') => {
+    setUserMode(mode);
+    setShowMoreMenu(false);
+    if (mode === 'beginner' && ['garment_image', 'export_guide'].includes(activeTab)) {
+      setActiveTab('home');
+    }
+  };
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('theme');
@@ -372,8 +379,8 @@ export default function PatternApp() {
           </span>
 
           <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5" role="group" aria-label="مستوى الواجهة">
-            <button type="button" aria-pressed={userMode === 'beginner'} onClick={() => setUserMode('beginner')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'beginner' ? "bg-blue-600 text-white" : "text-slate-400")}>مبتدئ</button>
-            <button type="button" aria-pressed={userMode === 'expert'} onClick={() => setUserMode('expert')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'expert' ? "bg-blue-600 text-white" : "text-slate-400")}>متخصص</button>
+            <button type="button" aria-pressed={userMode === 'beginner'} onClick={() => switchUserMode('beginner')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'beginner' ? "bg-blue-600 text-white" : "text-slate-400")}>مبتدئ</button>
+            <button type="button" aria-pressed={userMode === 'expert'} onClick={() => switchUserMode('expert')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'expert' ? "bg-blue-600 text-white" : "text-slate-400")}>متخصص</button>
           </div>
           {/* Archetype Quick Badge */}
           <span className="hidden text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 sm:inline-flex">
