@@ -41,7 +41,7 @@ function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitc
         typeof second.pieceId !== 'string' || typeof second.segmentId !== 'string' ||
         first.pieceId === second.pieceId ||
         !['plain', 'ease', 'gather'].includes(item.mode ?? '') ||
-        pairIds.has(item.id)) return false;
+        pairIds.has(pair.id)) return false;
     if (item.expectedEaseCm !== undefined &&
         (!Number.isFinite(item.expectedEaseCm) || item.expectedEaseCm < 0)) return false;
     const firstPiece = pieceMap.get(first.pieceId);
@@ -56,7 +56,7 @@ function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitc
         !firstSegment.edgeType || firstSegment.edgeType === 'center' || firstSegment.edgeType === 'general' ||
         firstSegment.edgeType !== secondSegment.edgeType ||
         usedEdges.has(firstKey) || usedEdges.has(secondKey)) return false;
-    pairIds.add(item.id);
+    pairIds.add(pair.id);
     usedEdges.add(firstKey);
     usedEdges.add(secondKey);
     return true;
