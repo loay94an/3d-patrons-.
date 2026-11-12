@@ -159,9 +159,14 @@ describe('CAD sewing topology engine', () => {
       piece('b', [segment('b-side', 'side', { x: 0, y: 0 }, { x: 11, y: 0 })])
     ];
     const suggestion = suggestCadStitchPairs(pieces)[0];
-    const pair = createCadStitchPairFromSuggestion(suggestion);
-    assert.equal(pair.mode, 'ease');
-    const audit = auditCadSewing(pieces, [pair]);
+    const plainPair = createCadStitchPairFromSuggestion(suggestion);
+    assert.equal(plainPair.mode, 'plain');
+    assert.equal(auditCadSewing(pieces, [plainPair]).easeCount, 1);
+
+    const easedPair = createCadStitchPairFromSuggestion(suggestion, 'ease');
+    assert.equal(easedPair.mode, 'ease');
+    assert.equal(easedPair.expectedEaseCm, 1);
+    const audit = auditCadSewing(pieces, [easedPair]);
     assert.equal(audit.readyCount, 1);
   });
 });
