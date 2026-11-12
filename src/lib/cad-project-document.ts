@@ -14,6 +14,13 @@ const STORAGE_PREFIX = 'patron-studio.cad.v2.';
 const LEGACY_STORAGE_PREFIX = 'patron-studio.cad.v1.';
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
+function notifyCadDocumentChanged(projectId: string) {
+  if (typeof window === 'undefined' || typeof CustomEvent === 'undefined') return;
+  window.dispatchEvent(new CustomEvent('patron-studio:cad-document-updated', {
+    detail: { projectId }
+  }));
+}
+
 function finitePoint(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const point = value as { x?: unknown; y?: unknown };
@@ -137,6 +144,7 @@ export function saveCadProjectDocument(
     validateCadProjectDocument(document, projectId);
     storage.setItem(STORAGE_PREFIX + projectId, JSON.stringify(document));
     storage.removeItem?.(LEGACY_STORAGE_PREFIX + projectId);
+    notifyCadDocumentChanged(projectId);
     return true;
   } catch {
     return false;
@@ -152,6 +160,7 @@ export function deleteCadProjectDocument(
   try {
     storage.removeItem(STORAGE_PREFIX + projectId);
     storage.removeItem(LEGACY_STORAGE_PREFIX + projectId);
+    notifyCadDocumentChanged(projectId);
     return true;
   } catch {
     return false;
