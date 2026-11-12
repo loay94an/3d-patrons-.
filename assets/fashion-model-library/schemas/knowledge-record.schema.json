@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://loay94an.github.io/3d-patrons-./schemas/fashion-knowledge-record.schema.json",
+  "title": "Patron 3D Fashion Knowledge Record",
+  "description": "Internal, provenance-aware knowledge records consumed by garment design and pattern-engineering tools. Source documents are not public UI assets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "domain",
+    "recordType",
+    "status",
+    "statement",
+    "payload",
+    "provenance",
+    "licensing",
+    "review"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,100}$"
+    },
+    "domain": {
+      "enum": [
+        "pattern_geometry",
+        "body_measurements",
+        "fit_ease",
+        "sewing_construction",
+        "fabric_behavior",
+        "grading",
+        "design_template"
+      ]
+    },
+    "recordType": {
+      "enum": [
+        "pattern_piece",
+        "measurement_definition",
+        "fit_rule",
+        "seam_rule",
+        "construction_step",
+        "fabric_profile",
+        "grading_rule",
+        "design_feature",
+        "validation_rule"
+      ]
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "extracted",
+        "reviewed",
+        "verified",
+        "deprecated"
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 8
+    },
+    "payload": {
+      "type": "object",
+      "description": "Domain-specific machine-readable content; validate with the consuming engine's domain contract."
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "garmentTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "bodyRegions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "fabricTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "sizeSystems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "provenance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sourceId",
+          "sourceType",
+          "locator"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string"
+          },
+          "sourceType": {
+            "enum": [
+              "book",
+              "pdf_pattern",
+              "dataset",
+              "repository",
+              "technical_standard",
+              "expert_review",
+              "internal_test"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "string",
+            "description": "Page, section, figure, file path, commit, or test case; keep internal."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "licensing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "allowedUses"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "verified",
+            "restricted",
+            "permission_required",
+            "unverified",
+            "public_domain"
+          ]
+        },
+        "licenseId": {
+          "type": "string"
+        },
+        "allowedUses": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "internal_analysis",
+              "derived_facts",
+              "commercial_runtime",
+              "redistribution",
+              "model_training"
+            ]
+          }
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_reviewed",
+            "machine_checked",
+            "human_reviewed",
+            "engineering_approved",
+            "rejected"
+          ]
+        },
+        "reviewer": {
+          "type": "string"
+        },
+        "reviewedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "testIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
