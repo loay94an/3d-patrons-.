@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { analyzeClothBodyClearance, buildClothSimulation, type ClothBodyCollider } from './cloth-solver';
+import { analyzeClothBodyClearance, buildClothSimulation, createThreeMeshBodyCollider, updateClothBufferGeometry, type ClothBodyCollider } from './cloth-solver';
 import { buildCadPanelGeometry } from './cad-panel-geometry';
 import type { CadPiece } from './pattern-cad-engine';
 
@@ -20,6 +20,28 @@ const piece = (id: string, xOffset = 0): CadPiece => ({
   grainlines: [],
   seamAllowanceCm: 1,
   notes: ''
+
+  it('samples signed distance from a closed Three.js body mesh', () => {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10));
+    const collider = createThreeMeshBodyCollider(body);
+    assert.ok(collider.sample(new THREE.Vector3(0, 0, 0)).signedDistance < 0);
+    assert.ok(collider.sample(new THREE.Vector3(6, 0, 0)).signedDistance > 0);
+  });
+
+  it('writes simulated particles into the existing Three.js geometry', () => {
+    const panel = buildCadPanelGeometry(piece('render-panel'));
+    const simulation = buildClothSimulation([panel]);
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(simulation.particles.length * 3);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    simulation.particles[0].position.set(1, 2, 3);
+    updateClothBufferGeometry(simulation, geometry);
+    assert.equal(geometry.getAttribute('position').getX(0), 1);
+    assert.equal(geometry.getAttribute('position').getY(0), 2);
+    assert.equal(geometry.getAttribute('position').getZ(0), 3);
+    geometry.dispose();
+  });
+
 });
 
 describe('cloth physics adapter', () => {
