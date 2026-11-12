@@ -11,6 +11,7 @@ import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
 import { resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
+import { conformGarmentGroupToBody } from '../lib/garment-anny-fit';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
 import { buildAnnyBodyProfile } from '../lib/anny-body-profile';
@@ -503,6 +504,15 @@ export function Pattern3DViewer({
       },
       fabricMat
     );
+
+    // Keep the designed wearing ease, correcting only true body intersections.
+    // Apply this to torso, sleeves and trouser legs, not just the torso shell.
+    annyBodyMeshRef.current.updateWorldMatrix(true, false);
+    garmentResult.group.updateWorldMatrix(true, true);
+    const fitReport = conformGarmentGroupToBody(garmentResult.group, annyBodyMeshRef.current, 0.6);
+    if (fitReport.status === 'partial') {
+      console.warn('Garment fit correction was partial; inspect garment/body intersections.', fitReport);
+    }
 
     garmentResult.seamLinesGroup.visible = showSeams;
     garmentResult.group.visible = showGarmentOnAnny;
