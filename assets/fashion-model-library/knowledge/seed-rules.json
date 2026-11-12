@@ -59,7 +59,7 @@
       "provenance": [
         {
           "sourceId": "src-ease-parametric-2026",
-          "sourceType": "research_repository",
+          "sourceType": "repository",
           "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
           "locator": "PDF pp. 4-6; sections Parametric ease and Stretch constraints"
         }
@@ -129,7 +129,7 @@
       "provenance": [
         {
           "sourceId": "src-ease-parametric-2026",
-          "sourceType": "research_repository",
+          "sourceType": "repository",
           "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
           "locator": "PDF p. 6; Seamlines and cutting / Length compatibility and seam regularization"
         }
