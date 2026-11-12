@@ -199,7 +199,7 @@ export function suggestCadStitchPairs(
     throw new Error('حدود اقتراح وصلات الخياطة غير صالحة.');
   }
   if (maxSuggestions === 0) return [];
-  const excluded = new Set(options.excludedEdgeTypes ?? ['center', 'general', 'hem', 'waist', 'neckline']);
+  const excluded = new Set<CadSegment['edgeType']>(options.excludedEdgeTypes ?? ['center', 'general', 'hem', 'waist', 'neckline']);
   const paired = new Set(existingPairs.flatMap(pair => [
     referenceKey(pair.first), referenceKey(pair.second)
   ]));
