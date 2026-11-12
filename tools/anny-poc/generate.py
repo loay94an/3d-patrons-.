@@ -36,6 +36,61 @@ def parse_phenotypes(items: list[str], labels: list[str]) -> dict[str, float]:
     return values
 
 
+def build_relaxed_arm_pose(model: anny.Anny, device: str) -> torch.Tensor:
+    """Build a symmetric, relaxed-down arm pose using Anny's native rig.
+
+    Anny's world-orient parameterization lets each upper-arm bone be oriented
+    in the model's world frame while preserving rig skinning and mesh topology.
+    Opposite signs mirror the left and right arms around the sagittal plane.
+    """
+    labels = list(model.bone_labels)
+    required = (
+        "upperarm01.L", "upperarm02.L",
+        "upperarm01.R", "upperarm02.R",
+    )
+    missing = [label for label in required if label not in labels]
+    if missing:
+        raise RuntimeError(
+            "Anny rig is missing required upper-arm bones: " + ", ".join(missing)
+        )
+
+    # Convert the reference pose to world-orient explicitly. This avoids
+    # assuming that local-bone and local-ref rotations share the same axes.
+    reference_pose = {
+        label: torch.eye(4, dtype=torch.float32, device=device)[None]
+        for label in labels
+    }
+    reference_output = model(pose_parameters=reference_pose)
+    pose = model.get_pose_parameterization(
+        reference_output, pose_parameterization="world-orient"
+    ).clone()
+
+    def rotation_z(degrees: float) -> torch.Tensor:
+        angle = torch.tensor(
+            degrees * 3.141592653589793 / 180.0,
+            dtype=torch.float32,
+            device=device,
+        )
+        cosine = torch.cos(angle)
+        sine = torch.sin(angle)
+        transform = torch.eye(4, dtype=torch.float32, device=device)
+        transform[0, 0] = cosine
+        transform[0, 1] = -sine
+        transform[1, 0] = sine
+        transform[1, 1] = cosine
+        return transform
+
+    bone_indices = {label: index for index, label in enumerate(labels)}
+    # The upstream Anny pose tutorial demonstrates 90-degree Z rotations
+    # on upper-arm bones. Mirrored signs lower both sides symmetrically.
+    for side, angle in (("L", -90.0), ("R", 90.0)):
+        transform = rotation_z(angle)
+        for segment in ("upperarm01", "upperarm02"):
+            pose[0, bone_indices[f"{segment}.{side}"]] = transform
+
+    return pose
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default="anny-neutral.glb", help="Output GLB path")
@@ -61,13 +116,11 @@ def main() -> None:
         device=device, dtype=torch.float32
     )
     phenotypes = parse_phenotypes(args.phenotype, list(model.phenotype_labels))
-    pose = torch.eye(4, dtype=torch.float32, device=device)[None, None].repeat(
-        1, model.bone_count, 1, 1
-    )
-
     with torch.inference_mode():
+        pose = build_relaxed_arm_pose(model, device)
         output = model(
             pose_parameters=pose,
+            pose_parameterization="world-orient",
             phenotype_kwargs=phenotypes,
             local_changes_kwargs={},
         )
@@ -99,7 +152,10 @@ def main() -> None:
         "bounds_model_units": mesh.bounds.tolist(),
         "phenotype_parameters": phenotypes,
         "local_changes": {},
-        "pose": "identity",
+        "pose": "symmetric-relaxed-arms-down",
+        "pose_parameterization": "world-orient",
+        "arm_pose_degrees": {"left_upper_arm": -90.0, "right_upper_arm": 90.0},
+        "arm_pose_bones": ["upperarm01.L", "upperarm02.L", "upperarm01.R", "upperarm02.R"],
         "elapsed_seconds_including_model_initialization": round(elapsed, 3),
         "output_file": str(output_path),
         "measurement_status": (

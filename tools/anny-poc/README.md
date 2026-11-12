@@ -6,13 +6,13 @@ It does **not** replace the existing Three.js mannequin or run on GitHub Pages.
 ## What it does
 
 - Loads NAVER LABS Anny v0.6.2 with the native `anny` rig/topology.
-- Creates a neutral identity pose.
+- Creates a symmetric relaxed-down arm pose using Anny's native upper-arm rig bones.
 - Starts from the midpoint (0.5) of every published phenotype parameter.
 - Allows explicit phenotype overrides in the documented [0, 1] range.
 - Exports the generated triangular mesh as GLB and writes a JSON report beside it.
 - Checks that vertices and triangle indices are finite and valid.
 
-The report records mesh bounds in **model units**. It intentionally does not label
+The arm pose uses Anny's documented world-orient parameterization and mirrored upper-arm rotations; it does not edit vertices independently or alter torso proportions. The report records mesh bounds in **model units**. It intentionally does not label
 those values as centimetres or claim that phenotype controls directly represent
 bust, waist, hip, height, or other tape measurements.
 
