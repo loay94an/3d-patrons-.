@@ -58,6 +58,7 @@ export function conformGarmentMeshToBody(
   const fittedGeometry = garmentMesh.geometry.clone();
   const fittedPosition = fittedGeometry.getAttribute('position') as THREE.BufferAttribute;
   let fittedVertices = 0;
+  let bodyIntersections = 0;
   let totalDisplacement = 0;
   let maxDisplacementCm = 0;
 
@@ -76,6 +77,7 @@ export function conformGarmentMeshToBody(
     raycaster.set(rayOrigin, direction.clone().negate());
     const hits = raycaster.intersectObject(bodyMesh, false);
     if (!hits.length) continue;
+    bodyIntersections++;
 
     const hit = hits[0];
     fittedWorld.copy(hit.point);
@@ -107,7 +109,7 @@ export function conformGarmentMeshToBody(
     return {
       totalVertices: position.count, fittedVertices: 0, fitRatio: 0,
       meanDisplacementCm: 0, maxDisplacementCm: 0,
-      status: 'already-clear'
+      status: bodyIntersections > 0 ? 'already-clear' : 'no-intersections'
     };
   }
 
