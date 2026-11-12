@@ -68,6 +68,8 @@ jobs:
           assert arm_report["left_right_symmetry_error_model_units"] >= 0
           assert arm_report["vertical_drop_model_units"]["left"]["shoulder_to_wrist_vertical"] > 0
           assert arm_report["vertical_drop_model_units"]["right"]["shoulder_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["left"]["elbow_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["right"]["elbow_to_wrist_vertical"] > 0
 
           scene = trimesh.load(glb, force="scene")
           meshes = [geometry for geometry in scene.geometry.values()
