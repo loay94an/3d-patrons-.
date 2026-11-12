@@ -239,7 +239,6 @@ export function Pattern3DViewer({
 
   // Visual toggles
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
-  const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
@@ -329,9 +328,11 @@ export function Pattern3DViewer({
     updateCameraPosition();
 
     // Renderer
+    // Mobile GPUs can stall when this viewer renders at native 2x DPR with
+    // large shadow maps. Keep a bounded render resolution for a responsive UI.
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+    renderer.setSize(width, height, false);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -348,8 +349,8 @@ export function Pattern3DViewer({
     const keyLight = new THREE.DirectionalLight(0xfff6ed, 2.4);
     keyLight.position.set(60, 120, 80);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
     keyLight.shadow.bias = -0.0005;
     keyLight.shadow.camera.near = 10;
     keyLight.shadow.camera.far = 300;
@@ -416,7 +417,7 @@ export function Pattern3DViewer({
       if (w < 2 || h < 2) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
       renderer.setSize(w, h, false);
       frameScene();
     };
@@ -424,9 +425,22 @@ export function Pattern3DViewer({
     ro.observe(container);
     resizeRenderer();
 
-    // Animation Loop
-    const animate = () => {
+    // Render at a bounded rate and stop completely while the 3D viewer is
+    // outside the viewport or the browser tab is backgrounded. The previous
+    // unconditional 60fps loop kept the phone GPU busy even when the model
+    // was static or the user had switched to another section.
+    let isInViewport = true;
+    let lastFrameTime = 0;
+    const targetFrameInterval = 1000 / 24;
+    const animate = (time: number) => {
+      if (document.hidden || !isInViewport || !container.isConnected) {
+        reqIdRef.current = null;
+        return;
+      }
+
       reqIdRef.current = requestAnimationFrame(animate);
+      if (time - lastFrameTime < targetFrameInterval) return;
+      lastFrameTime = time;
 
       if (autoRotateRef.current) {
         sphericalRef.current.theta += 0.008;
@@ -435,10 +449,32 @@ export function Pattern3DViewer({
 
       renderer.render(scene, camera);
     };
-    animate();
+    const startAnimation = () => {
+      if (reqIdRef.current === null && !document.hidden && isInViewport) {
+        reqIdRef.current = requestAnimationFrame(animate);
+      }
+    };
+    const stopAnimation = () => {
+      if (reqIdRef.current !== null) cancelAnimationFrame(reqIdRef.current);
+      reqIdRef.current = null;
+    };
+    const visibilityObserver = new IntersectionObserver(entries => {
+      isInViewport = entries.some(entry => entry.isIntersecting);
+      if (isInViewport) startAnimation();
+      else stopAnimation();
+    });
+    visibilityObserver.observe(container);
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopAnimation();
+      else startAnimation();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startAnimation();
 
     return () => {
-      if (reqIdRef.current) cancelAnimationFrame(reqIdRef.current);
+      stopAnimation();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      visibilityObserver.disconnect();
       ro.disconnect();
       disposeObjectResources(scene);
       scene.clear();
@@ -782,27 +818,9 @@ export function Pattern3DViewer({
     const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
     const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
     const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, resolved.body.height);
-    if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
-      try {
-        const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
-          heightCm: targetHeightCm,
-          bustCm: resolved.body.bust,
-          waistCm: resolved.body.waist,
-          hipCm: resolved.body.hip
-        });
-        const previousGeometry = annyBodyMeshRef.current.geometry;
-        annyBodyMeshRef.current.geometry = calibration.geometry;
-        previousGeometry.dispose();
-        const { geometry: _geometry, ...summary } = calibration;
-        setAnnyCalibrationSummary(summary);
-      } catch (error) {
-        setAnnyCalibrationSummary({
-          nativeHeight: size.y, targetHeightCm, heightScale: getAnnyHeightScale(size.y, targetHeightCm),
-          landmarks: [], status: 'review-required',
-          warnings: [error instanceof Error ? error.message : 'تعذر معايرة جسم Anny؛ تم تحميله دون تغيير محيطي.']
-        });
-      }
-    }
+    // Defer tape-guided mesh calibration to the measurement effect below.
+    // Running it here as well caused the same expensive vertex pass to execute twice
+    // on the first load (once here and once when annyPreviewEnabled changed).
     group.scale.setScalar(getAnnyHeightScale(size.y, targetHeightCm));
     const scaledBounds = new THREE.Box3().setFromObject(group);
     const center = scaledBounds.getCenter(new THREE.Vector3());
@@ -881,15 +899,8 @@ export function Pattern3DViewer({
     }
   };
 
-  // Anny is the default visual body. The procedural mannequin remains available
-  // as a local fallback until Anny's mesh has validated tape-measure calibration.
-  useEffect(() => {
-    if (annyAutoLoadStartedRef.current) return;
-    annyAutoLoadStartedRef.current = true;
-    void handleLoadBundledAnny();
-    // Load once after the renderer scene has been initialized.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Anny is intentionally loaded on demand: GLB parsing and mesh calibration
+  // are CPU-heavy on phones, so opening the 3D workspace must stay responsive.
 
   const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
 
@@ -1267,6 +1278,31 @@ export function Pattern3DViewer({
         className="w-full h-full min-h-0 cursor-grab active:cursor-grabbing select-none overscroll-none"
       />
 
+      {!annyPreviewEnabled && !annyBundledBusy && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
+          <div dir="rtl" className="pointer-events-auto max-w-sm rounded-2xl border border-slate-700 bg-slate-950/90 p-4 text-center text-white shadow-2xl backdrop-blur">
+            <div className="text-sm font-bold">مساحة العرض ثلاثي الأبعاد جاهزة</div>
+            <p className="mt-2 text-xs leading-6 text-slate-300">
+              حمّل مجسم Anny عند الحاجة. تم تأجيل تحميله ومعايرته حتى لا يتوقف الموقع عند فتح هذا القسم على الهاتف.
+            </p>
+            <button
+              onClick={() => void handleLoadBundledAnny()}
+              className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600"
+            >
+              تحميل مجسم Anny
+            </button>
+          </div>
+        </div>
+      )}
+
+      {annyBundledBusy && (
+        <div role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
+          <div dir="rtl" className="rounded-xl border border-emerald-500/40 bg-slate-950/90 px-4 py-3 text-center text-xs text-emerald-100 shadow-xl">
+            جار تحميل مجسم Anny وتجهيزه...
+          </div>
+        </div>
+      )}
+
       <input ref={annyFileInputRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={handleAnnyFileChange} aria-label="تحميل مجسم Anny بصيغة GLB" />
 
       {annyApiPanelOpen && <section className="absolute top-16 right-3 z-30 w-[min(25rem,calc(100vw-1.5rem))] max-h-[68vh] overflow-y-auto rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 text-right text-xs text-white shadow-2xl backdrop-blur-md" dir="rtl">
@@ -1401,7 +1437,7 @@ export function Pattern3DViewer({
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
         <button disabled={annyBundledBusy} onClick={() => void handleLoadBundledAnny()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/40 border border-emerald-700/40 disabled:opacity-50" title="Anny هو الجسم الافتراضي للمعاينة؛ القياسات والملاءمة غير معايرة بعد">
-          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'إعادة تحميل Anny'}</span>
+          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : annyPreviewEnabled ? 'إعادة تحميل Anny' : 'تحميل Anny'}</span>
         </button>
         {annyPreviewEnabled && <>
           <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="تشكيل سطح الملابس ليتبع شبكة جسم Anny الفعلية">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
