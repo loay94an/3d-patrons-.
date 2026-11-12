@@ -18,6 +18,18 @@ const piece = (): CadPiece => ({
 });
 
 describe('pattern quality report', () => {
+  it('rejects an empty pattern instead of marking it export-safe', () => {
+    const report = validatePatternPieces([]);
+    assert.equal(report.valid, false);
+    assert.equal(report.exportSafe, false);
+    assert.equal(report.checkedPieces, 0);
+    assert.ok(report.issues.some(issue => issue.code === 'no-pattern-pieces'));
+  });
+  it('rejects invalid connection tolerances', () => {
+    const report = validatePatternPieces([piece()], Number.NaN);
+    assert.equal(report.exportSafe, false);
+    assert.ok(report.issues.some(issue => issue.code === 'invalid-tolerance'));
+  });
   it('accepts a closed, connected piece with valid construction metadata', () => {
     const report = validatePatternPieces([piece()]);
     assert.equal(report.valid, true);

@@ -32,6 +32,14 @@ export function validatePatternPieces(pieces: CadPiece[], toleranceCm = DEFAULT_
   const add = (piece: CadPiece, severity: QualitySeverity, code: string, message: string) =>
     issues.push({ severity, code, pieceId: piece.id, pieceName: piece.nameAr || piece.name, message });
 
+  // An empty collection is not a pattern and must never be marked safe to export.
+  if (pieces.length === 0) {
+    issues.push({ severity: 'error', code: 'no-pattern-pieces', pieceId: '', pieceName: '', message: 'لا توجد قطع باترون لفحصها؛ أضف قطعة واحدة على الأقل قبل التصدير.' });
+  }
+  if (!Number.isFinite(toleranceCm) || toleranceCm < 0) {
+    issues.push({ severity: 'error', code: 'invalid-tolerance', pieceId: '', pieceName: '', message: 'هامش سماحية فحص الوصلات يجب أن يكون رقمًا صالحًا غير سالب.' });
+  }
+
   pieces.forEach(piece => {
     const cutting = piece.segments.filter(segment => segment.layer === 'cutting');
     checkedCuttingEdges += cutting.length;
