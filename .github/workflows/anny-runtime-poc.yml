@@ -26,6 +26,34 @@ jobs:
           cache: pip
           cache-dependency-path: tools/anny-poc/requirements.txt
 
+      - name: Fetch pinned Anny source
+        run: |
+          python - <<'PY'
+          import os
+          import urllib.request
+          import zipfile
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "anny-runtime-source"
+          root.mkdir(parents=True, exist_ok=True)
+          archive = root / "anny-source.zip"
+          urllib.request.urlretrieve(
+              "https://github.com/naver/anny/archive/8f35dc2df1c4062fd2fae86734f9705de50c0c2b.zip",
+              archive,
+          )
+          with zipfile.ZipFile(archive) as bundle:
+              roots = {name.split("/", 1)[0] for name in bundle.namelist() if "/" in name}
+              if len(roots) != 1:
+                  raise SystemExit(f"Unexpected Anny archive roots: {sorted(roots)}")
+              bundle.extractall(root)
+          source = root / next(iter(roots))
+          if not (source / "src" / "anny" / "__init__.py").is_file():
+              raise SystemExit("Pinned Anny source package is missing")
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as stream:
+              stream.write(f"PYTHONPATH={source / 'src'}\\n")
+          print(f"Using Anny source at {source}")
+          PY
+
       - name: Install CPU PyTorch
         run: |
           python -m pip install --upgrade pip
