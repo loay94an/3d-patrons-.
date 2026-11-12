@@ -17,6 +17,7 @@ import {
   analyzeClothBodyClearance,
   buildClothSimulation,
   createThreeMeshBodyCollider,
+  type ClothBodyCollider,
   type ClothFitAnalysis,
   type ClothSimulation,
   type ClothPhysicalMaterial,
@@ -30,6 +31,8 @@ import {
  * All body and pattern dimensions are centimetres. Geometry stays in the
  * existing CAD coordinate system; renderers must apply an explicit unit scale.
  */
+const BODY_COLLIDER_CACHE = new WeakMap<FashionPipelineSession, ClothBodyCollider>();
+
 export interface FashionPipelineInput {
   body: {
     gender: Gender;
@@ -217,8 +220,12 @@ export function createFashionClothSimulation(
 }
 
 /** Uses the session's parametric body as the shared collision surface. */
-export function createFashionBodyCollider(session: FashionPipelineSession) {
-  return createThreeMeshBodyCollider(session.mannequin);
+export function createFashionBodyCollider(session: FashionPipelineSession): ClothBodyCollider {
+  const cached = BODY_COLLIDER_CACHE.get(session);
+  if (cached) return cached;
+  const collider = createThreeMeshBodyCollider(session.mannequin);
+  BODY_COLLIDER_CACHE.set(session, collider);
+  return collider;
 }
 
 /** Reports garment/body clearance and penetration for the current cloth state. */
