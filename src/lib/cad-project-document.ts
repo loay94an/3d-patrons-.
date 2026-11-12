@@ -51,6 +51,9 @@ function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitc
     const firstKey = first.pieceId + '\\u0000' + first.segmentId;
     const secondKey = second.pieceId + '\\u0000' + second.segmentId;
     if (!firstSegment || !secondSegment ||
+        !['cutting', 'seam'].includes(firstSegment.layer) ||
+        !['cutting', 'seam'].includes(secondSegment.layer) ||
+        !firstSegment.edgeType || firstSegment.edgeType === 'center' || firstSegment.edgeType === 'general' ||
         firstSegment.edgeType !== secondSegment.edgeType ||
         usedEdges.has(firstKey) || usedEdges.has(secondKey)) return false;
     pairIds.add(item.id);
@@ -75,10 +78,13 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
   if (pieces.length > 500 || summaries.length > 500) {
     throw new Error('يتجاوز ملف CAD الحد المسموح به من القطع.');
   }
+  const pieceIds = pieces.map(piece => piece?.id);
   const validPieces = pieces.every(piece =>
     piece && typeof piece.id === 'string' && typeof piece.name === 'string' &&
     typeof piece.nameAr === 'string' && Array.isArray(piece.segments) &&
-    piece.segments.length <= 2000 && Array.isArray(piece.notches) &&
+    piece.segments.length <= 2000 &&
+    new Set(piece.segments.map(segment => segment?.id)).size === piece.segments.length &&
+    Array.isArray(piece.notches) &&
     Array.isArray(piece.grainlines) && Number.isFinite(piece.seamAllowanceCm) &&
     piece.segments.every(segment =>
       segment && typeof segment.id === 'string' &&
@@ -99,7 +105,9 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
     Number.isFinite(summary.seamAllowanceCm) && Number.isFinite(summary.notchesCount) &&
     typeof summary.notesAr === 'string'
   );
-  if (!validPieces || !validSummaries) throw new Error('تحتوي وثيقة CAD على عناصر هندسية غير صالحة.');
+  if (!validPieces || !validSummaries || new Set(pieceIds).size !== pieceIds.length) {
+    throw new Error('تحتوي وثيقة CAD على عناصر هندسية أو معرّفات قطع غير صالحة أو مكررة.');
+  }
 
   const stitchPairs = schemaVersion === 1 ? [] : document.stitchPairs;
   if (!validStitchPairs(stitchPairs, pieces)) {
