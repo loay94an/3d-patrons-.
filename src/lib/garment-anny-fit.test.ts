@@ -2,9 +2,10 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { conformGarmentMeshToBody } from './garment-anny-fit';
+import { calculateFabricDrapeFold } from './garment-3d-generator';
 
 describe('Anny garment surface conform', () => {
-  it('moves garment vertices to the real body surface plus clearance', () => {
+  it('preserves drafted ease when the garment already clears the body', () => {
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(10, 10, 40, 64, 12, false),
       new THREE.MeshBasicMaterial({ side: THREE.FrontSide })
@@ -17,10 +18,9 @@ describe('Anny garment surface conform', () => {
     body.updateMatrixWorld(true);
     garment.updateMatrixWorld(true);
     const report = conformGarmentMeshToBody(garment, body, 2);
-    assert.equal(report.status, 'conformed');
-    assert.ok(report.fitRatio > 0.8, JSON.stringify(report));
-    assert.ok(report.meanDisplacementCm > 0);
-    assert.notEqual(garment.geometry.getAttribute('position').getX(0), before);
+    assert.equal(report.status, 'already-clear');
+    assert.equal(report.fittedVertices, 0);
+    assert.equal(garment.geometry.getAttribute('position').getX(0), before);
     garment.geometry.dispose();
     body.geometry.dispose();
     (garment.material as THREE.Material).dispose();
@@ -50,5 +50,58 @@ describe('Anny garment surface conform', () => {
     body.geometry.dispose();
     (garment.material as THREE.Material).dispose();
     (body.material as THREE.Material).dispose();
+  });
+});
+
+
+describe('garment body clearance', () => {
+  it('preserves drafted ease when the garment is already outside the body', () => {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 48), new THREE.MeshBasicMaterial());
+    const garment = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 30, 48), new THREE.MeshBasicMaterial());
+    body.updateMatrixWorld(true);
+    garment.updateMatrixWorld(true);
+    const before = garment.geometry.getAttribute('position').getX(0);
+    const report = conformGarmentMeshToBody(garment, body, 1);
+    assert.equal(report.status, 'already-clear');
+    assert.equal(garment.geometry.getAttribute('position').getX(0), before);
+    garment.geometry.dispose();
+    body.geometry.dispose();
+    (garment.material as THREE.Material).dispose();
+    (body.material as THREE.Material).dispose();
+  });
+
+  it('corrects penetrating vertices but does not shrink vertices with sufficient ease', () => {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 48), new THREE.MeshBasicMaterial());
+    const garment = new THREE.Mesh(new THREE.CylinderGeometry(9, 15, 30, 48, 4), new THREE.MeshBasicMaterial());
+    body.updateMatrixWorld(true);
+    garment.updateMatrixWorld(true);
+    const report = conformGarmentMeshToBody(garment, body, 1);
+    assert.ok(report.fittedVertices > 0);
+    assert.ok(report.maxDisplacementCm > 0);
+    garment.geometry.dispose();
+    body.geometry.dispose();
+    (garment.material as THREE.Material).dispose();
+    (body.material as THREE.Material).dispose();
+  });
+});
+
+
+describe('fabric-aware drape profile', () => {
+  it('starts smoothly at the supported top edge and grows toward the free hem', () => {
+    const top = calculateFabricDrapeFold(0.7, 0, 0.2, 75, 90);
+    const lower = calculateFabricDrapeFold(0.7, 0.9, 0.2, 75, 90);
+    assert.equal(Math.abs(top), 0);
+    assert.ok(Number.isFinite(lower));
+    assert.ok(Math.abs(lower) > Math.abs(top));
+  });
+
+  it('keeps folds finite and bounded for every supported fabric range', () => {
+    for (const stiffness of [0, 0.2, 0.5, 0.85, 1]) {
+      for (const weight of [45, 75, 130, 210, 380, 450]) {
+        const fold = calculateFabricDrapeFold(Math.PI / 3, 1, stiffness, weight, 110);
+        assert.ok(Number.isFinite(fold));
+        assert.ok(Math.abs(fold) <= 2.1);
+      }
+    }
   });
 });

@@ -6,7 +6,7 @@ export interface GarmentConformReport {
   fitRatio: number;
   meanDisplacementCm: number;
   maxDisplacementCm: number;
-  status: 'conformed' | 'partial' | 'no-intersections';
+  status: 'conformed' | 'partial' | 'already-clear' | 'no-intersections';
 }
 
 /**
@@ -58,6 +58,7 @@ export function conformGarmentMeshToBody(
   const fittedGeometry = garmentMesh.geometry.clone();
   const fittedPosition = fittedGeometry.getAttribute('position') as THREE.BufferAttribute;
   let fittedVertices = 0;
+  let bodyIntersections = 0;
   let totalDisplacement = 0;
   let maxDisplacementCm = 0;
 
@@ -76,6 +77,7 @@ export function conformGarmentMeshToBody(
     raycaster.set(rayOrigin, direction.clone().negate());
     const hits = raycaster.intersectObject(bodyMesh, false);
     if (!hits.length) continue;
+    bodyIntersections++;
 
     const hit = hits[0];
     fittedWorld.copy(hit.point);
@@ -88,8 +90,12 @@ export function conformGarmentMeshToBody(
     } else {
       outwardNormal.copy(direction);
     }
-    fittedWorld.addScaledVector(outwardNormal, clearanceCm);
+    // Preserve the drafted wearing ease. Only move vertices that penetrate the
+    // body or fall inside the requested safety gap; never pull loose cloth inward.
+    const signedGap = worldVertex.clone().sub(hit.point).dot(outwardNormal);
+    if (signedGap >= clearanceCm) continue;
 
+    fittedWorld.addScaledVector(outwardNormal, clearanceCm);
     const displacement = fittedWorld.distanceTo(worldVertex);
     totalDisplacement += displacement;
     maxDisplacementCm = Math.max(maxDisplacementCm, displacement);
@@ -102,7 +108,8 @@ export function conformGarmentMeshToBody(
     fittedGeometry.dispose();
     return {
       totalVertices: position.count, fittedVertices: 0, fitRatio: 0,
-      meanDisplacementCm: 0, maxDisplacementCm: 0, status: 'no-intersections'
+      meanDisplacementCm: 0, maxDisplacementCm: 0,
+      status: bodyIntersections > 0 ? 'already-clear' : 'no-intersections'
     };
   }
 
@@ -123,4 +130,35 @@ export function conformGarmentMeshToBody(
     maxDisplacementCm,
     status: fitRatio > 0.75 ? 'conformed' : 'partial'
   };
+}
+
+
+/**
+ * Apply the non-destructive body-clearance correction to every mesh in a garment.
+ * This covers torso, sleeves and trouser legs while preserving existing wearing ease.
+ */
+export function conformGarmentGroupToBody(
+  garmentGroup: THREE.Group,
+  bodyMesh: THREE.Mesh,
+  clearanceCm = 0.6
+): GarmentConformReport {
+  garmentGroup.updateWorldMatrix(true, true);
+  bodyMesh.updateWorldMatrix(true, false);
+  const reports: GarmentConformReport[] = [];
+  garmentGroup.traverse(object => {
+    if (object instanceof THREE.Mesh && object !== bodyMesh) {
+      reports.push(conformGarmentMeshToBody(object, bodyMesh, clearanceCm));
+    }
+  });
+  const totalVertices = reports.reduce((sum, report) => sum + report.totalVertices, 0);
+  const fittedVertices = reports.reduce((sum, report) => sum + report.fittedVertices, 0);
+  const meanDisplacementCm = fittedVertices
+    ? reports.reduce((sum, report) => sum + report.meanDisplacementCm * report.fittedVertices, 0) / fittedVertices
+    : 0;
+  const maxDisplacementCm = Math.max(0, ...reports.map(report => report.maxDisplacementCm));
+  const fitRatio = totalVertices ? fittedVertices / totalVertices : 0;
+  const status = fittedVertices === 0
+    ? (reports.some(report => report.status === 'already-clear') ? 'already-clear' : 'no-intersections')
+    : fitRatio > 0.75 ? 'conformed' : 'partial';
+  return { totalVertices, fittedVertices, fitRatio, meanDisplacementCm, maxDisplacementCm, status };
 }
