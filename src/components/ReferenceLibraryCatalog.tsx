@@ -1,39 +1,99 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ExternalLink, BookOpen, Scissors, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Search, ExternalLink, BookOpen, Scissors, Image as ImageIcon, AlertTriangle, Ruler, Sparkles } from 'lucide-react';
 
 type ReferenceRecord = {
-  id: string; sourceId: string; title: string; category: string; categoryAr: string;
-  pageCount: number | null; contentType: string; tagsAr: string[]; detailsAr: string[];
-  hasPattern: boolean; tutorialWithPattern: boolean; needsReview: boolean;
-  classificationBasis: string; previewKind: string; rightsStatus: string; sourceUrl: string;
+  id: string;
+  displayTitleAr: string;
+  categoryId: string;
+  categoryAr: string;
+  familyShape: string;
+  sourceTitle: string;
+  sourcePageCount: number | null;
+  sourceClassification: string;
+  contentGroup: 'design_candidate' | 'pattern_reference' | 'tutorial_pattern' | 'technique';
+  contentGroupAr: string;
+  featureTagsAr: string[];
+  extractedTagsAr: string[];
+  designDetailsAr: string[];
+  evidenceLevel: string;
+  requiresPageReview: boolean;
+  isEditablePattern: boolean;
+  rightsStatus: string;
+  originalIllustration: boolean;
+  sourceUrl: string;
 };
-type Catalog = { total: number; noticeAr: string; records: ReferenceRecord[] };
+type Catalog = {
+  totalRecords: number;
+  summary: Record<string, number>;
+  noticeAr: string;
+  rightsPolicyAr: string;
+  records: ReferenceRecord[];
+};
 type Props = { mode: 'models' | 'patterns' };
 
 const categoryOrder = ['بلوزات_وتوبات','فساتين','بناطيل','تنانير','معاطف_وسترات','أفرولات','شورتات','ملابس_داخلية','أنماط_أخرى'];
 const categoryNames: Record<string,string> = {
   'بلوزات_وتوبات':'بلوزات وتوبات','فساتين':'فساتين','بناطيل':'بناطيل','تنانير':'تنانير',
   'معاطف_وسترات':'معاطف وسترات','أفرولات':'أفرولات','شورتات':'شورتات',
-  'ملابس_داخلية':'ملابس داخلية','أنماط_أخرى':'أنماط أخرى'
+  'ملابس_داخلية':'ملابس داخلية','أنماط_أخرى':'متنوعات وتقنيات'
 };
 
-function GarmentIllustration({category}:{category:string}) {
-  const common = { fill: 'none', stroke: '#c7d2fe', strokeWidth: 3.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
-  let shape: React.ReactNode;
-  if (category === 'بناطيل' || category === 'شورتات') shape = <path {...common} d={category==='شورتات'?'M34 25 L86 25 L82 59 L66 59 L60 42 L54 59 L38 59 Z':'M35 22 L85 22 L80 91 L62 91 L59 48 L56 91 L38 91 Z'} />;
-  else if (category === 'تنانير') shape = <path {...common} d="M42 24 L78 24 L91 91 L29 91 Z" />;
-  else if (category === 'فساتين') shape = <path {...common} d="M43 18 L57 18 L62 34 L73 40 L91 92 L29 92 L47 40 L58 34 Z" />;
-  else if (category === 'معاطف_وسترات') shape = <path {...common} d="M42 18 L58 27 L74 18 L88 34 L78 45 L75 92 L41 92 L38 45 L28 34 Z M58 27 L58 92 M48 40 L54 48 M68 40 L62 48" />;
-  else if (category === 'أفرولات') shape = <path {...common} d="M40 18 L76 18 L82 34 L75 43 L72 91 L61 91 L58 52 L55 91 L44 91 L41 43 L34 34 Z M43 18 L47 35 L69 35 L73 18" />;
-  else if (category === 'ملابس_داخلية') shape = <path {...common} d="M35 37 Q42 18 55 38 Q68 18 79 37 L84 53 L72 57 L68 47 L65 72 L49 72 L46 47 L42 57 L30 53 Z" />;
-  else if (category === 'أنماط_أخرى') shape = <path {...common} d="M40 20 L76 20 L87 40 L74 48 L70 91 L46 91 L42 48 L29 40 Z" />;
-  else shape = <path {...common} d="M42 18 L58 27 L74 18 L89 38 L77 47 L72 91 L44 91 L39 47 L27 38 Z M58 27 L58 44" />;
-  return <div className="flex h-36 items-center justify-center rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 to-indigo-950/50">
-    <svg viewBox="0 0 116 110" role="img" aria-label={`رسم توضيحي لفئة ${categoryNames[category]||category}`} className="h-32 w-32">
-      <circle cx="58" cy="55" r="47" fill="#6366f1" opacity=".08" />
-      {shape}
-      <path d="M18 99 H98" stroke="#475569" strokeWidth="1.5" strokeDasharray="3 4" />
+function GarmentIllustration({item}:{item:ReferenceRecord}) {
+  const stroke = { fill: 'none', stroke: '#c7d2fe', strokeWidth: 2.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const tags = item.featureTagsAr.join(' ');
+  const sleeveless = /بلا أكمام|حمالات/.test(tags);
+  const longSleeve = /أكمام طويلة/.test(tags);
+  const vNeck = /ياقة V/.test(tags);
+  const collar = /ياقة/.test(tags) && !vNeck;
+  const flare = /واسعة|متسع|دائرية|A/.test(tags);
+  const frill = /كشكشة|تجميعات/.test(tags);
+  const asym = /غير متماثل/.test(tags);
+  const upperBody = !['trousers','shorts','skirt'].includes(item.familyShape);
+  const arms = !upperBody || sleeveless ? null : <path {...stroke} d={longSleeve ? "M39 29 L20 45 L11 79 L20 82 L34 54 M77 29 L96 45 L105 79 L96 82 L82 54" : "M39 29 L21 42 L29 56 L40 49 M77 29 L95 42 L87 56 L76 49"} />;
+  let body: React.ReactNode;
+  switch (item.familyShape) {
+    case 'dress':
+      body = <path {...stroke} d={flare ? "M43 18 L57 18 L63 33 L76 39 L96 96 L20 96 L40 39 L51 33 Z" : "M43 18 L57 18 L63 33 L75 39 L82 96 L34 96 L41 39 L51 33 Z"} />;
+      break;
+    case 'skirt':
+      body = <path {...stroke} d={flare ? "M42 23 L74 23 L97 96 L19 96 Z" : "M42 23 L74 23 L83 96 L33 96 Z"} />;
+      break;
+    case 'trousers':
+      body = <path {...stroke} d="M34 22 L82 22 L78 96 L61 96 L58 52 L55 96 L38 96 Z" />;
+      break;
+    case 'shorts':
+      body = <path {...stroke} d="M34 22 L82 22 L78 63 L63 63 L58 48 L53 63 L38 63 Z" />;
+      break;
+    case 'outerwear':
+      body = <path {...stroke} d="M41 18 L58 27 L75 18 L91 39 L79 49 L76 96 L40 96 L37 49 L25 39 Z M58 27 L58 96 M47 42 L54 51 M69 42 L62 51" />;
+      break;
+    case 'jumpsuit':
+      body = <path {...stroke} d="M40 18 L76 18 L84 37 L75 46 L72 96 L61 96 L58 54 L55 96 L44 96 L41 46 L32 37 Z M44 18 L47 34 L69 34 L72 18" />;
+      break;
+    case 'intimates':
+      body = <path {...stroke} d="M34 38 Q42 18 55 38 Q68 18 80 38 L86 56 L72 60 L67 48 L64 78 L48 78 L45 48 L40 60 L27 56 Z" />;
+      break;
+    default:
+      body = <path {...stroke} d="M41 18 L58 27 L75 18 L91 39 L79 49 L76 96 L40 96 L37 49 L25 39 Z" />;
+  }
+  const neckline = !upperBody ? null : vNeck
+    ? <path {...stroke} d="M48 29 L58 43 L68 29" />
+    : collar
+      ? <path {...stroke} d="M48 28 L58 39 L68 28 M58 39 L58 53" />
+      : <path {...stroke} d="M49 28 Q58 37 67 28" />;
+  const decorative = <g {...stroke}>
+    {frill && <path d="M43 42 Q49 36 55 42 T67 42 T79 42" strokeDasharray="2 3" />}
+    {asym && <path d="M43 61 L74 76" />}
+    {item.familyShape === 'outerwear' && <path d="M68 50 L68 75 M64 58 L72 58" />}
+  </g>;
+  return <div className="relative flex h-36 items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900">
+    <svg viewBox="0 0 116 110" role="img" aria-label={`رسم تصوري أصلي: ${item.displayTitleAr}`} className="h-32 w-32">
+      <defs><linearGradient id={`g-${item.id}`} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#a5b4fc" stopOpacity=".18"/><stop offset="100%" stopColor="#818cf8" stopOpacity=".02"/></linearGradient></defs>
+      <circle cx="58" cy="55" r="47" fill={`url(#g-${item.id})`} />
+      {body}{arms}{neckline}{decorative}
+      <path d="M15 101 H101" stroke="#475569" strokeWidth="1.3" strokeDasharray="3 4" />
     </svg>
+    <span className="absolute bottom-2 left-2 rounded-md border border-indigo-400/20 bg-slate-950/75 px-2 py-1 text-[9px] text-indigo-200">رسم تصوري أصلي</span>
   </div>;
 }
 
@@ -58,13 +118,12 @@ export function ReferenceLibraryCatalog({mode}:Props) {
   const records = useMemo(() => {
     if (!catalog) return [];
     return catalog.records.filter(item => {
-      const isPattern = item.hasPattern || item.tutorialWithPattern;
+      const isPattern = item.contentGroup === 'pattern_reference' || item.contentGroup === 'tutorial_pattern';
       if (mode === 'patterns' && !isPattern) return false;
-      if (category !== 'all' && item.category !== category) return false;
-      if (kind === 'direct' && !item.hasPattern) return false;
-      if (kind === 'tutorial' && !item.tutorialWithPattern) return false;
-      if (kind === 'review' && !item.needsReview) return false;
-      const haystack = [item.title,item.categoryAr,...item.tagsAr,...item.detailsAr].join(' ').toLowerCase();
+      if (mode === 'models' && item.contentGroup !== 'design_candidate' && item.contentGroup !== 'technique') return false;
+      if (category !== 'all' && item.categoryId !== category) return false;
+      if (kind !== 'all' && item.contentGroup !== kind) return false;
+      const haystack = [item.displayTitleAr,item.categoryAr,item.sourceTitle,item.contentGroupAr,...item.featureTagsAr,...item.extractedTagsAr,...item.designDetailsAr].join(' ').toLowerCase();
       return haystack.includes(query.trim().toLowerCase());
     });
   },[catalog,mode,category,kind,query]);
@@ -72,55 +131,60 @@ export function ReferenceLibraryCatalog({mode}:Props) {
   useEffect(() => { setPage(1); },[mode,category,kind,query]);
   const pageCount = Math.max(1,Math.ceil(records.length/pageSize));
   const visible = records.slice((page-1)*pageSize,page*pageSize);
+  const patternCount = catalog ? (catalog.summary.pattern_reference||0)+(catalog.summary.tutorial_pattern||0) : 0;
+  const modelCount = catalog ? (catalog.summary.design_candidate||0)+(catalog.summary.technique||0) : 0;
 
   return <section dir="rtl" className="h-full overflow-y-auto bg-slate-950 p-4 text-slate-100 sm:p-6">
     <div className="mx-auto max-w-7xl space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold text-indigo-300">{mode==='models'?<ImageIcon className="h-4 w-4"/>:<Scissors className="h-4 w-4"/>}{mode==='models'?'مكتبة موديلات الملابس المرجعية':'فهرس مراجع الباترونات'}</div>
-          <h1 className="text-xl font-black sm:text-2xl">{mode==='models'?'الموديلات المستوردة من المراجع':'الباترونات المرشحة لإعادة الرسم'}</h1>
-          <p className="mt-2 max-w-3xl text-xs leading-6 text-slate-400">{mode==='models'?'تصفح التصاميم المصنفة حسب نوع الملابس. الرسومات الظاهرة توضيحية للفئة وليست صوراً أصلية من ملفات المصدر.':'هذه الملفات مرشحة لاستخراج هندستها وإعادة رسمها. لا تُعرض كباترونات قابلة للتحرير قبل تتبع القطع ومراجعة القياسات والدرزات.'}</p>
+          <div className="mb-2 flex items-center gap-2 text-xs font-bold text-indigo-300">{mode==='models'?<ImageIcon className="h-4 w-4"/>:<Scissors className="h-4 w-4"/>}{mode==='models'?'مكتبة التصميمات والموديلات':'مراجع الباترونات وتقنيات إعدادها'}</div>
+          <h1 className="text-xl font-black sm:text-2xl">{mode==='models'?'مكتبة موديلات وتصميمات الملابس':'فهرس مراجع الباترونات'}</h1>
+          <p className="mt-2 max-w-3xl text-xs leading-6 text-slate-400">{mode==='models'?'تصنيف عربي للموديلات المرشحة والتقنيات. الرسومات تصورات أصلية مولّدة من الفئة والسمات النصية، وليست صورًا للمصدر أو توثيقًا مطابقًا له.':'مراجع مرشحة للاستفادة في تطوير قواعد باترونات مستقلة. هذه ليست ملفات باترون قابلة للقص أو التحرير؛ يلزم التحقق الهندسي من كل نموذج قبل اعتماده.'}</p>
         </div>
         <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/30 px-4 py-3 text-center">
-          <div className="text-2xl font-black tabular-nums">{catalog ? (mode==='models'?catalog.total:catalog.records.filter(x=>x.hasPattern||x.tutorialWithPattern).length) : '—'}</div>
-          <div className="text-[10px] text-slate-400">{mode==='models'?'سجل مرجعي':'ملف مرشح للباترون'}</div>
+          <div className="text-2xl font-black tabular-nums">{catalog ? (mode==='models'?modelCount:patternCount) : '—'}</div>
+          <div className="text-[10px] text-slate-400">{mode==='models'?'تصميم وتقنية مفهرسة':'مرجع باترون مرشح'}</div>
         </div>
       </header>
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5"><Search className="h-4 w-4 text-slate-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="ابحث باسم الموديل أو نوعه..." className="w-full bg-transparent text-sm outline-none"/></label>
+        <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5"><Search className="h-4 w-4 text-slate-500"/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="ابحث باسم التصميم أو تفاصيله..." className="w-full bg-transparent text-sm outline-none"/></label>
         <select value={category} onChange={e=>setCategory(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm">
           <option value="all">كل الفئات</option>{categoryOrder.map(id=><option key={id} value={id}>{categoryNames[id]}</option>)}
         </select>
-        {mode==='patterns'&&<select value={kind} onChange={e=>setKind(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm">
-          <option value="all">كل المرشحات</option><option value="direct">باترون مصنف مباشرة</option><option value="tutorial">شرح يتضمن باتروناً</option><option value="review">يحتاج مراجعة</option>
-        </select>}
+        <select value={kind} onChange={e=>setKind(e.target.value)} className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm">
+          {mode==='models' ? <><option value="all">كل التصميمات والتقنيات</option><option value="design_candidate">تصميمات مرشحة</option><option value="technique">تقنيات وشروحات</option></> : <><option value="all">كل مراجع الباترونات</option><option value="pattern_reference">مرجع مصنف للباترون</option><option value="tutorial_pattern">شرح يتضمن باترونًا</option></>}
+        </select>
       </div>
 
       {catalog&&<div className="flex flex-wrap gap-2 text-[10px] text-slate-400">
-        <span className="rounded-lg bg-slate-900 px-3 py-2">إجمالي الفهرس: {catalog.total}</span>
-        <span className="rounded-lg bg-slate-900 px-3 py-2">النتائج: {records.length}</span>
-        {mode==='patterns'&&<span className="rounded-lg bg-slate-900 px-3 py-2">التصنيف المباشر: {catalog.records.filter(x=>x.hasPattern).length}</span>}
+        <span className="rounded-lg bg-slate-900 px-3 py-2">كل السجلات: {catalog.totalRecords}</span>
+        <span className="rounded-lg bg-slate-900 px-3 py-2">نتائج هذا القسم: {records.length}</span>
+        <span className="rounded-lg bg-slate-900 px-3 py-2">تصميمات مرشحة: {catalog.summary.design_candidate||0}</span>
+        <span className="rounded-lg bg-slate-900 px-3 py-2">تقنيات: {catalog.summary.technique||0}</span>
+        <span className="rounded-lg bg-slate-900 px-3 py-2">مراجع باترونات: {patternCount}</span>
       </div>}
 
       {error&&<p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-200">{error}</p>}
-      {!catalog&&!error&&<p className="py-12 text-center text-sm text-slate-400">جارٍ تحميل فهرس المراجع…</p>}
+      {!catalog&&!error&&<p className="py-12 text-center text-sm text-slate-400">جارٍ تحميل المكتبة…</p>}
       {catalog&&visible.length===0&&<p className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-sm text-slate-400">لا توجد نتائج مطابقة.</p>}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {visible.map(item=><article key={item.id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
-          <GarmentIllustration category={item.category}/>
-          <div className="mt-3 flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="line-clamp-2 text-sm font-extrabold leading-6">{item.title}</h2><p className="mt-1 text-[10px] text-indigo-300">{item.categoryAr}</p></div><span className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-[9px] text-slate-300">{item.pageCount?item.pageCount+' صفحة':'مرجع'}</span></div>
-          {item.tagsAr.length>0&&<p className="mt-2 text-[10px] text-slate-300">النوع: {item.tagsAr.join('، ')}</p>}
-          {item.detailsAr.length>0&&<p className="mt-1 text-[10px] leading-5 text-slate-400">{item.detailsAr.slice(0,3).join(' · ')}</p>}
+          <GarmentIllustration item={item}/>
+          <div className="mt-3 flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="line-clamp-2 text-sm font-extrabold leading-6">{item.displayTitleAr}</h2><p className="mt-1 text-[10px] text-indigo-300">{item.categoryAr}</p></div><span className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-[9px] text-slate-300">{item.sourcePageCount?item.sourcePageCount+' صفحة':'مرجع'}</span></div>
+          {item.featureTagsAr.length>0&&<p className="mt-2 text-[10px] text-slate-300">سمات التصميم: {item.featureTagsAr.join('، ')}</p>}
+          {item.extractedTagsAr.length>0&&<p className="mt-1 text-[10px] leading-5 text-slate-400">وسوم الفهرس: {item.extractedTagsAr.join('، ')}</p>}
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {item.hasPattern&&<span className="rounded-md bg-emerald-950/60 px-2 py-1 text-[9px] text-emerald-300">مصنف كباترون</span>}
-            {item.tutorialWithPattern&&<span className="rounded-md bg-amber-950/60 px-2 py-1 text-[9px] text-amber-200">شرح مع باترون</span>}
-            {item.needsReview&&<span className="rounded-md bg-slate-800 px-2 py-1 text-[9px] text-slate-400">يحتاج مراجعة</span>}
+            <span className="rounded-md bg-indigo-950/60 px-2 py-1 text-[9px] text-indigo-200">{item.contentGroupAr}</span>
+            {item.contentGroup==='pattern_reference'&&<span className="rounded-md bg-emerald-950/60 px-2 py-1 text-[9px] text-emerald-300">مرجع باترون</span>}
+            {item.contentGroup==='tutorial_pattern'&&<span className="rounded-md bg-amber-950/60 px-2 py-1 text-[9px] text-amber-200">شرح مع باترون</span>}
+            <span className="rounded-md bg-slate-800 px-2 py-1 text-[9px] text-slate-400">العنوان فقط — يحتاج مراجعة صفحات</span>
           </div>
           <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
-            <span className="text-[9px] text-slate-500">رسم توضيحي للفئة</span>
-            <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-indigo-600/20 px-2.5 py-2 text-[10px] font-bold text-indigo-200 hover:bg-indigo-600/40"><BookOpen className="h-3 w-3"/> المصدر الأصلي <ExternalLink className="h-3 w-3"/></a>
+            <span className="text-[9px] text-slate-500">لا يمثل رسم المصدر</span>
+            <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-indigo-600/20 px-2.5 py-2 text-[10px] font-bold text-indigo-200 hover:bg-indigo-600/40"><BookOpen className="h-3 w-3"/> بيانات المرجع <ExternalLink className="h-3 w-3"/></a>
           </div>
         </article>)}
       </div>
@@ -132,10 +196,11 @@ export function ReferenceLibraryCatalog({mode}:Props) {
       </div>}
 
       <aside className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3 text-[10px] leading-6 text-amber-100/80">
-        <div className="mb-1 flex items-center gap-2 font-bold"><AlertTriangle className="h-4 w-4"/> حدود الاستيراد والحقوق</div>
-        {catalog?.noticeAr} ملفات المصدر في المستودع الخاص وتتطلب صلاحية GitHub. لم تُنشر ملفات PDF أو صور صفحاتها. التصنيف الآلي مبني جزئياً على أسماء الملفات؛ لذلك لا يُعد توثيقاً هندسياً.
+        <div className="mb-1 flex items-center gap-2 font-bold"><AlertTriangle className="h-4 w-4"/> سياسة المحتوى والحقوق</div>
+        {catalog?.noticeAr} {catalog?.rightsPolicyAr}
       </aside>
-      {mode==='patterns'&&<p className="rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs leading-6 text-slate-400">المرحلة التالية لإتاحة التحرير: فحص صفحات كل مرجع، تحديد قطع الأمام والخلف والكم والياقة، تتبع الحدود إلى مسارات SVG بمقياس معلوم، تحويلها إلى CadPiece، ثم اختبار أطوال الدرزات والعلامات والبدلات قبل اعتمادها.</p>}
+      {mode==='patterns'&&<p className="rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs leading-6 text-slate-400"><Ruler className="ml-1 inline h-4 w-4"/> لا يُعرض أي مرجع على أنه باترون قابل للتحرير. إنشاء الباترون الأصلي يتطلب اشتقاق قاعدة مستقلة من القياسات العامة، بناء قطع CAD، ضبط المقياس والبدلات واتجاه النسيج، ثم اختبار توازن الحواف والدرزات والتدريج قبل نشره.</p>}
+      {mode==='models'&&<p className="rounded-xl border border-slate-800 bg-slate-900 p-3 text-xs leading-6 text-slate-400"><Sparkles className="ml-1 inline h-4 w-4"/> يمكن تحويل هذه التصورات إلى موديلات تطبيقية أصلية بعد مراجعة التفاصيل المطلوبة وتحديد القياسات والراحة والخامة، ثم ربطها بمحرك الباترون والمعاينة ثلاثية الأبعاد.</p>}
     </div>
   </section>;
 }
