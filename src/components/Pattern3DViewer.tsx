@@ -329,9 +329,11 @@ export function Pattern3DViewer({
     updateCameraPosition();
 
     // Renderer
+    // Mobile GPUs can stall when this viewer renders at native 2x DPR with
+    // large shadow maps. Keep a bounded render resolution for a responsive UI.
     const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+    renderer.setSize(width, height, false);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -348,8 +350,8 @@ export function Pattern3DViewer({
     const keyLight = new THREE.DirectionalLight(0xfff6ed, 2.4);
     keyLight.position.set(60, 120, 80);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 2048;
-    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
     keyLight.shadow.bias = -0.0005;
     keyLight.shadow.camera.near = 10;
     keyLight.shadow.camera.far = 300;
@@ -416,7 +418,7 @@ export function Pattern3DViewer({
       if (w < 2 || h < 2) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
       renderer.setSize(w, h, false);
       frameScene();
     };
@@ -424,9 +426,22 @@ export function Pattern3DViewer({
     ro.observe(container);
     resizeRenderer();
 
-    // Animation Loop
-    const animate = () => {
+    // Render at a bounded rate and stop completely while the 3D viewer is
+    // outside the viewport or the browser tab is backgrounded. The previous
+    // unconditional 60fps loop kept the phone GPU busy even when the model
+    // was static or the user had switched to another section.
+    let isInViewport = true;
+    let lastFrameTime = 0;
+    const targetFrameInterval = 1000 / 24;
+    const animate = (time: number) => {
+      if (document.hidden || !isInViewport || !container.isConnected) {
+        reqIdRef.current = null;
+        return;
+      }
+
       reqIdRef.current = requestAnimationFrame(animate);
+      if (time - lastFrameTime < targetFrameInterval) return;
+      lastFrameTime = time;
 
       if (autoRotateRef.current) {
         sphericalRef.current.theta += 0.008;
@@ -435,10 +450,32 @@ export function Pattern3DViewer({
 
       renderer.render(scene, camera);
     };
-    animate();
+    const startAnimation = () => {
+      if (reqIdRef.current === null && !document.hidden && isInViewport) {
+        reqIdRef.current = requestAnimationFrame(animate);
+      }
+    };
+    const stopAnimation = () => {
+      if (reqIdRef.current !== null) cancelAnimationFrame(reqIdRef.current);
+      reqIdRef.current = null;
+    };
+    const visibilityObserver = new IntersectionObserver(entries => {
+      isInViewport = entries.some(entry => entry.isIntersecting);
+      if (isInViewport) startAnimation();
+      else stopAnimation();
+    });
+    visibilityObserver.observe(container);
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopAnimation();
+      else startAnimation();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startAnimation();
 
     return () => {
-      if (reqIdRef.current) cancelAnimationFrame(reqIdRef.current);
+      stopAnimation();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      visibilityObserver.disconnect();
       ro.disconnect();
       disposeObjectResources(scene);
       scene.clear();
