@@ -52,3 +52,35 @@ describe('Anny garment surface conform', () => {
     (body.material as THREE.Material).dispose();
   });
 });
+
+
+describe('garment body clearance', () => {
+  it('preserves drafted ease when the garment is already outside the body', () => {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 48), new THREE.MeshBasicMaterial());
+    const garment = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 30, 48), new THREE.MeshBasicMaterial());
+    body.updateMatrixWorld(true);
+    garment.updateMatrixWorld(true);
+    const before = garment.geometry.getAttribute('position').getX(0);
+    const report = conformGarmentMeshToBody(garment, body, 1);
+    assert.equal(report.status, 'already-clear');
+    assert.equal(garment.geometry.getAttribute('position').getX(0), before);
+    garment.geometry.dispose();
+    body.geometry.dispose();
+    (garment.material as THREE.Material).dispose();
+    (body.material as THREE.Material).dispose();
+  });
+
+  it('corrects penetrating vertices but does not shrink vertices with sufficient ease', () => {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 48), new THREE.MeshBasicMaterial());
+    const garment = new THREE.Mesh(new THREE.CylinderGeometry(9, 15, 30, 48, 4), new THREE.MeshBasicMaterial());
+    body.updateMatrixWorld(true);
+    garment.updateMatrixWorld(true);
+    const report = conformGarmentMeshToBody(garment, body, 1);
+    assert.ok(report.fittedVertices > 0);
+    assert.ok(report.maxDisplacementCm > 0);
+    garment.geometry.dispose();
+    body.geometry.dispose();
+    (garment.material as THREE.Material).dispose();
+    (body.material as THREE.Material).dispose();
+  });
+});
