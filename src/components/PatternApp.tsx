@@ -515,7 +515,7 @@ export default function PatternApp() {
                     { id: 'view3d', title: 'المعاينة ثلاثية الأبعاد', desc: 'اعرض النموذج والخامة المتاحة.', icon: <Box className="h-5 w-5" />, color: 'text-violet-300' },
                     { id: 'catalog', title: 'استكشاف الموديلات', desc: 'تعرّف على أنواع القطع وابدأ من نموذج.', icon: <Shirt className="h-5 w-5" />, color: 'text-amber-300' },
                     { id: 'encyclopedia', title: 'التعلم والمراجع', desc: 'اقرأ الشرح ثم انتقل إلى التطبيق.', icon: <BookOpen className="h-5 w-5" />, color: 'text-rose-300' },
-                    { id: 'models', title: 'مكتبة موديلات المراجع', desc: '687 سجل تصميم مصنفاً مع رسومات توضيحية.', icon: <ImagePlus className="h-5 w-5" />, color: 'text-cyan-300' },
+                    { id: 'models', title: 'مكتبة موديلات المراجع', desc: '542 تصميمًا مرشحًا و91 مرجعًا تقنيًا مع تصورات أصلية.', icon: <ImagePlus className="h-5 w-5" />, color: 'text-cyan-300' },
                     { id: 'pattern_library', title: 'فهرس الباترونات', desc: '54 ملفاً مرشحاً للفحص وإعادة الرسم.', icon: <Scissors className="h-5 w-5" />, color: 'text-emerald-300' }
                   ].map(item => (
                     <button key={item.id} onClick={() => setActiveTab(item.id as MainViewTab)} className="group flex min-h-28 items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-right transition hover:-translate-y-0.5 hover:border-indigo-500/60 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400">
