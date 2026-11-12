@@ -20,6 +20,7 @@ import { auditCadSewing, createCadStitchPairFromSuggestion, type CadSeamSuggesti
 import type { CadPiece } from '../lib/pattern-cad-engine';
 import { buildCadPanelGeometry, type CadPanelGeometry } from '../lib/cad-panel-geometry';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
+import { ReferenceModelLibrary } from './ReferenceModelLibrary';
 
 /**
  * Releases GPU-backed resources owned by a Three.js subtree.
@@ -205,6 +206,9 @@ export function Pattern3DViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const [presentationMode, setPresentationMode] = useState<'atelier' | 'luxury'>('atelier');
+  const [referenceLibraryOpen, setReferenceLibraryOpen] = useState(false);
+  const [referencePreviewFile, setReferencePreviewFile] = useState<string | null>(null);
+  const referencePreviewGroupRef = useRef<THREE.Group | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const annyGroupRef = useRef<THREE.Group | null>(null);
@@ -713,6 +717,12 @@ export function Pattern3DViewer({
   const installAnnyScene = (bodyScene: THREE.Object3D) => {
     const scene = sceneRef.current;
     if (!scene) return;
+    if (referencePreviewGroupRef.current) {
+      scene.remove(referencePreviewGroupRef.current);
+      disposeObjectResources(referencePreviewGroupRef.current);
+      referencePreviewGroupRef.current = null;
+      setReferencePreviewFile(null);
+    }
     if (annyGroupRef.current) {
       scene.remove(annyGroupRef.current);
       disposeObjectResources(annyGroupRef.current);
@@ -996,6 +1006,71 @@ export function Pattern3DViewer({
     event.target.value = '';
   };
 
+  // Load an existing repository GLB as a neutral visual reference.
+  // It is intentionally not treated as an Anny body and is not used for tape calibration.
+  const handlePreviewReferenceModel = (file: string, label: string) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const url = `https://raw.githubusercontent.com/loay94an/3d-patrons-./main/${file.split('/').map(encodeURIComponent).join('/')}`;
+    const loader = new GLTFLoader();
+    setGlbExportError('');
+    loader.load(url, (gltf) => {
+      try {
+        if (referencePreviewGroupRef.current) {
+          scene.remove(referencePreviewGroupRef.current);
+          disposeObjectResources(referencePreviewGroupRef.current);
+        }
+        const group = new THREE.Group();
+        group.name = `reference-model-${label}`;
+        group.add(gltf.scene);
+        group.updateMatrixWorld(true);
+        const bounds = new THREE.Box3().setFromObject(group);
+        const size = bounds.getSize(new THREE.Vector3());
+        if (![size.x, size.y, size.z].every(Number.isFinite) || size.y <= 0) {
+          disposeObjectResources(group);
+          throw new Error('ملف GLB لا يحتوي على أبعاد صالحة للعرض.');
+        }
+        const scale = 165 / size.y;
+        group.scale.setScalar(scale);
+        group.updateMatrixWorld(true);
+        const scaledBounds = new THREE.Box3().setFromObject(group);
+        const center = scaledBounds.getCenter(new THREE.Vector3());
+        group.position.set(-center.x, -scaledBounds.min.y, -center.z);
+        group.traverse(object => {
+          if (object instanceof THREE.Mesh) {
+            object.castShadow = true;
+            object.receiveShadow = true;
+          }
+        });
+        if (annyGroupRef.current) annyGroupRef.current.visible = false;
+        if (garmentResultRef.current) garmentResultRef.current.group.visible = false;
+        scene.add(group);
+        referencePreviewGroupRef.current = group;
+        setReferencePreviewFile(file);
+        setReferenceLibraryOpen(false);
+        requestAnimationFrame(() => frameScene(true));
+      } catch (error) {
+        setGlbExportError(error instanceof Error ? error.message : 'تعذر عرض النموذج المرجعي.');
+      }
+    }, undefined, error => {
+      console.error('Unable to load reference GLB', error);
+      setGlbExportError('تعذر تحميل ملف GLB المرجعي. تحقق من اتصال الإنترنت أو صلاحية الملف.');
+    });
+  };
+
+  const handleRestoreAnnyPreview = () => {
+    const scene = sceneRef.current;
+    if (referencePreviewGroupRef.current && scene) {
+      scene.remove(referencePreviewGroupRef.current);
+      disposeObjectResources(referencePreviewGroupRef.current);
+      referencePreviewGroupRef.current = null;
+    }
+    setReferencePreviewFile(null);
+    if (annyGroupRef.current) annyGroupRef.current.visible = true;
+    if (garmentResultRef.current) garmentResultRef.current.group.visible = showGarmentOnAnny;
+    requestAnimationFrame(() => frameScene(true));
+  };
+
   // Export Snapshot PNG
   const handleSnapshot = () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
@@ -1113,6 +1188,21 @@ export function Pattern3DViewer({
             </button>
           )}
 
+          <button
+            onClick={() => setReferenceLibraryOpen(true)}
+            className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-emerald-600/25 hover:bg-emerald-600/45 text-emerald-200 border border-emerald-500/40 transition-colors whitespace-nowrap"
+          >
+            مكتبة النماذج
+          </button>
+          {referencePreviewFile && (
+            <button
+              onClick={handleRestoreAnnyPreview}
+              className="px-2 py-1 text-[11px] font-semibold rounded-lg bg-amber-600/25 hover:bg-amber-600/45 text-amber-200 border border-amber-500/40 transition-colors whitespace-nowrap"
+            >
+              العودة إلى Anny
+            </button>
+          )}
+
           <a
             href={`${import.meta.env.BASE_URL}assets/engines/anny-source.zip`}
             download="anny-source.zip"
@@ -1143,6 +1233,14 @@ export function Pattern3DViewer({
       </div>
 
       {glbExportError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{glbExportError}</div>}
+
+      {referenceLibraryOpen && (
+        <ReferenceModelLibrary
+          onClose={() => setReferenceLibraryOpen(false)}
+          onPreviewLocal={handlePreviewReferenceModel}
+          previewingFile={referencePreviewFile}
+        />
+      )}
 
       {/* Main 3D Canvas */}
       <div
