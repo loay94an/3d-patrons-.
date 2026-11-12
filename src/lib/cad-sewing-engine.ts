@@ -63,6 +63,7 @@ export interface CadSeamSuggestionOptions {
 interface ResolvedEdge {
   reference: CadEdgeReference;
   pieceName: string;
+  garmentType: CadPiece['garmentType'];
   segment: CadSegment;
   lengthCm: number;
 }
@@ -122,6 +123,7 @@ function edgeIndex(pieces: CadPiece[]): Map<string, ResolvedEdge> {
       index.set(`${piece.id}\u0000${segment.id}`, {
         reference: { pieceId: piece.id, segmentId: segment.id },
         pieceName: piece.nameAr || piece.name,
+        garmentType: piece.garmentType,
         segment,
         lengthCm: measureCadSegmentLengthCm(segment)
       });
@@ -141,6 +143,27 @@ function edgeIsSewable(segment: CadSegment) {
     segment.edgeType !== 'general';
 }
 
+function isSuggestionEdge(edge: ResolvedEdge, excluded: Set<CadSegment['edgeType']>) {
+  return edgeIsSewable(edge.segment) &&
+    !excluded.has(edge.segment.edgeType) &&
+    ['shoulder', 'armhole', 'side', 'crotch', 'inseam'].includes(edge.segment.edgeType ?? '');
+}
+
+function canPairInContext(first: ResolvedEdge, second: ResolvedEdge) {
+  const type = first.segment.edgeType;
+  if (!type || type !== second.segment.edgeType) return false;
+  if (type === 'armhole') {
+    return (first.garmentType === 'sleeve') !== (second.garmentType === 'sleeve');
+  }
+  if (type === 'inseam' || type === 'crotch') {
+    return first.garmentType === 'pants' && second.garmentType === 'pants';
+  }
+  if (type === 'side' || type === 'shoulder') {
+    return first.garmentType !== 'sleeve' && second.garmentType !== 'sleeve';
+  }
+  return false;
+}
+
 /**
  * Suggests one-to-one seam matches using semantic edge type and measured curve length.
  * Suggestions are never applied automatically; a designer must confirm each connection.
@@ -153,13 +176,12 @@ export function suggestCadStitchPairs(
   const maxDifferenceCm = options.maxDifferenceCm ?? 4;
   const maxDifferencePercent = options.maxDifferencePercent ?? 0.2;
   const maxSuggestions = options.maxSuggestions ?? 40;
-  const excluded = new Set(options.excludedEdgeTypes ?? ['center', 'general']);
+  const excluded = new Set(options.excludedEdgeTypes ?? ['center', 'general', 'hem', 'waist', 'neckline']);
   const paired = new Set(existingPairs.flatMap(pair => [
     referenceKey(pair.first), referenceKey(pair.second)
   ]));
   const edges = [...edgeIndex(pieces).values()].filter(edge =>
-    edgeIsSewable(edge.segment) &&
-    !excluded.has(edge.segment.edgeType) &&
+    isSuggestionEdge(edge, excluded) &&
     !paired.has(referenceKey(edge.reference)) &&
     edge.lengthCm > 0.05
   );
@@ -170,7 +192,7 @@ export function suggestCadStitchPairs(
       const first = edges[i];
       const second = edges[j];
       if (first.reference.pieceId === second.reference.pieceId) continue;
-      if (first.segment.edgeType !== second.segment.edgeType) continue;
+      if (!canPairInContext(first, second)) continue;
 
       const differenceCm = Math.abs(first.lengthCm - second.lengthCm);
       const longest = Math.max(first.lengthCm, second.lengthCm);
@@ -303,7 +325,7 @@ export function auditCadSewing(
     mismatchCount: items.filter(item => item.status === 'length-mismatch').length,
     invalidCount: items.filter(item => item.status === 'invalid').length,
     unpairedEdgeCount: Math.max(0,
-      [...index.values()].filter(edge => edgeIsSewable(edge.segment)).length - used.size
+      [...index.values()].filter(edge => isSuggestionEdge(edge, new Set(['center', 'general', 'hem', 'waist', 'neckline']))).length - used.size
     ),
     items,
     suggestions
