@@ -233,3 +233,18 @@ export function analyzeFashionFit(
     simulation.options.collisionThickness
   );
 }
+
+
+/** Advances the cloth solver against this session's body collision surface. */
+export function stepFashionClothSimulation(
+  session: FashionPipelineSession,
+  simulation: ClothSimulation
+): ClothFitAnalysis {
+  const collider = createFashionBodyCollider(session);
+  simulation.step(collider);
+  return analyzeClothBodyClearance(
+    simulation.particles.map(particle => particle.position),
+    collider,
+    simulation.options.collisionThickness
+  );
+}
