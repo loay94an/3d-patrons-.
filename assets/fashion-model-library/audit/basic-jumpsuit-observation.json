@@ -1,0 +1,228 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "pattern-observation-basic-jumpsuit-marlene-mukai",
+  "status": "draft_manual_transcription",
+  "source": {
+    "archive": "أفرولات.zip",
+    "archiveSha256": "b8cabe1962145d2b1199dcc9c61f70595a5b9ae166c00d3e4ccd6ae69cc30ce6",
+    "file": "أفرولات_Macacão básico_d4f50616.pdf",
+    "fileSha256": null,
+    "pageCount": 13,
+    "sourcePages": [
+      3,
+      4
+    ],
+    "sourceLanguage": "Portuguese",
+    "sourcePageType": "hand-drafted pattern diagram with annotated dimensions",
+    "licenseStatus": "unverified",
+    "attributionVisible": "Marlene Mukai website credit appears on the pattern sheet"
+  },
+  "garment": {
+    "title": "Macacão básico",
+    "titleEn": "Basic jumpsuit",
+    "category": "jumpsuit",
+    "pieces": [
+      {
+        "id": "front-bodice",
+        "label": "Front bodice",
+        "cutQuantity": 2,
+        "sourceLabel": "Frente 2x"
+      },
+      {
+        "id": "back-bodice",
+        "label": "Back bodice",
+        "cutQuantity": 2,
+        "sourceLabel": "Costas 2x"
+      },
+      {
+        "id": "front-trouser",
+        "label": "Front trouser leg",
+        "cutQuantity": 2,
+        "sourceLabel": "Frente 2x"
+      },
+      {
+        "id": "back-trouser",
+        "label": "Back trouser leg",
+        "cutQuantity": 2,
+        "sourceLabel": "Costas 2x"
+      }
+    ],
+    "construction": {
+      "seamAllowance": "none_in_source",
+      "seamAllowanceEvidence": "Molde sem margem de costura",
+      "openingOptions": [
+        "front",
+        "back",
+        "side"
+      ],
+      "closureOptions": [
+        "buttons",
+        "zipper"
+      ],
+      "backNecklineOptions": [
+        "V",
+        "round"
+      ],
+      "fabricRecommendations": [
+        "crepe",
+        "gabardine",
+        "two-way fabric",
+        "linen"
+      ],
+      "statedFabricConsumption": "1.80 m",
+      "fabricWidthCm": null
+    }
+  },
+  "measurements": {
+    "unit": "cm_assumed_from_metric_drafting_context",
+    "unitConfidence": "medium; original page does not explicitly print a unit label beside every dimension",
+    "sizes": [
+      {
+        "size": "36",
+        "sourcePage": 3,
+        "observations": [
+          {
+            "piece": "front-bodice",
+            "dimension": "top_width",
+            "value": 22,
+            "confidence": "medium"
+          },
+          {
+            "piece": "back-bodice",
+            "dimension": "top_width",
+            "value": 22,
+            "confidence": "medium"
+          },
+          {
+            "piece": "front-bodice",
+            "dimension": "vertical_length_annotation",
+            "value": 43,
+            "confidence": "high"
+          },
+          {
+            "piece": "back-bodice",
+            "dimension": "vertical_length_annotation",
+            "value": 40,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-and-back-bodice",
+            "dimension": "upper_depth_annotation",
+            "value": 19,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-trouser",
+            "dimension": "top_width_annotation",
+            "value": 22,
+            "confidence": "medium"
+          },
+          {
+            "piece": "back-trouser",
+            "dimension": "top_width_annotation",
+            "value": 24,
+            "confidence": "medium"
+          },
+          {
+            "piece": "front-and-back-trouser",
+            "dimension": "length_annotation",
+            "value": 99,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-and-back-trouser",
+            "dimension": "crotch_depth_annotation",
+            "value": 29,
+            "confidence": "medium"
+          }
+        ]
+      },
+      {
+        "size": "38",
+        "sourcePage": 4,
+        "observations": [
+          {
+            "piece": "front-bodice",
+            "dimension": "top_width",
+            "value": 23,
+            "confidence": "medium"
+          },
+          {
+            "piece": "back-bodice",
+            "dimension": "top_width",
+            "value": 23,
+            "confidence": "medium"
+          },
+          {
+            "piece": "front-bodice",
+            "dimension": "vertical_length_annotation",
+            "value": 44,
+            "confidence": "high"
+          },
+          {
+            "piece": "back-bodice",
+            "dimension": "vertical_length_annotation",
+            "value": 41,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-and-back-bodice",
+            "dimension": "upper_depth_annotation",
+            "value": 19.5,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-trouser",
+            "dimension": "top_width_annotation",
+            "value": 23,
+            "confidence": "medium"
+          },
+          {
+            "piece": "back-trouser",
+            "dimension": "top_width_annotation",
+            "value": 25,
+            "confidence": "medium"
+          },
+          {
+            "piece": "front-and-back-trouser",
+            "dimension": "length_annotation",
+            "value": 99,
+            "confidence": "high"
+          },
+          {
+            "piece": "front-and-back-trouser",
+            "dimension": "crotch_depth_annotation",
+            "value": 30,
+            "confidence": "medium"
+          }
+        ]
+      }
+    ]
+  },
+  "geometry": {
+    "status": "not_digitized",
+    "missing": [
+      "closed cutting contours",
+      "curve control points",
+      "grainline vectors",
+      "notch coordinates",
+      "dart intake geometry",
+      "edge-to-edge seam pairings",
+      "validated size grading deltas"
+    ],
+    "note": "The page is a hand sketch, not a calibrated vector pattern. These annotations must not be used as CAD coordinates or as production cutting dimensions."
+  },
+  "validation": {
+    "required": [
+      "second-person transcription review",
+      "confirm units and all dimension endpoints",
+      "compare every size page in the PDF",
+      "trace piece contours at calibrated scale",
+      "verify cut quantities and fold lines",
+      "compute seamline lengths and confirm edge pairings",
+      "add separately approved seam allowances",
+      "fit a toile before production"
+    ],
+    "productionEnabled": false
+  }
+}
