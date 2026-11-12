@@ -59,8 +59,8 @@ def build_relaxed_arm_pose(model: anny.Anny, device: str) -> torch.Tensor:
     rotations = {
         "upperarm01.L": (0.0, 0.0, -0.9),
         "upperarm01.R": (0.0, 0.0, 0.9),
-        "lowerarm01.L": (0.0, -1.1, 0.0),
-        "lowerarm01.R": (0.0, 1.1, 0.0),
+        "lowerarm01.L": (1.1, 0.0, 0.0),
+        "lowerarm01.R": (1.1, 0.0, 0.0),
     }
     for label, rotation_vector in rotations.items():
         index = labels.index(label)
@@ -94,8 +94,14 @@ def measure_arm_pose(model: anny.Anny, output: dict) -> dict:
         wrist = np.asarray(by_label[f"{side}_wrist"])
         drops[side] = {
             "shoulder_to_elbow_vertical": float(shoulder[2] - elbow[2]),
+            "elbow_to_wrist_vertical": float(elbow[2] - wrist[2]),
             "shoulder_to_wrist_vertical": float(shoulder[2] - wrist[2]),
         }
+        if drops[side]["elbow_to_wrist_vertical"] < height * 0.01:
+            raise RuntimeError(
+                f"Anny {side} forearm/hand is not directed downward from the elbow; "
+                "the relaxed arm pose failed wrist-drop validation"
+            )
         if drops[side]["shoulder_to_wrist_vertical"] < height * 0.015:
             raise RuntimeError(
                 f"Anny {side} wrist is not sufficiently below the shoulder; "
@@ -193,8 +199,8 @@ def main() -> None:
         "arm_pose_rotvec_radians": {
             "upperarm01.L": [0.0, 0.0, -0.9],
             "upperarm01.R": [0.0, 0.0, 0.9],
-            "lowerarm01.L": [0.0, -1.1, 0.0],
-            "lowerarm01.R": [0.0, 1.1, 0.0]
+            "lowerarm01.L": [1.1, 0.0, 0.0],
+            "lowerarm01.R": [1.1, 0.0, 0.0]
         },
         "arm_pose_validation": arm_pose_report,
         "elapsed_seconds_including_model_initialization": round(elapsed, 3),
