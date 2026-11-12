@@ -48,7 +48,8 @@ function GarmentIllustration({item}:{item:ReferenceRecord}) {
   const flare = /واسعة|متسع|دائرية|A/.test(tags);
   const frill = /كشكشة|تجميعات/.test(tags);
   const asym = /غير متماثل/.test(tags);
-  const arms = sleeveless ? null : <path {...stroke} d={longSleeve ? "M39 29 L20 45 L11 79 L20 82 L34 54 M77 29 L96 45 L105 79 L96 82 L82 54" : "M39 29 L21 42 L29 56 L40 49 M77 29 L95 42 L87 56 L76 49"} />;
+  const upperBody = !['trousers','shorts','skirt'].includes(item.familyShape);
+  const arms = !upperBody || sleeveless ? null : <path {...stroke} d={longSleeve ? "M39 29 L20 45 L11 79 L20 82 L34 54 M77 29 L96 45 L105 79 L96 82 L82 54" : "M39 29 L21 42 L29 56 L40 49 M77 29 L95 42 L87 56 L76 49"} />;
   let body: React.ReactNode;
   switch (item.familyShape) {
     case 'dress':
@@ -75,7 +76,7 @@ function GarmentIllustration({item}:{item:ReferenceRecord}) {
     default:
       body = <path {...stroke} d="M41 18 L58 27 L75 18 L91 39 L79 49 L76 96 L40 96 L37 49 L25 39 Z" />;
   }
-  const neckline = vNeck
+  const neckline = !upperBody ? null : vNeck
     ? <path {...stroke} d="M48 29 L58 43 L68 29" />
     : collar
       ? <path {...stroke} d="M48 28 L58 39 L68 28 M58 39 L58 53" />
