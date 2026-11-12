@@ -172,7 +172,7 @@ export function calibrateAnnyBodyGeometry(
     const torsoRadius = Math.max(torsoRadiusAt(fraction), 1e-6);
     const radialDistance = Math.hypot(x - centerX, y - centerY);
     // Keep distant arms/hands largely unchanged while fitting the central torso.
-    const torsoWeight = 1 - smoothstep(radialDistance / torsoRadius, 1.15, 1.45);
+    const torsoWeight = 1 - smoothstep(radialDistance / torsoRadius, 1.05, 1.25);
     const effectiveScale = THREE.MathUtils.lerp(1, scale, torsoWeight);
     positions.setXYZ(i,
       centerX + (x - centerX) * effectiveScale,
