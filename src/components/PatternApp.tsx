@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet, FolderOpen, ImagePlus,
-  FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
+  FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box, Scissors,
   Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2, Home, MoreHorizontal
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -17,6 +17,7 @@ import {
 } from '../lib/fabric-engine';
 import { PatternVisualizer } from './PatternVisualizer';
 import { PatternCatalog } from './PatternCatalog';
+import { ReferenceLibraryCatalog } from './ReferenceLibraryCatalog';
 import { PatternEncyclopedia } from './PatternEncyclopedia';
 import { ParametricStudio } from './ParametricStudio';
 import { Pattern3DViewer } from './Pattern3DViewer';
@@ -29,7 +30,7 @@ import { cn } from '../lib/utils';
 import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
 import { createStudioProject, loadProjects, persistProjects, type ProjectGarment, type ProjectMeasurements, type ProjectEase } from '../lib/project-store';
 
-export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'garment_image' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
+export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'models' | 'pattern_library' | 'parametric' | 'cad2d' | 'view3d' | 'garment_image' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
 
 const detailedNames = ["عرض الظهر","طول الكتف","طول الظهر","طول الكم","محيط الذراع","محيط الأسوارة","محيط الرقبة","محيط الصدر","محيط الخصر","محيط الورك","المسافة من الخصر إلى الورك","المسافة من الخصر إلى الركبة","طول الساق من الخصر إلى أسفل القدم","طول التنورة","طول الصدر (من أعلى الكتف مروراً فوق الصدر)","محيط الإبط (دوران الإبط)","المسافة من الخصر إلى الإبط","المسافة من أعلى الكتف إلى الثدي","المسافة بين الثديين","محيط الفخذ","محيط الركبة","محيط الكاحل","ارتفاع السرج","طول الجنب"];
 const detailedHelps = ["يقاس أفقياً من منتصف الظهر بين الإبطين.","من نقطة الرقبة إلى طرف الكتف.","من الفقرة السابعة إلى خط الخصر.","من طرف الكتف إلى الرسغ.","حول أوسع نقطة في الذراع.","حول الرسغ.","حول قاعدة الرقبة.","حول أوسع نقطة في الصدر.","حول أضيق نقطة.","حول أوسع نقطة في الأرداف.","عمودياً من الخصر إلى الورك.","عمودياً إلى منتصف الركبة.","من الخصر إلى الأرض.","من الخصر إلى الطول المطلوب.","من الكتف إلى أعلى الصدر.","حول الإبط عند خط الصدر.","عمودياً إلى الإبط.","من الكتف إلى أعلى الصدر.","أفقياً بين نقطتي الصدر.","حول أوسع نقطة في الفخذ.","حول الركبة.","حول الكاحل.","من الخصر إلى المقعد.","من الإبط إلى الخصر."];
@@ -478,6 +479,10 @@ export default function PatternApp() {
                 </button>)}
               </div>
             </section>
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button onClick={() => setActiveTab('models')} className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-4 text-right hover:border-indigo-400"><span className="text-sm font-extrabold text-white">مكتبة الموديلات المرجعية</span><span className="mt-1 block text-xs leading-5 text-slate-400">استعراض التصاميم المستوردة وتصنيفها مع الرسومات التوضيحية.</span></button>
+              <button onClick={() => setActiveTab('pattern_library')} className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 text-right hover:border-emerald-400"><span className="text-sm font-extrabold text-white">فهرس الباترونات المرجعية</span><span className="mt-1 block text-xs leading-5 text-slate-400">مراجعة الملفات المرشحة لإعادة الرسم والتحويل إلى CAD.</span></button>
+            </section>
             <section className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div><h2 className="text-sm font-extrabold text-white">تحتاج تحكمًا كاملًا؟</h2><p className="mt-1 text-xs text-slate-400">افتح أدوات الرسم والهندسة المتقدمة.</p></div>
               <button onClick={()=>{setUserMode('expert');setActiveTab('cad2d');}} className="rounded-xl border border-slate-600 px-4 py-2.5 text-xs font-bold text-slate-100">فتح أدوات المتخصص</button>
@@ -509,7 +514,9 @@ export default function PatternApp() {
                     { id: 'cad2d', title: 'الرسم ثنائي الأبعاد', desc: 'افتح محرر القطع والنقاط والمنحنيات.', icon: <DraftingCompass className="h-5 w-5" />, color: 'text-emerald-300' },
                     { id: 'view3d', title: 'المعاينة ثلاثية الأبعاد', desc: 'اعرض النموذج والخامة المتاحة.', icon: <Box className="h-5 w-5" />, color: 'text-violet-300' },
                     { id: 'catalog', title: 'استكشاف الموديلات', desc: 'تعرّف على أنواع القطع وابدأ من نموذج.', icon: <Shirt className="h-5 w-5" />, color: 'text-amber-300' },
-                    { id: 'encyclopedia', title: 'التعلم والمراجع', desc: 'اقرأ الشرح ثم انتقل إلى التطبيق.', icon: <BookOpen className="h-5 w-5" />, color: 'text-rose-300' }
+                    { id: 'encyclopedia', title: 'التعلم والمراجع', desc: 'اقرأ الشرح ثم انتقل إلى التطبيق.', icon: <BookOpen className="h-5 w-5" />, color: 'text-rose-300' },
+                    { id: 'models', title: 'مكتبة موديلات المراجع', desc: '687 سجل تصميم مصنفاً مع رسومات توضيحية.', icon: <ImagePlus className="h-5 w-5" />, color: 'text-cyan-300' },
+                    { id: 'pattern_library', title: 'فهرس الباترونات', desc: '54 ملفاً مرشحاً للفحص وإعادة الرسم.', icon: <Scissors className="h-5 w-5" />, color: 'text-emerald-300' }
                   ].map(item => (
                     <button key={item.id} onClick={() => setActiveTab(item.id as MainViewTab)} className="group flex min-h-28 items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-right transition hover:-translate-y-0.5 hover:border-indigo-500/60 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400">
                       <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-800", item.color)}>{item.icon}</span>
@@ -542,6 +549,9 @@ export default function PatternApp() {
           });
           setActiveTab('cad2d');
         }} />}
+
+        {activeTab === 'models' && <ReferenceLibraryCatalog mode="models" />}
+        {activeTab === 'pattern_library' && <ReferenceLibraryCatalog mode="patterns" />}
 
         {activeTab === 'encyclopedia' && (
           <div className="w-full h-full">
@@ -1063,18 +1073,18 @@ export default function PatternApp() {
         ] : [
           {id:'home',label:'الرئيسية',icon:<Home className="h-5 w-5"/>},{id:'catalog',label:'الموديلات',icon:<Shirt className="h-5 w-5"/>},{id:'parametric',label:'المعمل',icon:<Code2 className="h-5 w-5"/>},{id:'cad2d',label:'الرسم 2D',icon:<DraftingCompass className="h-5 w-5"/>},{id:'view3d',label:'عرض 3D',icon:<Box className="h-5 w-5"/>}
         ]).map(item=><button key={item.id} aria-current={activeTab===item.id?'page':undefined} onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] transition sm:text-xs",activeTab===item.id?"font-extrabold text-blue-400":"text-slate-400 hover:text-slate-100")}>{item.icon}<span>{item.label}</span></button>)}
-        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={()=>setShowMoreMenu(v=>!v)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs",showMoreMenu || (userMode === 'beginner' ? ['parametric','cad2d','fabrics','encyclopedia'].includes(activeTab) : ['encyclopedia','measurements','fabrics','export_guide','projects','garment_image'].includes(activeTab)) ? "font-extrabold text-blue-400" : "text-slate-400")}><MoreHorizontal className="h-5 w-5"/><span>المزيد</span></button>
+        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={()=>setShowMoreMenu(v=>!v)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs",showMoreMenu || (userMode === 'beginner' ? ['parametric','cad2d','fabrics','encyclopedia','models','pattern_library'].includes(activeTab) : ['encyclopedia','measurements','fabrics','export_guide','projects','garment_image','models','pattern_library'].includes(activeTab)) ? "font-extrabold text-blue-400" : "text-slate-400")}><MoreHorizontal className="h-5 w-5"/><span>المزيد</span></button>
       </nav>
       {showMoreMenu && (
         <div className="absolute bottom-16 left-2 right-2 z-40 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-4 sm:w-72" role="menu" aria-label="أدوات إضافية">
           {userMode === 'beginner' ? <>
             {[
-              {id:'parametric',label:'إنشاء الباترون',icon:<Sparkles className="h-4 w-4"/>},{id:'cad2d',label:'الرسم والتعديل المتقدم',icon:<DraftingCompass className="h-4 w-4"/>},{id:'fabrics',label:'اختيار القماش',icon:<Palette className="h-4 w-4"/>},{id:'encyclopedia',label:'تعلم أساسيات التفصيل',icon:<BookOpen className="h-4 w-4"/>}
+              {id:'parametric',label:'إنشاء الباترون',icon:<Sparkles className="h-4 w-4"/>},{id:'cad2d',label:'الرسم والتعديل المتقدم',icon:<DraftingCompass className="h-4 w-4"/>},{id:'models',label:'مكتبة موديلات المراجع',icon:<ImagePlus className="h-4 w-4"/>},{id:'pattern_library',label:'فهرس الباترونات المرجعية',icon:<Scissors className="h-4 w-4"/>},{id:'fabrics',label:'اختيار القماش',icon:<Palette className="h-4 w-4"/>},{id:'encyclopedia',label:'تعلم أساسيات التفصيل',icon:<BookOpen className="h-4 w-4"/>}
             ].map(item=><button key={item.id} role="menuitem" onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 hover:bg-slate-800">{item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500"/></button>)}
             <button role="menuitem" onClick={()=>{setUserMode('expert');setShowMoreMenu(false);}} className="mt-1 flex w-full items-center gap-3 rounded-xl border-t border-slate-700 px-3 py-3 text-right text-sm font-bold text-indigo-300 hover:bg-slate-800"><Code2 className="h-4 w-4"/><span>الانتقال إلى وضع المتخصص</span></button>
           </> : <>
             {[
-              {id:'garment_image',label:'تحليل صورة الملابس والمعالم',icon:<ImagePlus className="h-4 w-4"/>},{id:'projects',label:'المشاريع وملفات القياسات',icon:<FolderOpen className="h-4 w-4"/>},{id:'encyclopedia',label:'الموسوعة والمراجع',icon:<BookOpen className="h-4 w-4"/>},{id:'measurements',label:'ملف القياسات',icon:<Ruler className="h-4 w-4"/>},{id:'fabrics',label:'الأقمشة والخامات',icon:<Palette className="h-4 w-4"/>},{id:'export_guide',label:'التصدير والإنتاج',icon:<FileText className="h-4 w-4"/>}
+              {id:'garment_image',label:'تحليل صورة الملابس والمعالم',icon:<ImagePlus className="h-4 w-4"/>},{id:'models',label:'مكتبة موديلات المراجع',icon:<Shirt className="h-4 w-4"/>},{id:'pattern_library',label:'فهرس الباترونات المرجعية',icon:<Scissors className="h-4 w-4"/>},{id:'projects',label:'المشاريع وملفات القياسات',icon:<FolderOpen className="h-4 w-4"/>},{id:'encyclopedia',label:'الموسوعة والمراجع',icon:<BookOpen className="h-4 w-4"/>},{id:'measurements',label:'ملف القياسات',icon:<Ruler className="h-4 w-4"/>},{id:'fabrics',label:'الأقمشة والخامات',icon:<Palette className="h-4 w-4"/>},{id:'export_guide',label:'التصدير والإنتاج',icon:<FileText className="h-4 w-4"/>}
             ].map(item=><button key={item.id} role="menuitem" onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 hover:bg-slate-800">{item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500"/></button>)}
           </>}
         </div>
