@@ -5,8 +5,10 @@ import {
   loadProjects, persistProjects, saveProject, type ProjectSnapshot, type ProjectGarment, type ProjectFamily
 } from '../lib/project-store';
 import { deleteCadProjectDocument, loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
+import { deleteProjectFabric, loadProjectFabric, saveProjectFabric } from '../lib/project-fabric-store';
+import type { FabricCustomState } from '../lib/fabric-engine';
 
-type PortableProject = ProjectSnapshot & { cadDocument?: CadProjectDocument | null };
+type PortableProject = ProjectSnapshot & { cadDocument?: CadProjectDocument | null; fabricState?: FabricCustomState | null };
 
 const garmentOptions: { value: ProjectGarment; label: string }[] = [
   { value: 'blouse', label: 'بلوزة' }, { value: 'dress', label: 'فستان' }, { value: 'shirt', label: 'قميص' },
@@ -47,12 +49,14 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
   const remove = () => {
     if (!active || !window.confirm(`هل تريد حذف «${active.name}» من هذا الجهاز؟`)) return;
     deleteCadProjectDocument(window.localStorage, active.id);
+    deleteProjectFabric(window.localStorage, active.id);
     const next = projects.filter(project => project.id !== active.id);
     setProjects(next); setActiveId(next[0]?.id ?? null);
   };
   const getPortableProjects = (items: ProjectSnapshot[]): PortableProject[] => items.map(project => ({
     ...project,
-    cadDocument: loadCadProjectDocument(typeof window === 'undefined' ? null : window.localStorage, project.id)
+    cadDocument: loadCadProjectDocument(typeof window === 'undefined' ? null : window.localStorage, project.id),
+    fabricState: loadProjectFabric(typeof window === 'undefined' ? null : window.localStorage, project.id)
   }));
   const download = () => {
     if (!active) return;
@@ -71,6 +75,9 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
     try {
       const portable = importProjects(await file.text()) as PortableProject[];
       portable.forEach(project => {
+        if (project.fabricState) {
+          saveProjectFabric(typeof window === 'undefined' ? null : window.localStorage, project.id, project.fabricState);
+        }
         if (project.cadDocument) {
           saveCadProjectDocument(
             typeof window === 'undefined' ? null : window.localStorage,
