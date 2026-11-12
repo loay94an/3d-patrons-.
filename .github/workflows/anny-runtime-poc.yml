@@ -50,7 +50,7 @@ jobs:
           if not (source / "src" / "anny" / "__init__.py").is_file():
               raise SystemExit("Pinned Anny source package is missing")
           with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as stream:
-              stream.write(f"PYTHONPATH={source / 'src'}\\n")
+              stream.write(f"PYTHONPATH={source / 'src'}\n")
           print(f"Using Anny source at {source}")
           PY
 
