@@ -15,7 +15,8 @@ import { conformGarmentGroupToBody } from '../lib/garment-anny-fit';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
 import { buildAnnyBodyProfile } from '../lib/anny-body-profile';
-import { loadCadProjectDocument } from '../lib/cad-project-document';
+import { loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
+import { auditCadSewing, createCadStitchPairFromSuggestion, type CadSeamSuggestion, type CadSewingAudit } from '../lib/cad-sewing-engine';
 import type { CadPiece } from '../lib/pattern-cad-engine';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
 
@@ -208,6 +209,9 @@ export function Pattern3DViewer({
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
   const [showCadPieces, setShowCadPieces] = useState(false);
   const [cadPieceCount, setCadPieceCount] = useState(0);
+  const [cadDocument, setCadDocument] = useState<CadProjectDocument | null>(null);
+  const [cadSewingAudit, setCadSewingAudit] = useState<CadSewingAudit | null>(null);
+  const [sewingPanelOpen, setSewingPanelOpen] = useState(false);
   const reqIdRef = useRef<number | null>(null);
 
   // Interaction & Camera Controls state
@@ -533,6 +537,9 @@ export function Pattern3DViewer({
     }
     setCadPieceCount(0);
     setShowCadPieces(false);
+    setSewingPanelOpen(false);
+    setCadDocument(null);
+    setCadSewingAudit(null);
     if (!projectId || typeof window === 'undefined') return;
     const document = loadCadProjectDocument(window.localStorage, projectId);
     if (!document?.pieces.length) return;
@@ -541,7 +548,36 @@ export function Pattern3DViewer({
     scene.add(preview);
     cadPreviewGroupRef.current = preview;
     setCadPieceCount(preview.children.length);
+    setCadDocument(document);
+    setCadSewingAudit(auditCadSewing(document.pieces, document.stitchPairs));
   }, [projectId]);
+
+  const acceptCadSeamSuggestion = (suggestion: CadSeamSuggestion) => {
+    if (!projectId || !cadDocument || typeof window === 'undefined') return;
+    const pair = createCadStitchPairFromSuggestion(suggestion);
+    const stitchPairs = [...cadDocument.stitchPairs, pair];
+    const updatedAt = new Date().toISOString();
+    const saved = saveCadProjectDocument(
+      window.localStorage, projectId, cadDocument.pieces, cadDocument.summaries, updatedAt, stitchPairs
+    );
+    if (!saved) return;
+    const updatedDocument = { ...cadDocument, updatedAt, stitchPairs };
+    setCadDocument(updatedDocument);
+    setCadSewingAudit(auditCadSewing(updatedDocument.pieces, stitchPairs));
+  };
+
+  const removeCadStitchPair = (pairId: string) => {
+    if (!projectId || !cadDocument || typeof window === 'undefined') return;
+    const stitchPairs = cadDocument.stitchPairs.filter(pair => pair.id !== pairId);
+    const updatedAt = new Date().toISOString();
+    const saved = saveCadProjectDocument(
+      window.localStorage, projectId, cadDocument.pieces, cadDocument.summaries, updatedAt, stitchPairs
+    );
+    if (!saved) return;
+    const updatedDocument = { ...cadDocument, updatedAt, stitchPairs };
+    setCadDocument(updatedDocument);
+    setCadSewingAudit(auditCadSewing(updatedDocument.pieces, stitchPairs));
+  };
 
   useEffect(() => {
     if (cadPreviewGroupRef.current) cadPreviewGroupRef.current.visible = showCadPieces;
@@ -1163,10 +1199,73 @@ export function Pattern3DViewer({
         </div>}
       </section>}
 
+      {sewingPanelOpen && cadDocument && cadSewingAudit && <section
+        className="absolute bottom-16 right-3 z-30 w-[min(28rem,calc(100vw-1.5rem))] max-h-[62vh] overflow-y-auto rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 text-right text-xs text-white shadow-2xl backdrop-blur-md"
+        dir="rtl"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="font-bold text-sm text-cyan-200">وصلات الخياطة بين قطع الباترون</div>
+            <div className="mt-1 text-[10px] text-slate-400">اقتراحات هندسية مبنية على نوع الحافة وطول المنحنى الفعلي</div>
+          </div>
+          <button onClick={() => setSewingPanelOpen(false)} className="rounded-lg px-2 py-1 bg-slate-800 text-slate-300">إغلاق</button>
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-1 text-center">
+          <div className="rounded-lg bg-slate-900 p-2"><div className="text-lg font-bold text-emerald-300 tabular-nums">{cadSewingAudit.readyCount}</div><div className="text-[10px] text-slate-400">متوافقة</div></div>
+          <div className="rounded-lg bg-slate-900 p-2"><div className="text-lg font-bold text-amber-300 tabular-nums">{cadSewingAudit.easeCount + cadSewingAudit.mismatchCount}</div><div className="text-[10px] text-slate-400">تحتاج مراجعة</div></div>
+          <div className="rounded-lg bg-slate-900 p-2"><div className="text-lg font-bold text-cyan-300 tabular-nums">{cadSewingAudit.unpairedEdgeCount}</div><div className="text-[10px] text-slate-400">حواف غير موصولة</div></div>
+        </div>
+        {cadSewingAudit.items.length > 0 && <div className="mt-3 space-y-2">
+          <div className="font-semibold text-slate-200">الوصلات المعتمدة</div>
+          {cadSewingAudit.items.map(item => <div key={item.pairId} className="rounded-lg border border-slate-700 bg-slate-900/80 p-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold text-white">{item.firstPieceName} ↔ {item.secondPieceName}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] ${item.status === 'ready' ? 'bg-emerald-900/60 text-emerald-200' : item.status === 'invalid' ? 'bg-rose-900/60 text-rose-200' : 'bg-amber-900/60 text-amber-200'}`}>
+                {item.status === 'ready' ? 'متوافقة' : item.status === 'invalid' ? 'غير صالحة' : item.status === 'ease-required' ? 'تحتاج تسهيل' : 'فرق طول'}
+              </span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+              <span>{item.edgeType ?? 'حافة'} • {item.firstLengthCm.toFixed(1)} / {item.secondLengthCm.toFixed(1)} سم</span>
+              <span>فرق {item.differenceCm.toFixed(2)} سم</span>
+            </div>
+            <div className="mt-1 text-[10px] text-slate-400">{item.messageAr}</div>
+            <button onClick={() => removeCadStitchPair(item.pairId)} className="mt-2 rounded-md border border-rose-700/50 px-2 py-1 text-[10px] text-rose-200 hover:bg-rose-950/50">إزالة الوصلة</button>
+          </div>)}
+        </div>}
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-semibold text-slate-200">حواف مرشحة للوصل</div>
+            <span className="text-[10px] text-slate-500">{cadSewingAudit.suggestions.length} اقتراح</span>
+          </div>
+          {cadSewingAudit.suggestions.slice(0, 8).map(suggestion => <div key={suggestion.id} className="rounded-lg border border-slate-700 bg-slate-900/80 p-2">
+            <div className="font-semibold text-white">{suggestion.firstPieceName} ↔ {suggestion.secondPieceName}</div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+              <span>{suggestion.edgeType} • {suggestion.firstLengthCm.toFixed(1)} / {suggestion.secondLengthCm.toFixed(1)} سم</span>
+              <span>فرق {suggestion.differenceCm.toFixed(2)} سم</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-cyan-200">ثقة المطابقة {(suggestion.confidence * 100).toFixed(0)}%</span>
+              <button onClick={() => acceptCadSeamSuggestion(suggestion)} className="rounded-lg bg-cyan-700 px-3 py-1.5 font-semibold text-white hover:bg-cyan-600">اعتماد وصلة</button>
+            </div>
+          </div>)}
+          {!cadSewingAudit.suggestions.length && <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center text-slate-400">لا توجد حواف إضافية متقاربة بما يكفي. راجع أطوال القطع أو اربط الحواف يدوياً في مرحلة إدارة الخياطة.</div>}
+        </div>
+        <p className="mt-3 border-t border-slate-800 pt-2 text-[10px] leading-4 text-amber-200">
+          هذه طبقة ربط وتدقيق هندسي محفوظة مع المشروع. لا تقوم بعدُ بخياطة القطع في الفضاء ثلاثي الأبعاد أو بمحاكاة انسياب القماش.
+        </p>
+      </section>}
+
       {/* Floating Bottom Toolbar (Toggles & Export) */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md px-2 sm:px-3 py-1.5 rounded-2xl border border-slate-700/60 shadow-2xl max-w-[95vw] overflow-x-auto">
         {cadPieceCount > 0 && <button onClick={() => setShowCadPieces(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showCadPieces ? 'bg-amber-600/30 text-amber-100 border-amber-500/50' : 'text-amber-200 border-amber-700/40 hover:bg-amber-900/30'}`} title="عرض قطع CAD المحفوظة بالمقياس الهندسي في مساحة 3D؛ هذه معاينة مسطحة وليست محاكاة ارتداء">
           <Layers className="w-3.5 h-3.5" /><span>{showCadPieces ? 'إخفاء قطع CAD' : `قطع CAD (${cadPieceCount})`}</span>
+        </button>}
+        {cadDocument && cadSewingAudit && <button
+          onClick={() => setSewingPanelOpen(value => !value)}
+          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${sewingPanelOpen ? 'bg-cyan-600/30 text-cyan-100 border-cyan-500/50' : 'text-cyan-200 border-cyan-700/40 hover:bg-cyan-900/30'}`}
+          title="مراجعة وصلات الخياطة المقترحة بين حواف قطع الباترون"
+        >
+          <Scissors className="w-3.5 h-3.5" /><span>الخياطة ({cadSewingAudit.readyCount}/{cadSewingAudit.pairCount})</span>
         </button>}
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
