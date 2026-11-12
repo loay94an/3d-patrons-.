@@ -56,6 +56,8 @@ def build_relaxed_arm_pose(model: anny.Anny, device: str) -> torch.Tensor:
     pose = torch.eye(4, dtype=torch.float32, device=device)[None, None].expand(
         1, model.bone_count, 4, 4
     ).clone()
+    # Keep these mirrored signs: the CPU keypoint regression verifies both wrists descend.
+    # NAVER's tutorial signs map inversely in this generator's current local-ref basis.
     rotations = {
         "upperarm01.L": (0.0, 0.0, -0.9),
         "upperarm01.R": (0.0, 0.0, 0.9),
