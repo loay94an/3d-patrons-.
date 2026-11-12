@@ -12,7 +12,10 @@
   },
   "deduplication": {
     "exactDuplicateChecks": "Not yet run per extracted PDF; archive-level SHA-256 recorded.",
-    "candidateVariants": "Do not merge visually similar romper/jumpsuit styles without comparing piece outlines, size charts and construction details."
+    "candidateVariants": "Do not merge visually similar romper/jumpsuit styles without comparing piece outlines, size charts and construction details.",
+    "exactDuplicateFilesFoundWithinArchive": 0,
+    "uniquePdfSha256Count": 12,
+    "note": "Each of the 12 PDF entries was hashed individually; all 12 SHA-256 values are distinct."
   },
   "models": [
     {
@@ -25,7 +28,8 @@
         "open/tie-back construction"
       ],
       "pages": 10,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "7d2be3c665dae6d9d68f7d68ba913dd1dba627d31af2a99a33dfebcb50f16e53"
     },
     {
       "id": "overall-fitness-romper",
@@ -35,7 +39,8 @@
       "category": "activewear_romper",
       "fabricHint": "stretch knit; verify stretch percentages from the source chart before use",
       "pages": 9,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "e18b143426953b06c785d117440206377e0ed0e098fe6395c869bf4806f2fe4b"
     },
     {
       "id": "overall-v-neck-jumpsuit",
@@ -47,7 +52,8 @@
         "V neckline"
       ],
       "pages": 16,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "f10d5bb75939a354ba2fc986e98bca5f4a7dbe39e542edc5ae67ad2903af9d3b"
     },
     {
       "id": "overall-halter-draped",
@@ -60,7 +66,8 @@
         "draped/tied construction"
       ],
       "pages": 10,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "01b8f4420e77835ca1b77b4cae5f63cd102699400287f413c66494c769d34f75"
     },
     {
       "id": "overall-pinafore-apron",
@@ -72,7 +79,8 @@
         "apron/pinafore construction"
       ],
       "pages": 9,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "3c312d8c6fc99e5d6496e7af8d02e44e9a7149629cc442a0967fc953801b2f9a"
     },
     {
       "id": "overall-subscription-collection",
@@ -83,7 +91,8 @@
       "pages": 9,
       "sourceLanguage": "Portuguese",
       "excludeFromUniquePatternCount": true,
-      "note": "Visual sample includes promotional/collection content; count as a source document, not automatically as one unique pattern model."
+      "note": "Visual sample includes promotional/collection content; count as a source document, not automatically as one unique pattern model.",
+      "sha256": "c155b95b270a4b1f1d86b0fa324b22903faad2a0f87e57767967b889e285017e"
     },
     {
       "id": "overall-basic-jumpsuit",
@@ -92,7 +101,8 @@
       "titleEn": "Basic jumpsuit",
       "category": "jumpsuit",
       "pages": 13,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "46e4bee8d86480abb2d58e9ca12f486cc917e1cfe3303ccbc35c782da50c65e3"
     },
     {
       "id": "overall-elastic-waist-strap-romper",
@@ -105,7 +115,8 @@
         "elasticated waist"
       ],
       "pages": 13,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "2901ecae5c5c81df97f58fb08a7c742c44157dd8455f99459fb41878b5a2c5e5"
     },
     {
       "id": "overall-saruel-knit-jumpsuit",
@@ -115,7 +126,8 @@
       "category": "sarouel_jumpsuit",
       "fabricHint": "medium/high-stretch knit; exact fabric parameters not yet extracted",
       "pages": 7,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "d79d86cdcdd21f11c5bdad81ddd954d4517d1faefdbddbf1cf2ee53536712940"
     },
     {
       "id": "overall-one-shoulder-romper",
@@ -127,7 +139,8 @@
         "one-shoulder neckline"
       ],
       "pages": 12,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "415309efd795f8edf86151c018fce8040d4c11f3153398408aeb335ea0c9b04e"
     },
     {
       "id": "overall-faux-collar-wrap-romper",
@@ -141,7 +154,8 @@
         "wrap/overlap front"
       ],
       "pages": 12,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "bd01f02024c4178973ea1e367f4a6f78690a0e42d88a14326676e5a195da9447"
     },
     {
       "id": "overall-pinafore-romper",
@@ -153,7 +167,8 @@
         "overall/pinafore bib construction"
       ],
       "pages": 12,
-      "sourceLanguage": "Portuguese"
+      "sourceLanguage": "Portuguese",
+      "sha256": "a99b9a6206b97880e0a49761263229311799acfac0c17c9907bb7fb152591a11"
     }
   ],
   "commonVisualEvidence": {
