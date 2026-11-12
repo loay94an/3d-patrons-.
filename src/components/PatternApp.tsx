@@ -376,7 +376,7 @@ export default function PatternApp() {
             <button type="button" aria-pressed={userMode === 'expert'} onClick={() => setUserMode('expert')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'expert' ? "bg-blue-600 text-white" : "text-slate-400")}>متخصص</button>
           </div>
           {/* Archetype Quick Badge */}
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="hidden text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 sm:inline-flex">
             {state.gender === 'women' ? 'نساء' : state.gender === 'men' ? 'رجال' : 'أطفال'} • {state.size}
           </span>
         </div>
