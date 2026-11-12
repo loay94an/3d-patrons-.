@@ -15,6 +15,7 @@ from pathlib import Path
 
 import anny
 import numpy as np
+import roma
 import torch
 import trimesh
 
@@ -37,59 +38,93 @@ def parse_phenotypes(items: list[str], labels: list[str]) -> dict[str, float]:
 
 
 def build_relaxed_arm_pose(model: anny.Anny, device: str) -> torch.Tensor:
-    """Build a symmetric, relaxed-down arm pose using Anny's native rig.
+    """Build a relaxed, symmetric arm pose using Anny's documented local-ref rig.
 
-    Anny's world-orient parameterization lets each upper-arm bone be oriented
-    in the model's world frame while preserving rig skinning and mesh topology.
-    Opposite signs mirror the left and right arms around the sagittal plane.
+    This follows NAVER's keypoint tutorial: rotate the upper arms outward/down
+    and add a mild, mirrored elbow bend through the native lower-arm bones.
+    Parent-child transforms remain in the rig's local reference coordinates;
+    no vertices are edited directly.
     """
+    required = ("upperarm01.L", "upperarm01.R", "lowerarm01.L", "lowerarm01.R")
     labels = list(model.bone_labels)
-    required = (
-        "upperarm01.L", "upperarm02.L",
-        "upperarm01.R", "upperarm02.R",
-    )
     missing = [label for label in required if label not in labels]
     if missing:
         raise RuntimeError(
-            "Anny rig is missing required upper-arm bones: " + ", ".join(missing)
+            "Anny rig is missing required arm bones: " + ", ".join(missing)
         )
 
-    # Convert the reference pose to world-orient explicitly. This avoids
-    # assuming that local-bone and local-ref rotations share the same axes.
-    reference_pose = {
-        label: torch.eye(4, dtype=torch.float32, device=device)[None]
-        for label in labels
-    }
-    reference_output = model(pose_parameters=reference_pose)
-    pose = model.get_pose_parameterization(
-        reference_output, pose_parameterization="world-orient"
+    pose = torch.eye(4, dtype=torch.float32, device=device)[None, None].expand(
+        1, model.bone_count, 4, 4
     ).clone()
-
-    def rotation_z(degrees: float) -> torch.Tensor:
-        angle = torch.tensor(
-            degrees * 3.141592653589793 / 180.0,
-            dtype=torch.float32,
-            device=device,
-        )
-        cosine = torch.cos(angle)
-        sine = torch.sin(angle)
-        transform = torch.eye(4, dtype=torch.float32, device=device)
-        transform[0, 0] = cosine
-        transform[0, 1] = -sine
-        transform[1, 0] = sine
-        transform[1, 1] = cosine
-        return transform
-
-    bone_indices = {label: index for index, label in enumerate(labels)}
-    # The upstream Anny pose tutorial demonstrates 90-degree Z rotations
-    # on upper-arm bones. Mirrored signs lower both sides symmetrically.
-    for side, angle in (("L", -90.0), ("R", 90.0)):
-        transform = rotation_z(angle)
-        for segment in ("upperarm01", "upperarm02"):
-            pose[0, bone_indices[f"{segment}.{side}"]] = transform
+    rotations = {
+        "upperarm01.L": (0.0, 0.0, -0.9),
+        "upperarm01.R": (0.0, 0.0, 0.9),
+        "lowerarm01.L": (0.0, -1.1, 0.0),
+        "lowerarm01.R": (0.0, 1.1, 0.0),
+    }
+    for label, rotation_vector in rotations.items():
+        index = labels.index(label)
+        vector = torch.tensor(rotation_vector, dtype=torch.float32, device=device)
+        pose[0, index, :3, :3] = roma.rotvec_to_rotmat(vector)
 
     return pose
 
+
+def measure_arm_pose(model: anny.Anny, output: dict) -> dict:
+    """Measure real shoulder/elbow/wrist positions and reject asymmetric poses."""
+    labels = [
+        "left_shoulder", "right_shoulder",
+        "left_elbow", "right_elbow",
+        "left_wrist", "right_wrist",
+    ]
+    regressor = anny.KeypointsRegressor.coco(model, labels)
+    points = regressor(output).squeeze(0).detach().cpu().numpy()
+    by_label = {label: points[index].tolist() for index, label in enumerate(labels)}
+    bounds = np.asarray(output["vertices"].squeeze(0).detach().cpu().numpy()).min(axis=0), np.asarray(
+        output["vertices"].squeeze(0).detach().cpu().numpy()
+    ).max(axis=0)
+    height = float(bounds[1][2] - bounds[0][2])
+    if not np.isfinite(height) or height <= 0:
+        raise RuntimeError("Anny produced an invalid vertical body extent")
+
+    drops = {}
+    for side in ("left", "right"):
+        shoulder = np.asarray(by_label[f"{side}_shoulder"])
+        elbow = np.asarray(by_label[f"{side}_elbow"])
+        wrist = np.asarray(by_label[f"{side}_wrist"])
+        drops[side] = {
+            "shoulder_to_elbow_vertical": float(shoulder[2] - elbow[2]),
+            "shoulder_to_wrist_vertical": float(shoulder[2] - wrist[2]),
+        }
+        if drops[side]["shoulder_to_wrist_vertical"] < height * 0.015:
+            raise RuntimeError(
+                f"Anny {side} wrist is not sufficiently below the shoulder; "
+                "the relaxed downward arm pose failed anatomical validation"
+            )
+
+    symmetry_error = max(
+        abs(by_label["left_shoulder"][0] + by_label["right_shoulder"][0]),
+        abs(by_label["left_elbow"][0] + by_label["right_elbow"][0]),
+        abs(by_label["left_wrist"][0] + by_label["right_wrist"][0]),
+        abs(by_label["left_shoulder"][1] - by_label["right_shoulder"][1]),
+        abs(by_label["left_shoulder"][2] - by_label["right_shoulder"][2]),
+        abs(by_label["left_elbow"][1] - by_label["right_elbow"][1]),
+        abs(by_label["left_elbow"][2] - by_label["right_elbow"][2]),
+        abs(by_label["left_wrist"][1] - by_label["right_wrist"][1]),
+        abs(by_label["left_wrist"][2] - by_label["right_wrist"][2]),
+    )
+    if symmetry_error > height * 0.025:
+        raise RuntimeError(
+            f"Anny arm pose is not sufficiently symmetric: {symmetry_error:.6f} "
+            f"model units (body height {height:.6f})"
+        )
+
+    return {
+        "keypoints_model_units": by_label,
+        "vertical_drop_model_units": drops,
+        "left_right_symmetry_error_model_units": float(symmetry_error),
+        "validation": "passed",
+    }
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -120,10 +155,11 @@ def main() -> None:
         pose = build_relaxed_arm_pose(model, device)
         output = model(
             pose_parameters=pose,
-            pose_parameterization="world-orient",
+            pose_parameterization="local-ref",
             phenotype_kwargs=phenotypes,
             local_changes_kwargs={},
         )
+        arm_pose_report = measure_arm_pose(model, output)
 
     vertices = output["vertices"].squeeze(dim=0).detach().cpu().numpy()
     faces = np.asarray(model.faces, dtype=np.int64)
@@ -152,10 +188,15 @@ def main() -> None:
         "bounds_model_units": mesh.bounds.tolist(),
         "phenotype_parameters": phenotypes,
         "local_changes": {},
-        "pose": "symmetric-relaxed-arms-down",
-        "pose_parameterization": "world-orient",
-        "arm_pose_degrees": {"left_upper_arm": -90.0, "right_upper_arm": 90.0},
-        "arm_pose_bones": ["upperarm01.L", "upperarm02.L", "upperarm01.R", "upperarm02.R"],
+        "pose": "symmetric-relaxed-arms-down-with-soft-elbow-bend",
+        "pose_parameterization": "local-ref",
+        "arm_pose_rotvec_radians": {
+            "upperarm01.L": [0.0, 0.0, -0.9],
+            "upperarm01.R": [0.0, 0.0, 0.9],
+            "lowerarm01.L": [0.0, -1.1, 0.0],
+            "lowerarm01.R": [0.0, 1.1, 0.0]
+        },
+        "arm_pose_validation": arm_pose_report,
         "elapsed_seconds_including_model_initialization": round(elapsed, 3),
         "output_file": str(output_path),
         "measurement_status": (
