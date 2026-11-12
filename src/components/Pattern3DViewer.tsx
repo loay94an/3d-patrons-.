@@ -564,9 +564,9 @@ export function Pattern3DViewer({
     return () => window.removeEventListener('patron-studio:cad-document-updated', handleCadDocumentChanged);
   }, [projectId]);
 
-  const acceptCadSeamSuggestion = (suggestion: CadSeamSuggestion) => {
+  const acceptCadSeamSuggestion = (suggestion: CadSeamSuggestion, mode: 'plain' | 'ease' | 'gather') => {
     if (!projectId || !cadDocument || typeof window === 'undefined') return;
-    const pair = createCadStitchPairFromSuggestion(suggestion);
+    const pair = createCadStitchPairFromSuggestion(suggestion, mode);
     const stitchPairs = [...cadDocument.stitchPairs, pair];
     const updatedAt = new Date().toISOString();
     const saved = saveCadProjectDocument(
@@ -1255,9 +1255,12 @@ export function Pattern3DViewer({
               <span>{suggestion.edgeType} • {suggestion.firstLengthCm.toFixed(1)} / {suggestion.secondLengthCm.toFixed(1)} سم</span>
               <span>فرق {suggestion.differenceCm.toFixed(2)} سم</span>
             </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[10px] text-cyan-200">مؤشر التوافق {(suggestion.confidence * 100).toFixed(0)}%</span>
-              <button onClick={() => acceptCadSeamSuggestion(suggestion)} className="rounded-lg bg-cyan-700 px-3 py-1.5 font-semibold text-white hover:bg-cyan-600">اعتماد وصلة</button>
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => acceptCadSeamSuggestion(suggestion, 'plain')} className="rounded-lg border border-cyan-600/60 px-2 py-1.5 font-semibold text-cyan-100 hover:bg-cyan-950/60">خياطة عادية</button>
+                {suggestion.differenceCm > 0.35 && <button onClick={() => acceptCadSeamSuggestion(suggestion, 'ease')} className="rounded-lg bg-cyan-700 px-2 py-1.5 font-semibold text-white hover:bg-cyan-600">تسهيل {suggestion.differenceCm.toFixed(1)} سم</button>}
+              </div>
             </div>
           </div>)}
           {!cadSewingAudit.suggestions.length && <div className="rounded-lg border border-dashed border-slate-700 p-3 text-center text-slate-400">لا توجد حواف إضافية متقاربة بما يكفي. راجع أطوال القطع أو اربط الحواف يدوياً في مرحلة إدارة الخياطة.</div>}
