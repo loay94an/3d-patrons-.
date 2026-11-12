@@ -4,7 +4,6 @@ import {
   type CadStitchPair,
   type CadSewingAudit
 } from './cad-sewing-engine';
-import { applyEaseScale } from './pattern-cad-engine';
 export { applyEaseScale } from './pattern-cad-engine';
 
 export type KnowledgeUse = 'internal_analysis' | 'derived_facts' | 'commercial_runtime' | 'redistribution' | 'model_training';
