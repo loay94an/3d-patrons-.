@@ -44,4 +44,19 @@ describe('project workspace storage', () => {
     assert.equal(PROJECT_STORAGE_KEY, 'patron-studio.projects.v1');
     assert.equal(persistProjects(null, [project]), false);
   });
+
+  it('rejects malformed project history and duplicate project identifiers in imported archives', () => {
+    const project = createProject('آمن');
+    const malformed = { ...project, history: [{ version: 1, savedAt: project.createdAt, measurements: null, ease: project.ease, notes: '' }] };
+    assert.throws(() => importProjects(exportProjects([malformed as unknown as typeof project])));
+    assert.throws(() => importProjects(exportProjects([project, project])));
+  });
+  it('ignores malformed and duplicate local projects instead of exposing unsafe records to the UI', () => {
+    const valid = createProject('صالح');
+    const value = JSON.stringify([valid, { ...valid, id: 'broken', history: null }, { ...valid }]);
+    const storage = { getItem: (_key: string) => value };
+    const loaded = loadProjects(storage);
+    assert.equal(loaded.length, 1);
+    assert.equal(loaded[0].id, valid.id);
+  });
 });

@@ -82,6 +82,7 @@ const defaultState: AppState = {
 export default function PatternApp() {
   const [state, setState] = useState<AppState>(defaultState);
   const [darkMode, setDarkMode] = useState(false);
+  const [userMode, setUserMode] = useState<'beginner' | 'expert'>('beginner');
   const [activeTab, setActiveTab] = useState<MainViewTab>('home');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -93,6 +94,17 @@ export default function PatternApp() {
   const [fabricState, setFabricState] = useState<FabricCustomState>(DEFAULT_FABRIC_STATE);
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | 'all'>('all');
 
+  useEffect(() => {
+    try { const savedMode = localStorage.getItem('pattern-user-mode'); if (savedMode === 'beginner' || savedMode === 'expert') setUserMode(savedMode); } catch { /* optional persistence */ }
+  }, []);
+  useEffect(() => { try { localStorage.setItem('pattern-user-mode', userMode); } catch { /* session fallback */ } }, [userMode]);
+  const switchUserMode = (mode: 'beginner' | 'expert') => {
+    setUserMode(mode);
+    setShowMoreMenu(false);
+    if (mode === 'beginner' && ['garment_image', 'export_guide'].includes(activeTab)) {
+      setActiveTab('home');
+    }
+  };
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('theme');
@@ -128,9 +140,20 @@ export default function PatternApp() {
   const updateState = (updates: Partial<AppState>) => {
     setState(prev => {
       const next = { ...prev, ...updates };
-      // Reset size if gender changes
-      if (updates.gender && updates.gender !== prev.gender) {
-        next.size = getSizeList(updates.gender as Gender)[0];
+      const genderChanged = Boolean(updates.gender && updates.gender !== prev.gender);
+      const sizeChanged = updates.size !== undefined && updates.size !== prev.size;
+
+      // A new body archetype or standard size invalidates measurements from the
+      // previous profile. Clear both stores so the 2D pattern and 3D body stay in sync.
+      if (genderChanged) next.size = getSizeList(updates.gender as Gender)[0];
+      if (genderChanged || sizeChanged) {
+        next.customMeasurements = updates.customMeasurements ?? {};
+        next.measurementProfile = updates.measurementProfile;
+        next.useCustomMode = updates.useCustomMode ?? false;
+      } else if (updates.useCustomMode === false ||
+        (updates.customMeasurements && Object.keys(updates.customMeasurements).length === 0)) {
+        next.measurementProfile = updates.measurementProfile;
+        if (updates.useCustomMode === undefined) next.useCustomMode = false;
       }
       return next;
     });
@@ -366,8 +389,12 @@ export default function PatternApp() {
             استوديو الباترون 3D
           </span>
 
+          <div className="flex items-center rounded-lg border border-slate-700 bg-slate-900 p-0.5" role="group" aria-label="مستوى الواجهة">
+            <button type="button" aria-pressed={userMode === 'beginner'} onClick={() => switchUserMode('beginner')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'beginner' ? "bg-blue-600 text-white" : "text-slate-400")}>مبتدئ</button>
+            <button type="button" aria-pressed={userMode === 'expert'} onClick={() => switchUserMode('expert')} className={cn("rounded-md px-2 py-1 text-[10px] font-bold", userMode === 'expert' ? "bg-blue-600 text-white" : "text-slate-400")}>متخصص</button>
+          </div>
           {/* Archetype Quick Badge */}
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+          <span className="hidden text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 sm:inline-flex">
             {state.gender === 'women' ? 'نساء' : state.gender === 'men' ? 'رجال' : 'أطفال'} • {state.size}
           </span>
         </div>
@@ -416,7 +443,36 @@ export default function PatternApp() {
       <main className="flex-1 w-full min-h-0 relative overflow-hidden bg-slate-950">
         
 
-        {activeTab === 'home' && (
+        {activeTab === 'home' && (userMode === 'beginner' ? (
+          <div className="h-full overflow-y-auto p-4 pb-8 sm:p-7"><div className="mx-auto max-w-5xl space-y-5">
+            <section className="rounded-3xl border border-indigo-300/20 bg-gradient-to-br from-slate-900 to-indigo-950 p-5 text-white sm:p-8">
+              <span className="rounded-full border border-indigo-300/30 bg-indigo-300/10 px-3 py-1 text-[11px] font-bold text-indigo-200">تصميم سهل خطوة بخطوة</span>
+              <h1 className="mt-4 text-2xl font-black sm:text-4xl">لنصمم قطعتك الأولى</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">اختر نوع الملابس، أدخل المقاسات، أنشئ الباترون، ثم شاهد النتيجة. يمكنك تعديل أي خطوة في أي وقت.</p>
+              <button onClick={() => setActiveTab('catalog')} className="mt-5 rounded-xl bg-indigo-500 px-5 py-3 text-sm font-extrabold text-white">ابدأ تصميمًا جديدًا <ArrowRight className="mr-1 inline h-4 w-4"/></button>
+            </section>
+            <section className="space-y-3"><div><h2 className="text-lg font-extrabold text-white">رحلة التصميم</h2><p className="mt-1 text-xs text-slate-400">أربع خطوات واضحة من الفكرة إلى المعاينة</p></div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  {id:'catalog',n:'١',title:'اختر نوع الملابس',desc:'بلوزة أو فستان أو تنورة أو بنطال.',icon:<Shirt className="h-5 w-5"/>},
+                  {id:'measurements',n:'٢',title:'أدخل المقاسات',desc:'استخدم المقاسات الأساسية أو عدّلها.',icon:<Ruler className="h-5 w-5"/>},
+                  {id:'parametric',n:'٣',title:'أنشئ الباترون',desc:'حوّل اختياراتك إلى قالب أولي.',icon:<Sparkles className="h-5 w-5"/>},
+                  {id:'view3d',n:'٤',title:'شاهد التصميم',desc:'عاين المجسم والخامة المتاحة.',icon:<Box className="h-5 w-5"/>}
+                ].map(item=><button key={item.id} onClick={()=>setActiveTab(item.id as MainViewTab)} className="flex min-h-24 items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-right hover:border-indigo-500/60">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-sm font-black text-slate-200">{item.n}</span>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-indigo-300">{item.icon}</span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-extrabold text-white">{item.title}</span><span className="mt-1 block text-xs leading-5 text-slate-400">{item.desc}</span></span><ChevronLeft className="h-4 w-4 text-slate-500"/>
+                </button>)}
+              </div>
+            </section>
+            <section className="flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div><h2 className="text-sm font-extrabold text-white">تحتاج تحكمًا كاملًا؟</h2><p className="mt-1 text-xs text-slate-400">افتح أدوات الرسم والهندسة المتقدمة.</p></div>
+              <button onClick={()=>{setUserMode('expert');setActiveTab('cad2d');}} className="rounded-xl border border-slate-600 px-4 py-2.5 text-xs font-bold text-slate-100">فتح أدوات المتخصص</button>
+            </section>
+            <p className="text-[11px] leading-6 text-slate-500">المعاينة ثلاثية الأبعاد للعرض والخامات المتاحة، وليست محاكاة فيزيائية كاملة للقماش.</p>
+          </div></div>
+        ) : (
+
           <div className="h-full overflow-y-auto p-4 pb-6 sm:p-7">
             <div className="mx-auto max-w-6xl space-y-6">
               <section className="overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 p-5 sm:p-8">
@@ -453,8 +509,8 @@ export default function PatternApp() {
               <p className="rounded-xl border border-slate-800 bg-slate-900/50 p-3 text-[11px] leading-6 text-slate-400">ملاحظة: المعاينة ثلاثية الأبعاد الحالية للعرض والخامات المتاحة؛ لا تمثل بعد محاكاة فيزيائية كاملة لسقوط القماش وملاءمته.</p>
             </div>
           </div>
+          )
         )}
-
         {activeTab === 'projects' && <ProjectWorkspace onOpenCad={(project) => {
           setActiveProjectId(project.id);
           setCadInitialDraft(null);
@@ -550,13 +606,16 @@ export default function PatternApp() {
         {activeTab === 'catalog' && (
           <div className="w-full h-full">
             <PatternCatalog onSelect={(garment, gender) => {
+              const selectedMeasurements = gender === state.gender
+                ? currentMeas
+                : getBaseMeasurements(gender, getSizeList(gender)[0]);
               startProjectForCad(garment, {
-                bust: currentMeas.bust ?? currentMeas.chest ?? 88,
-                waist: currentMeas.waist ?? 70,
-                hip: currentMeas.hip ?? 94,
-                backLength: currentMeas.backLength ?? 40,
-                sleeveLength: currentMeas.sleeveLength ?? 58,
-                upperArm: currentMeas.armCirc ?? 30
+                bust: selectedMeasurements.bust ?? selectedMeasurements.chest ?? 88,
+                waist: selectedMeasurements.waist ?? 70,
+                hip: selectedMeasurements.hip ?? 94,
+                backLength: selectedMeasurements.backLength ?? 40,
+                sleeveLength: selectedMeasurements.sleeveLength ?? 58,
+                upperArm: selectedMeasurements.armCirc ?? selectedMeasurements.upperArm ?? 30
               }, {
                 bust: state.customMeasurements.bustEase ?? 4,
                 waist: state.customMeasurements.waistEase ?? 2,
@@ -976,35 +1035,25 @@ export default function PatternApp() {
 
 {/* Primary navigation: five high-frequency destinations plus a compact tools menu. */}
       <nav aria-label="التنقل الرئيسي" className="relative z-30 flex h-16 shrink-0 items-center justify-around border-t border-slate-800/90 bg-slate-950 px-1 sm:px-3">
-        {[
-          { id: 'home', label: 'الرئيسية', icon: <Home className="h-5 w-5" /> },
-          { id: 'catalog', label: 'الموديلات', icon: <Shirt className="h-5 w-5" /> },
-          { id: 'parametric', label: 'المعمل', icon: <Code2 className="h-5 w-5" /> },
-          { id: 'cad2d', label: 'الرسم 2D', icon: <DraftingCompass className="h-5 w-5" /> },
-          { id: 'view3d', label: 'عرض 3D', icon: <Box className="h-5 w-5" /> }
-        ].map(item => (
-          <button key={item.id} aria-current={activeTab === item.id ? 'page' : undefined} onClick={() => { setActiveTab(item.id as MainViewTab); setShowMoreMenu(false); }} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] transition sm:text-xs", activeTab === item.id ? "font-extrabold text-blue-400" : "text-slate-400 hover:text-slate-100")}>
-            {item.icon}<span>{item.label}</span>
-          </button>
-        ))}
-        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={() => setShowMoreMenu(value => !value)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs", showMoreMenu || ['encyclopedia','measurements','fabrics','export_guide','projects','garment_image'].includes(activeTab) ? "font-extrabold text-blue-400" : "text-slate-400")}>
-          <MoreHorizontal className="h-5 w-5" /><span>المزيد</span>
-        </button>
+        {(userMode === 'beginner' ? [
+          {id:'home',label:'الرئيسية',icon:<Home className="h-5 w-5"/>},{id:'catalog',label:'الموديلات',icon:<Shirt className="h-5 w-5"/>},{id:'measurements',label:'المقاسات',icon:<Ruler className="h-5 w-5"/>},{id:'projects',label:'مشاريعي',icon:<FolderOpen className="h-5 w-5"/>},{id:'view3d',label:'المعاينة',icon:<Box className="h-5 w-5"/>}
+        ] : [
+          {id:'home',label:'الرئيسية',icon:<Home className="h-5 w-5"/>},{id:'catalog',label:'الموديلات',icon:<Shirt className="h-5 w-5"/>},{id:'parametric',label:'المعمل',icon:<Code2 className="h-5 w-5"/>},{id:'cad2d',label:'الرسم 2D',icon:<DraftingCompass className="h-5 w-5"/>},{id:'view3d',label:'عرض 3D',icon:<Box className="h-5 w-5"/>}
+        ]).map(item=><button key={item.id} aria-current={activeTab===item.id?'page':undefined} onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] transition sm:text-xs",activeTab===item.id?"font-extrabold text-blue-400":"text-slate-400 hover:text-slate-100")}>{item.icon}<span>{item.label}</span></button>)}
+        <button aria-expanded={showMoreMenu} aria-label="المزيد من الأدوات" onClick={()=>setShowMoreMenu(v=>!v)} className={cn("flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-2 text-[10px] sm:text-xs",showMoreMenu || (userMode === 'beginner' ? ['parametric','cad2d','fabrics','encyclopedia'].includes(activeTab) : ['encyclopedia','measurements','fabrics','export_guide','projects','garment_image'].includes(activeTab)) ? "font-extrabold text-blue-400" : "text-slate-400")}><MoreHorizontal className="h-5 w-5"/><span>المزيد</span></button>
       </nav>
       {showMoreMenu && (
         <div className="absolute bottom-16 left-2 right-2 z-40 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl sm:left-auto sm:right-4 sm:w-72" role="menu" aria-label="أدوات إضافية">
-          {[
-            { id: 'garment_image', label: 'تحليل صورة الملابس والمعالم', icon: <ImagePlus className="h-4 w-4" /> },
-            { id: 'projects', label: 'المشاريع وملفات القياسات', icon: <FolderOpen className="h-4 w-4" /> },
-            { id: 'encyclopedia', label: 'الموسوعة والمراجع', icon: <BookOpen className="h-4 w-4" /> },
-            { id: 'measurements', label: 'ملف القياسات', icon: <Ruler className="h-4 w-4" /> },
-            { id: 'fabrics', label: 'الأقمشة والخامات', icon: <Palette className="h-4 w-4" /> },
-            { id: 'export_guide', label: 'التصدير والإنتاج', icon: <FileText className="h-4 w-4" /> }
-          ].map(item => (
-            <button key={item.id} role="menuitem" onClick={() => { setActiveTab(item.id as MainViewTab); setShowMoreMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 transition hover:bg-slate-800">
-              {item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500" />
-            </button>
-          ))}
+          {userMode === 'beginner' ? <>
+            {[
+              {id:'parametric',label:'إنشاء الباترون',icon:<Sparkles className="h-4 w-4"/>},{id:'cad2d',label:'الرسم والتعديل المتقدم',icon:<DraftingCompass className="h-4 w-4"/>},{id:'fabrics',label:'اختيار القماش',icon:<Palette className="h-4 w-4"/>},{id:'encyclopedia',label:'تعلم أساسيات التفصيل',icon:<BookOpen className="h-4 w-4"/>}
+            ].map(item=><button key={item.id} role="menuitem" onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 hover:bg-slate-800">{item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500"/></button>)}
+            <button role="menuitem" onClick={()=>{setUserMode('expert');setShowMoreMenu(false);}} className="mt-1 flex w-full items-center gap-3 rounded-xl border-t border-slate-700 px-3 py-3 text-right text-sm font-bold text-indigo-300 hover:bg-slate-800"><Code2 className="h-4 w-4"/><span>الانتقال إلى وضع المتخصص</span></button>
+          </> : <>
+            {[
+              {id:'garment_image',label:'تحليل صورة الملابس والمعالم',icon:<ImagePlus className="h-4 w-4"/>},{id:'projects',label:'المشاريع وملفات القياسات',icon:<FolderOpen className="h-4 w-4"/>},{id:'encyclopedia',label:'الموسوعة والمراجع',icon:<BookOpen className="h-4 w-4"/>},{id:'measurements',label:'ملف القياسات',icon:<Ruler className="h-4 w-4"/>},{id:'fabrics',label:'الأقمشة والخامات',icon:<Palette className="h-4 w-4"/>},{id:'export_guide',label:'التصدير والإنتاج',icon:<FileText className="h-4 w-4"/>}
+            ].map(item=><button key={item.id} role="menuitem" onClick={()=>{setActiveTab(item.id as MainViewTab);setShowMoreMenu(false);}} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-right text-sm font-semibold text-slate-200 hover:bg-slate-800">{item.icon}<span>{item.label}</span><ChevronLeft className="mr-auto h-4 w-4 text-slate-500"/></button>)}
+          </>}
         </div>
       )}
 

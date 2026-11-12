@@ -4,7 +4,7 @@ import {
   createProject, DEFAULT_PROJECT_EASE, DEFAULT_PROJECT_MEASUREMENTS, exportProjects, importProjects,
   loadProjects, persistProjects, saveProject, type ProjectSnapshot, type ProjectGarment, type ProjectFamily
 } from '../lib/project-store';
-import { deleteCadProjectDocument, loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
+import { deleteCadProjectDocument, loadCadProjectDocument, saveCadProjectDocument, validateCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
 
 type PortableProject = ProjectSnapshot & { cadDocument?: CadProjectDocument | null };
 
@@ -70,16 +70,23 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
     if (!file) return;
     try {
       const portable = importProjects(await file.text()) as PortableProject[];
-      portable.forEach(project => {
-        if (project.cadDocument) {
-          saveCadProjectDocument(
-            typeof window === 'undefined' ? null : window.localStorage,
-            project.id, project.cadDocument.pieces, project.cadDocument.summaries, project.cadDocument.updatedAt,
-            project.cadDocument.stitchPairs
-          );
+      // Validate every attached CAD document before writing any imported project data.
+      const prepared = portable.map(project => ({
+        ...project,
+        cadDocument: project.cadDocument
+          ? validateCadProjectDocument(project.cadDocument, project.id)
+          : null
+      }));
+      for (const project of prepared) {
+        if (project.cadDocument && !saveCadProjectDocument(
+          typeof window === 'undefined' ? null : window.localStorage,
+          project.id, project.cadDocument.pieces, project.cadDocument.summaries, project.cadDocument.updatedAt,
+          project.cadDocument.stitchPairs
+        )) {
+          throw new Error(`تعذر استعادة هندسة CAD للمشروع «${project.name}». تحقق من مساحة التخزين ثم أعد المحاولة.`);
         }
-      });
-      const imported = portable.map(({ cadDocument: _cadDocument, ...project }) => project);
+      }
+      const imported = prepared.map(({ cadDocument: _cadDocument, ...project }) => project);
       setProjects(current => {
         const byId = new Map(current.map(project => [project.id, project]));
         imported.forEach(project => byId.set(project.id, project));
