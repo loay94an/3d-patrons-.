@@ -239,7 +239,6 @@ export function Pattern3DViewer({
 
   // Visual toggles
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
-  const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
@@ -819,27 +818,9 @@ export function Pattern3DViewer({
     const measurementValues = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
     const resolved = resolve3DMeasurements(state.gender, state.size, measurementValues);
     const targetHeightCm = resolveAnnyTargetHeightCm(state.gender, resolved.body.height);
-    if (annyBodyMeshRef.current && annySourceGeometryRef.current) {
-      try {
-        const calibration = calibrateAnnyBodyGeometry(annySourceGeometryRef.current, {
-          heightCm: targetHeightCm,
-          bustCm: resolved.body.bust,
-          waistCm: resolved.body.waist,
-          hipCm: resolved.body.hip
-        });
-        const previousGeometry = annyBodyMeshRef.current.geometry;
-        annyBodyMeshRef.current.geometry = calibration.geometry;
-        previousGeometry.dispose();
-        const { geometry: _geometry, ...summary } = calibration;
-        setAnnyCalibrationSummary(summary);
-      } catch (error) {
-        setAnnyCalibrationSummary({
-          nativeHeight: size.y, targetHeightCm, heightScale: getAnnyHeightScale(size.y, targetHeightCm),
-          landmarks: [], status: 'review-required',
-          warnings: [error instanceof Error ? error.message : 'تعذر معايرة جسم Anny؛ تم تحميله دون تغيير محيطي.']
-        });
-      }
-    }
+    // Defer tape-guided mesh calibration to the measurement effect below.
+    // Running it here as well caused the same expensive vertex pass to execute twice
+    // on the first load (once here and once when annyPreviewEnabled changed).
     group.scale.setScalar(getAnnyHeightScale(size.y, targetHeightCm));
     const scaledBounds = new THREE.Box3().setFromObject(group);
     const center = scaledBounds.getCenter(new THREE.Vector3());
@@ -918,15 +899,8 @@ export function Pattern3DViewer({
     }
   };
 
-  // Anny is the default visual body. The procedural mannequin remains available
-  // as a local fallback until Anny's mesh has validated tape-measure calibration.
-  useEffect(() => {
-    if (annyAutoLoadStartedRef.current) return;
-    annyAutoLoadStartedRef.current = true;
-    void handleLoadBundledAnny();
-    // Load once after the renderer scene has been initialized.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Anny is intentionally loaded on demand: GLB parsing and mesh calibration
+  // are CPU-heavy on phones, so opening the 3D workspace must stay responsive.
 
   const getAnnyApiBaseUrl = () => annyApiUrl.trim().replace(/\/+$/, '');
 
@@ -1438,7 +1412,7 @@ export function Pattern3DViewer({
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
         <button disabled={annyBundledBusy} onClick={() => void handleLoadBundledAnny()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-emerald-200 hover:bg-emerald-900/40 border border-emerald-700/40 disabled:opacity-50" title="Anny هو الجسم الافتراضي للمعاينة؛ القياسات والملاءمة غير معايرة بعد">
-          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : 'إعادة تحميل Anny'}</span>
+          <Activity className="w-3.5 h-3.5" /><span>{annyBundledBusy ? 'جار تحميل Anny...' : annyPreviewEnabled ? 'إعادة تحميل Anny' : 'تحميل Anny'}</span>
         </button>
         {annyPreviewEnabled && <>
           <button onClick={() => setShowGarmentOnAnny(value => !value)} className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showGarmentOnAnny ? 'bg-emerald-600/20 text-emerald-200 border-emerald-500/40' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title="تشكيل سطح الملابس ليتبع شبكة جسم Anny الفعلية">{showGarmentOnAnny ? 'إخفاء الملابس' : 'عرض الملابس'}</button>
