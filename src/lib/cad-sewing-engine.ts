@@ -358,18 +358,25 @@ export function auditCadSewing(
 
 export function createCadStitchPairFromSuggestion(
   suggestion: CadSeamSuggestion,
-  easeThresholdCm = DEFAULT_TOLERANCE_CM
+  mode: CadStitchPair['mode'] = 'plain',
+  expectedEaseCm?: number
 ): CadStitchPair {
-  if (!Number.isFinite(easeThresholdCm) || easeThresholdCm < 0) {
-    throw new Error('حد التسهيل للخياطة غير صالح.');
-  }
   const differenceCm = Math.abs(suggestion.firstLengthCm - suggestion.secondLengthCm);
-  const mode = differenceCm > easeThresholdCm ? 'ease' : 'plain';
+  if (!['plain', 'ease', 'gather'].includes(mode)) {
+    throw new Error('نوع وصلة الخياطة غير صالح.');
+  }
+  if (mode === 'plain' && expectedEaseCm !== undefined) {
+    throw new Error('لا يجوز تحديد تسهيل لوصلة خياطة عادية.');
+  }
+  const resolvedEase = mode === 'plain' ? undefined : expectedEaseCm ?? differenceCm;
+  if (resolvedEase !== undefined && (!Number.isFinite(resolvedEase) || resolvedEase < 0)) {
+    throw new Error('قيمة تسهيل الخياطة غير صالحة.');
+  }
   return {
     id: suggestion.id,
     first: { ...suggestion.first },
     second: { ...suggestion.second },
     mode,
-    ...(mode === 'ease' ? { expectedEaseCm: differenceCm } : {})
+    ...(resolvedEase === undefined ? {} : { expectedEaseCm: resolvedEase })
   };
 }
