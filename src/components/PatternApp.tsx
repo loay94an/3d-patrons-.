@@ -140,9 +140,18 @@ export default function PatternApp() {
   const updateState = (updates: Partial<AppState>) => {
     setState(prev => {
       const next = { ...prev, ...updates };
-      // Reset size if gender changes
-      if (updates.gender && updates.gender !== prev.gender) {
-        next.size = getSizeList(updates.gender as Gender)[0];
+      const genderChanged = Boolean(updates.gender && updates.gender !== prev.gender);
+      const sizeChanged = updates.size !== undefined && updates.size !== prev.size;
+
+      // A new body archetype or standard size invalidates measurements from the
+      // previous profile. Clear both stores so the 2D pattern and 3D body stay in sync.
+      if (genderChanged) next.size = getSizeList(updates.gender as Gender)[0];
+      if (genderChanged || sizeChanged) {
+        next.customMeasurements = updates.customMeasurements ?? {};
+        next.measurementProfile = updates.measurementProfile;
+        next.useCustomMode = updates.useCustomMode ?? false;
+      } else if (updates.useCustomMode === false) {
+        next.measurementProfile = updates.measurementProfile;
       }
       return next;
     });
@@ -595,13 +604,16 @@ export default function PatternApp() {
         {activeTab === 'catalog' && (
           <div className="w-full h-full">
             <PatternCatalog onSelect={(garment, gender) => {
+              const selectedMeasurements = gender === state.gender
+                ? currentMeas
+                : getBaseMeasurements(gender, getSizeList(gender)[0]);
               startProjectForCad(garment, {
-                bust: currentMeas.bust ?? currentMeas.chest ?? 88,
-                waist: currentMeas.waist ?? 70,
-                hip: currentMeas.hip ?? 94,
-                backLength: currentMeas.backLength ?? 40,
-                sleeveLength: currentMeas.sleeveLength ?? 58,
-                upperArm: currentMeas.armCirc ?? 30
+                bust: selectedMeasurements.bust ?? selectedMeasurements.chest ?? 88,
+                waist: selectedMeasurements.waist ?? 70,
+                hip: selectedMeasurements.hip ?? 94,
+                backLength: selectedMeasurements.backLength ?? 40,
+                sleeveLength: selectedMeasurements.sleeveLength ?? 58,
+                upperArm: selectedMeasurements.armCirc ?? selectedMeasurements.upperArm ?? 30
               }, {
                 bust: state.customMeasurements.bustEase ?? 4,
                 waist: state.customMeasurements.waistEase ?? 2,
