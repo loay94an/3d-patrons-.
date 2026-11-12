@@ -202,9 +202,6 @@ export function Pattern3DViewer({
   const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
   const annySourceGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
-  const [showAnnyCalibrationWarnings, setShowAnnyCalibrationWarnings] = useState(true);
-  const [annyBodyProfileSummary, setAnnyBodyProfileSummary] = useState<{ sections: number; hipY: number; waistY: number; bustY: number } | null>(null);
-  const [annyGeometryError, setAnnyGeometryError] = useState('');
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
@@ -215,7 +212,6 @@ export function Pattern3DViewer({
   // Interaction & Camera Controls state
   const isDraggingRef = useRef(false);
   const isPanningRef = useRef(false);
-  const canvasPointerMovedRef = useRef(false);
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const sphericalRef = useRef({ radius: 130, theta: Math.PI / 4, phi: Math.PI / 2.3 });
   const targetLookRef = useRef(new THREE.Vector3(0, 50, 0));
@@ -224,17 +220,11 @@ export function Pattern3DViewer({
 
   // Visual toggles
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
-  const [showAnnyPreviewInfo, setShowAnnyPreviewInfo] = useState(true);
   const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
-  const [annyFileName, setAnnyFileName] = useState('');
-  useEffect(() => {
-    if (annyPreviewEnabled) setShowAnnyPreviewInfo(true);
-  }, [annyPreviewEnabled, annyFileName]);
   const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
-  const [annyLoadError, setAnnyLoadError] = useState('');
   const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
   const [annyApiPanelOpen, setAnnyApiPanelOpen] = useState(false);
   const [annyApiBusy, setAnnyApiBusy] = useState(false);
@@ -475,7 +465,6 @@ export function Pattern3DViewer({
       garmentResultRef.current = null;
     }
     if (!annyPreviewEnabled || !annyBodyMeshRef.current) {
-      setAnnyBodyProfileSummary(null);
       return;
     }
 
@@ -488,16 +477,9 @@ export function Pattern3DViewer({
           heightFraction: item.heightFraction
         }))
       });
-      setAnnyGeometryError('');
-      setAnnyBodyProfileSummary({
-        sections: annyBodyProfile.sections.length,
-        hipY: annyBodyProfile.hipY,
-        waistY: annyBodyProfile.waistY,
-        bustY: annyBodyProfile.bustY
-      });
+
     } catch (error) {
-      setAnnyBodyProfileSummary(null);
-      setAnnyGeometryError(error instanceof Error ? error.message : 'تعذر استخراج مقاطع جسم Anny.');
+      console.error('Unable to extract Anny body profile', error);
       return;
     }
 
@@ -555,40 +537,8 @@ export function Pattern3DViewer({
     if (cadPreviewGroupRef.current) cadPreviewGroupRef.current.visible = showCadPieces;
   }, [showCadPieces, cadPieceCount]);
 
-  // Re-show calibration warnings whenever a new Anny calibration result arrives.
-  useEffect(() => {
-    setShowAnnyCalibrationWarnings(true);
-  }, [annyCalibrationSummary]);
-
-  // Dismiss the calibration warning only when the user clicks empty 3D space.
-  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const moved = canvasPointerMovedRef.current;
-    canvasPointerMovedRef.current = false;
-    if (moved || !showAnnyCalibrationWarnings || !annyCalibrationSummary?.warnings.length) return;
-
-    const camera = cameraRef.current;
-    const anny = annyGroupRef.current;
-    if (!camera || !anny) return;
-
-    const bounds = e.currentTarget.getBoundingClientRect();
-    const pointer = new THREE.Vector2(
-      ((e.clientX - bounds.left) / bounds.width) * 2 - 1,
-      -((e.clientY - bounds.top) / bounds.height) * 2 + 1
-    );
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(pointer, camera);
-    const targets: THREE.Object3D[] = [anny];
-    if (showGarmentOnAnny && garmentResultRef.current?.group.visible) {
-      targets.push(garmentResultRef.current.group);
-    }
-    if (raycaster.intersectObjects(targets, true).length === 0) {
-      setShowAnnyCalibrationWarnings(false);
-    }
-  };
-
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
-    canvasPointerMovedRef.current = false;
     isDraggingRef.current = true;
     userMovedCameraRef.current = true;
     isPanningRef.current = e.button === 2 || e.shiftKey;
@@ -599,7 +549,6 @@ export function Pattern3DViewer({
     if (!isDraggingRef.current) return;
     const dx = e.clientX - prevMouseRef.current.x;
     const dy = e.clientY - prevMouseRef.current.y;
-    if (Math.hypot(dx, dy) > 3) canvasPointerMovedRef.current = true;
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
 
     if (isPanningRef.current) {
@@ -621,7 +570,6 @@ export function Pattern3DViewer({
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
       isPanningRef.current = false;
-      canvasPointerMovedRef.current = false;
       prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2) {
       isDraggingRef.current = false;
@@ -635,7 +583,6 @@ export function Pattern3DViewer({
     if (e.touches.length === 1 && isDraggingRef.current) {
       const dx = e.touches[0].clientX - prevMouseRef.current.x;
       const dy = e.touches[0].clientY - prevMouseRef.current.y;
-      if (Math.hypot(dx, dy) > 3) canvasPointerMovedRef.current = true;
       prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
       sphericalRef.current.theta -= dx * 0.012;
@@ -697,7 +644,7 @@ export function Pattern3DViewer({
 
   // Install a generated or locally selected Anny mesh in the existing Three.js scene.
   // Display scaling only normalizes the preview height; it is not measurement calibration.
-  const installAnnyScene = (bodyScene: THREE.Object3D, sourceName: string) => {
+  const installAnnyScene = (bodyScene: THREE.Object3D) => {
     const scene = sceneRef.current;
     if (!scene) return;
     if (annyGroupRef.current) {
@@ -783,7 +730,6 @@ export function Pattern3DViewer({
     });
     scene.add(group);
     annyGroupRef.current = group;
-    setAnnyFileName(sourceName);
     setAnnyPreviewEnabled(true);
     requestAnimationFrame(() => frameScene(true));
   };
@@ -831,7 +777,7 @@ export function Pattern3DViewer({
 
   const handleLoadBundledAnny = async () => {
     setAnnyBundledBusy(true);
-    setAnnyLoadError('');
+
     try {
       const modelUrl = `${import.meta.env.BASE_URL}models/anny-neutral.glb`;
       const response = await fetch(modelUrl, { cache: 'no-cache' });
@@ -841,10 +787,10 @@ export function Pattern3DViewer({
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength < 1000) throw new Error('ملف Anny الأساسي غير مكتمل.');
       const gltf = await new GLTFLoader().parseAsync(buffer, '');
-      installAnnyScene(gltf.scene, 'Anny • النموذج الأساسي');
-      setAnnyLoadError('');
+      installAnnyScene(gltf.scene);
+
     } catch (error) {
-      setAnnyLoadError(error instanceof Error ? error.message : 'تعذر تحميل نموذج Anny الأساسي.');
+      console.error('Unable to load the bundled Anny base model', error);
     } finally {
       setAnnyBundledBusy(false);
     }
@@ -952,7 +898,7 @@ export function Pattern3DViewer({
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength < 20) throw new Error('استجابة GLB فارغة أو غير مكتملة.');
       const gltf = await new GLTFLoader().parseAsync(buffer, '');
-      installAnnyScene(gltf.scene, 'Anny API • ' + new Date().toLocaleString());
+      installAnnyScene(gltf.scene);
       setAnnyApiMessage('اكتمل التوليد وعُرض جسم Anny في المشهد. لا تزال القياسات غير معايرة.');
     } catch (error) {
       setAnnyApiMessage(error instanceof Error ? error.message : 'فشل توليد جسم Anny.');
@@ -966,20 +912,20 @@ export function Pattern3DViewer({
   const handleAnnyFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setAnnyLoadError('');
+
     const objectUrl = URL.createObjectURL(file);
     const loader = new GLTFLoader();
     loader.load(objectUrl, (gltf) => {
       URL.revokeObjectURL(objectUrl);
       try {
-        installAnnyScene(gltf.scene, file.name);
-        setAnnyLoadError('');
+        installAnnyScene(gltf.scene);
+
       } catch (error) {
-        setAnnyLoadError(error instanceof Error ? error.message : 'ملف GLB لا يحتوي على مجسم صالح.');
+        console.error('The selected GLB does not contain a valid Anny body mesh', error);
       }
     }, undefined, () => {
       URL.revokeObjectURL(objectUrl);
-      setAnnyLoadError('تعذر فتح ملف GLB. تأكد من سلامة الملف.');
+      console.error('Unable to open the selected Anny GLB file');
     });
     event.target.value = '';
   };
@@ -1121,7 +1067,6 @@ export function Pattern3DViewer({
         </div>
       </div>
 
-      {annyLoadError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{annyLoadError}</div>}
       {glbExportError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{glbExportError}</div>}
 
       {/* Main 3D Canvas */}
@@ -1129,7 +1074,6 @@ export function Pattern3DViewer({
         ref={containerRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onClick={handleCanvasClick}
         onMouseUp={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -1313,39 +1257,6 @@ export function Pattern3DViewer({
           <span>تصدير OBJ</span>
         </button>
       </div>
-
-      {annyPreviewEnabled && showAnnyPreviewInfo && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-semibold">معاينة جسم Anny والملابس</div>
-            <div className="mt-1 text-slate-300">{annyFileName}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAnnyPreviewInfo(false)}
-            aria-label="إغلاق نافذة معلومات وتحذيرات Anny"
-            title="إغلاق النافذة"
-            className="shrink-0 rounded-md px-2 py-0.5 text-lg leading-none text-slate-300 hover:bg-slate-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-          >×</button>
-        </div>
-        {annyGeometryError && <div role="status" className="mt-2 rounded-lg border border-rose-500/40 bg-rose-950/50 p-2 text-[10px] leading-4 text-rose-100">تعذر بناء سطح الملابس من جسم Anny: {annyGeometryError}. لم يتم الرجوع إلى هندسة المانيكان القديمة.</div>}
-        {annyBodyProfileSummary && <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-2 text-[10px] leading-4">
-          <div className="text-emerald-200">مصدر جسم القطعة الرئيسية: مقاطع Anny الفعلية ({annyBodyProfileSummary.sections} مقطعاً)</div>
-          <div className="text-slate-300">مستويات الورك والخصر والصدر: {annyBodyProfileSummary.hipY.toFixed(1)} / {annyBodyProfileSummary.waistY.toFixed(1)} / {annyBodyProfileSummary.bustY.toFixed(1)} سم على محور العرض</div>
-          <div className="text-slate-400">هذا تحديث لسطح الجزء الرئيسي للملابس؛ الأكمام وأرجل البنطال ما زالت بحاجة إلى مواءمة مستقلة، ولا توجد محاكاة قماش مخيط بعد.</div>
-        </div>}
-        {annyCalibrationSummary && <div className="mt-2 space-y-1 text-[10px] leading-4">
-          <div className={annyCalibrationSummary.status === 'calibrated-preview' ? 'text-emerald-200' : 'text-amber-200'}>
-            {annyCalibrationSummary.status === 'calibrated-preview' ? 'تم تطبيق معايرة شكل أولية' : annyCalibrationSummary.status === 'limited-preview' ? 'معايرة محدودة — تحتاج مراجعة' : 'تعذرت المعايرة الكاملة'}
-          </div>
-          {annyCalibrationSummary.landmarks.map(item => <div key={item.zone} className="text-slate-300">
-            {item.zone === 'hip' ? 'الورك' : item.zone === 'waist' ? 'الخصر' : 'الصدر'}: {item.predictedCircumferenceCm.toFixed(1)} / {item.targetCircumferenceCm.toFixed(1)} سم
-            <span className={Math.abs(item.residualCm) > 1 ? 'text-amber-200' : 'text-emerald-200'}> · فرق {item.residualCm > 0 ? '+' : ''}{item.residualCm.toFixed(1)}</span>
-          </div>)}
-          {showAnnyCalibrationWarnings && annyCalibrationSummary.warnings.map((warning,index) => <div key={index} role="status" className="text-amber-200">{warning}</div>)}
-          <div className="text-slate-400">المعايرة الهندسية تقريبية؛ مواضع الصدر والخصر والورك مستنتجة من مقاطع النموذج وتحتاج تحققاً بصرياً.</div>
-        </div>}
-      </div>}
 
       {/* Heatmap Legend when active */}
       {showHeatmap && (
