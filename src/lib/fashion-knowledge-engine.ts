@@ -4,6 +4,8 @@ import {
   type CadStitchPair,
   type CadSewingAudit
 } from './cad-sewing-engine';
+import { applyEaseScale } from './pattern-cad-engine';
+export { applyEaseScale } from './pattern-cad-engine';
 
 export type KnowledgeUse = 'internal_analysis' | 'derived_facts' | 'commercial_runtime' | 'redistribution' | 'model_training';
 
@@ -64,20 +66,6 @@ export function isKnowledgeRecordProductionReady(
   return record.provenance.every(item =>
     Boolean(item && item.sourceId?.trim() && item.locator?.trim())
   );
-}
-
-/**
- * Scale 1.0 preserves the reference measurement; >1 adds allowance;
- * 0<scale<1 produces a tighter target. Scale is dimensionless.
- */
-export function applyEaseScale(referenceLengthCm: number, scale: number): number {
-  if (!Number.isFinite(referenceLengthCm) || referenceLengthCm <= 0) {
-    throw new Error('يجب أن يكون طول القياس المرجعي رقماً موجباً.');
-  }
-  if (!Number.isFinite(scale) || scale <= 0 || scale > 5) {
-    throw new Error('معامل سهولة القماش يجب أن يكون أكبر من صفر ولا يتجاوز 5.');
-  }
-  return referenceLengthCm * scale;
 }
 
 export function summarizeEaseField(samples: EaseFieldSample[]): EaseFieldSummary {
