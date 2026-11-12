@@ -92,6 +92,8 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
       finitePoint(segment.p1) && finitePoint(segment.p2) &&
       (segment.cp1 === undefined || finitePoint(segment.cp1)) &&
       (segment.cp2 === undefined || finitePoint(segment.cp2)) &&
+      (segment.type !== 'quad' || finitePoint(segment.cp1)) &&
+      (segment.type !== 'bezier' || (finitePoint(segment.cp1) && finitePoint(segment.cp2))) &&
       Number.isFinite(segment.lengthCm)
     ) &&
     piece.notches.every(notch => notch && finitePoint(notch.point) &&
