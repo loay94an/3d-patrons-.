@@ -56,12 +56,15 @@ jobs:
           assert model.is_file() and model.stat().st_size > 1000
           assert meshes and report["vertex_count"] > 0 and report["triangle_count"] > 0
           assert "Not calibrated" in report["measurement_status"]
-          assert report["pose"] == "symmetric-relaxed-arms-down"
-          assert report["pose_parameterization"] == "world-orient"
-          assert report["arm_pose_degrees"] == {"left_upper_arm": -90.0, "right_upper_arm": 90.0}
-          assert set(report["arm_pose_bones"]) == {
-              "upperarm01.L", "upperarm02.L", "upperarm01.R", "upperarm02.R"
-          }
+          assert report["pose"] == "symmetric-relaxed-arms-down-with-soft-elbow-bend"
+          assert report["pose_parameterization"] == "local-ref"
+          arm_report = report["arm_pose_validation"]
+          assert arm_report["validation"] == "passed"
+          assert arm_report["left_right_symmetry_error_model_units"] >= 0
+          assert arm_report["vertical_drop_model_units"]["left"]["shoulder_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["right"]["shoulder_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["left"]["elbow_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["right"]["elbow_to_wrist_vertical"] > 0
           print(f"Validated bundled Anny GLB: {report['vertex_count']} vertices, {report['triangle_count']} triangles")
           PY
 
