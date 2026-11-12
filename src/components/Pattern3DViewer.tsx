@@ -202,6 +202,7 @@ export function Pattern3DViewer({
   const annyBodyMeshRef = useRef<THREE.Mesh | null>(null);
   const annySourceGeometryRef = useRef<THREE.BufferGeometry | null>(null);
   const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
+  const [showAnnyCalibrationWarnings, setShowAnnyCalibrationWarnings] = useState(true);
   const [annyBodyProfileSummary, setAnnyBodyProfileSummary] = useState<{ sections: number; hipY: number; waistY: number; bustY: number } | null>(null);
   const [annyGeometryError, setAnnyGeometryError] = useState('');
   const annyFileInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +215,7 @@ export function Pattern3DViewer({
   // Interaction & Camera Controls state
   const isDraggingRef = useRef(false);
   const isPanningRef = useRef(false);
+  const canvasPointerMovedRef = useRef(false);
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const sphericalRef = useRef({ radius: 130, theta: Math.PI / 4, phi: Math.PI / 2.3 });
   const targetLookRef = useRef(new THREE.Vector3(0, 50, 0));
@@ -549,8 +551,40 @@ export function Pattern3DViewer({
     if (cadPreviewGroupRef.current) cadPreviewGroupRef.current.visible = showCadPieces;
   }, [showCadPieces, cadPieceCount]);
 
+  // Re-show calibration warnings whenever a new Anny calibration result arrives.
+  useEffect(() => {
+    setShowAnnyCalibrationWarnings(true);
+  }, [annyCalibrationSummary]);
+
+  // Dismiss the calibration warning only when the user clicks empty 3D space.
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const moved = canvasPointerMovedRef.current;
+    canvasPointerMovedRef.current = false;
+    if (moved || !showAnnyCalibrationWarnings || !annyCalibrationSummary?.warnings.length) return;
+
+    const camera = cameraRef.current;
+    const anny = annyGroupRef.current;
+    if (!camera || !anny) return;
+
+    const bounds = e.currentTarget.getBoundingClientRect();
+    const pointer = new THREE.Vector2(
+      ((e.clientX - bounds.left) / bounds.width) * 2 - 1,
+      -((e.clientY - bounds.top) / bounds.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(pointer, camera);
+    const targets: THREE.Object3D[] = [anny];
+    if (showGarmentOnAnny && garmentResultRef.current?.group.visible) {
+      targets.push(garmentResultRef.current.group);
+    }
+    if (raycaster.intersectObjects(targets, true).length === 0) {
+      setShowAnnyCalibrationWarnings(false);
+    }
+  };
+
   // Handle Mouse / Touch Orbit Controls
   const handleMouseDown = (e: React.MouseEvent) => {
+    canvasPointerMovedRef.current = false;
     isDraggingRef.current = true;
     userMovedCameraRef.current = true;
     isPanningRef.current = e.button === 2 || e.shiftKey;
@@ -561,6 +595,7 @@ export function Pattern3DViewer({
     if (!isDraggingRef.current) return;
     const dx = e.clientX - prevMouseRef.current.x;
     const dy = e.clientY - prevMouseRef.current.y;
+    if (Math.hypot(dx, dy) > 3) canvasPointerMovedRef.current = true;
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
 
     if (isPanningRef.current) {
@@ -582,6 +617,7 @@ export function Pattern3DViewer({
     if (e.touches.length === 1) {
       isDraggingRef.current = true;
       isPanningRef.current = false;
+      canvasPointerMovedRef.current = false;
       prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2) {
       isDraggingRef.current = false;
@@ -595,6 +631,7 @@ export function Pattern3DViewer({
     if (e.touches.length === 1 && isDraggingRef.current) {
       const dx = e.touches[0].clientX - prevMouseRef.current.x;
       const dy = e.touches[0].clientY - prevMouseRef.current.y;
+      if (Math.hypot(dx, dy) > 3) canvasPointerMovedRef.current = true;
       prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
       sphericalRef.current.theta -= dx * 0.012;
@@ -1088,6 +1125,7 @@ export function Pattern3DViewer({
         ref={containerRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
+        onClick={handleCanvasClick}
         onMouseUp={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -1291,7 +1329,7 @@ export function Pattern3DViewer({
             {item.zone === 'hip' ? 'الورك' : item.zone === 'waist' ? 'الخصر' : 'الصدر'}: {item.predictedCircumferenceCm.toFixed(1)} / {item.targetCircumferenceCm.toFixed(1)} سم
             <span className={Math.abs(item.residualCm) > 1 ? 'text-amber-200' : 'text-emerald-200'}> · فرق {item.residualCm > 0 ? '+' : ''}{item.residualCm.toFixed(1)}</span>
           </div>)}
-          {annyCalibrationSummary.warnings.map((warning,index) => <div key={index} className="text-amber-200">{warning}</div>)}
+          {showAnnyCalibrationWarnings && annyCalibrationSummary.warnings.map((warning,index) => <div key={index} role="status" className="text-amber-200">{warning}</div>)}
           <div className="text-slate-400">المعايرة الهندسية تقريبية؛ مواضع الصدر والخصر والورك مستنتجة من مقاطع النموذج وتحتاج تحققاً بصرياً.</div>
         </div>}
       </div>}
