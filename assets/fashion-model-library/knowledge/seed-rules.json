@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "1.0.0",
+  "records": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "ease.local-anisotropic-scale.v1",
+      "domain": "fit_ease",
+      "recordType": "fit_rule",
+      "status": "extracted",
+      "statement": "Represent local garment ease as a positive per-triangle scale field with independent weft and warp components; scale 1.0 is the reference fit, values above 1.0 add material allowance, and values below 1.0 create a tighter target.",
+      "payload": {
+        "representation": "per_triangle_directional_scale",
+        "baseline": {
+          "weft": 1,
+          "warp": 1
+        },
+        "scaleMeaning": {
+          "equalToOne": "reference_no_added_allowance",
+          "greaterThanOne": "positive_material_allowance",
+          "betweenZeroAndOne": "negative_ease_tighter_fit"
+        },
+        "designVariables": [
+          "global_length_parameters",
+          "local_weft_scale",
+          "seamline_keypoint_placement"
+        ],
+        "poseAdaptationMayIncreaseWarpScale": true,
+        "warning": "This representation is a design parameterization, not a direct fabric physical-property measurement."
+      },
+      "units": {
+        "scale": "dimensionless"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "parametric_garments"
+        ],
+        "bodyRegions": [
+          "body_surface"
+        ],
+        "fabricTypes": [
+          "woven",
+          "knit"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "requires_body_surface_correspondence",
+          "requires_declared_grain_directions"
+        ]
+      },
+      "constraints": [
+        "All scales must be finite and greater than zero.",
+        "Keep garment length as an explicit global parameter rather than silently mixing it with local weft ease.",
+        "Do not convert the scale to centimetres without a defined local reference length."
+      ],
+      "exceptions": [
+        "Pose adaptation may require warp scale above 1.0; this is distinct from the design-time baseline."
+      ],
+      "confidence": 0.84,
+      "provenance": [
+        {
+          "sourceId": "src-ease-parametric-2026",
+          "sourceType": "research_repository",
+          "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
+          "locator": "PDF pp. 4-6; sections Parametric ease and Stretch constraints"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "License of the uploaded preprint was not verified; keep extracted rule disabled for commercial runtime until rights review."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "ease-scale-positive",
+          "ease-scale-baseline",
+          "ease-scale-tight"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "sewing.corresponding-edge-length.v1",
+      "domain": "sewing_construction",
+      "recordType": "seam_rule",
+      "status": "extracted",
+      "statement": "A sewing seam should compare corresponding edge arc lengths; a mismatch must be represented explicitly as an approved ease or gather amount rather than silently accepted as a plain seam.",
+      "payload": {
+        "check": "absolute_arc_length_difference",
+        "plainSeamTargetCm": 0,
+        "easeAndGatherRequireDeclaredAmount": true,
+        "toleranceCm": "project_configured",
+        "geometrySource": "measured_curve_arc_length",
+        "additionalQualityTerms": [
+          "seamline_smoothness",
+          "corresponding_curvature_alignment"
+        ]
+      },
+      "units": {
+        "length": "cm"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "all"
+        ],
+        "bodyRegions": [
+          "all"
+        ],
+        "fabricTypes": [
+          "all"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "both_edges_have_valid_geometry",
+          "edge_pair_is_human_confirmed"
+        ]
+      },
+      "constraints": [
+        "Do not infer ease solely from a non-zero length difference.",
+        "Do not pair edges automatically without semantic and geometric checks.",
+        "Preserve edge identity and direction when assembling a panel."
+      ],
+      "exceptions": [
+        "Intentional gathers and eased seams need an explicit mode and declared allowance."
+      ],
+      "confidence": 0.91,
+      "provenance": [
+        {
+          "sourceId": "src-ease-parametric-2026",
+          "sourceType": "research_repository",
+          "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
+          "locator": "PDF p. 6; Seamlines and cutting / Length compatibility and seam regularization"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "Rule is an extracted engineering principle; runtime use remains disabled pending source license review."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "seam-length-match",
+          "seam-explicit-ease",
+          "seam-unapproved-mismatch"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "grading.parametric-jacket-validation.v1",
+      "domain": "grading",
+      "recordType": "grading_rule",
+      "status": "draft",
+      "statement": "Parametric jacket drafting formulas derived from a limited set of sizes must be validated by size range and body region; front and back pattern regions may exhibit different errors.",
+      "payload": {
+        "sourceStudy": {
+          "garment": "women_jacket",
+          "primaryMeasurements": [
+            "bust_circumference",
+            "height"
+          ],
+          "validationSizeGroups": [
+            "82-150",
+            "85-155",
+            "88-160"
+          ]
+        },
+        "reportedRelativeErrorPercent": {
+          "frontPrincessDartPosition": [
+            5.88,
+            8.82,
+            14.71
+          ],
+          "frontDesignDartPosition": [
+            5.08,
+            8.47,
+            11.86
+          ],
+          "backPrincessDartPosition": [
+            0,
+            2.04,
+            0
+          ]
+        },
+        "productionUse": "not_approved",
+        "requiredValidation": [
+          "compare_pattern_overlays",
+          "measure_seamline_deviation",
+          "validate_multiple_body_shapes",
+          "review_front_curvature_sensitive_features"
+        ]
+      },
+      "units": {
+        "relativeError": "percent",
+        "measurements": "cm"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "women_jacket"
+        ],
+        "bodyRegions": [
+          "front_bodice",
+          "back_bodice"
+        ],
+        "fabricTypes": [],
+        "sizeSystems": [
+          "study_specific"
+        ],
+        "conditions": [
+          "must_not_generalize_to_other_garment_classes"
+        ]
+      },
+      "constraints": [
+        "Do not reuse the paper's coefficients as universal grading rules.",
+        "Require validation outside the study's tested size groups before expanding the size domain."
+      ],
+      "exceptions": [
+        "Back-panel results in the study were more consistent than front-panel dart placement; each region must retain separate validation metrics."
+      ],
+      "confidence": 0.86,
+      "provenance": [
+        {
+          "sourceId": "src-parametric-jacket-2025",
+          "sourceType": "book",
+          "title": "Development of a parametric production jacket pattern for an automated pattern-making system",
+          "locator": "PDF pp. 12-14; validation and Table 4"
+        }
+      ],
+      "licensing": {
+        "status": "verified",
+        "licenseId": "CC-BY-4.0",
+        "allowedUses": [
+          "internal_analysis",
+          "derived_facts",
+          "commercial_runtime"
+        ],
+        "notes": "Article is identified as CC BY 4.0; verify third-party figure/material exclusions and retain attribution where required."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "grading-region-error-separation",
+          "grading-size-range-gate"
+        ]
+      }
+    }
+  ]
+}
