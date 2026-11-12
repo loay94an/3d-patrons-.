@@ -42,6 +42,9 @@ describe('CAD sewing topology engine', () => {
     assert.ok(measureCadSegmentLengthCm(quad) > 14.5);
     assert.ok(measureCadSegmentLengthCm(cubic) > 19.5);
     assert.throws(() => measureCadSegmentLengthCm(line, 1));
+    assert.throws(() => measureCadSegmentLengthCm({
+      ...quad, cp1: undefined
+    }));
   });
 
   it('suggests cross-piece sewing edges with matching types and close measured lengths', () => {
@@ -124,6 +127,30 @@ describe('CAD sewing topology engine', () => {
     ];
     const audit = auditCadSewing(pieces, badPairs);
     assert.equal(audit.invalidCount, 4);
+  });
+
+  it('rejects suggestion limits that could create invalid confidence calculations', () => {
+    const pieces = [
+      piece('a', [segment('a-side', 'side', { x: 0, y: 0 }, { x: 10, y: 0 })]),
+      piece('b', [segment('b-side', 'side', { x: 0, y: 0 }, { x: 10, y: 0 })])
+    ];
+    assert.deepEqual(suggestCadStitchPairs(pieces, [], { maxSuggestions: 0 }), []);
+    assert.throws(() => suggestCadStitchPairs(pieces, [], { maxDifferencePercent: 0 }));
+    assert.throws(() => suggestCadStitchPairs(pieces, [], { maxSuggestions: 501 }));
+  });
+
+  it('rejects confirmed seam links with different semantic edge types', () => {
+    const pieces = [
+      piece('bodice', [segment('bodice-shoulder', 'shoulder', { x: 0, y: 0 }, { x: 10, y: 0 })]),
+      piece('sleeve', [segment('sleeve-cap', 'armhole', { x: 0, y: 0 }, { x: 10, y: 0 })])
+    ];
+    const audit = auditCadSewing(pieces, [{
+      id: 'wrong-types',
+      first: { pieceId: 'bodice', segmentId: 'bodice-shoulder' },
+      second: { pieceId: 'sleeve', segmentId: 'sleeve-cap' },
+      mode: 'plain'
+    }]);
+    assert.equal(audit.invalidCount, 1);
   });
 
   it('accepts a suggested eased seam with its measured ease allowance', () => {
