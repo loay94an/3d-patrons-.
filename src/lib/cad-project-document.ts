@@ -30,6 +30,8 @@ function finitePoint(value: unknown): boolean {
 function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitchPair[] {
   if (!Array.isArray(value) || value.length > 5000) return false;
   const pieceMap = new Map(pieces.map(piece => [piece.id, piece]));
+  const pairIds = new Set<string>();
+  const usedEdges = new Set<string>();
   return value.every(pair => {
     if (!pair || typeof pair !== 'object' || typeof pair.id !== 'string' || !pair.id.trim()) return false;
     const item = pair as Partial<CadStitchPair>;
@@ -38,15 +40,23 @@ function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitc
     if (!first || !second || typeof first.pieceId !== 'string' || typeof first.segmentId !== 'string' ||
         typeof second.pieceId !== 'string' || typeof second.segmentId !== 'string' ||
         first.pieceId === second.pieceId ||
-        !['plain', 'ease', 'gather'].includes(item.mode ?? '')) return false;
+        !['plain', 'ease', 'gather'].includes(item.mode ?? '') ||
+        pairIds.has(item.id)) return false;
     if (item.expectedEaseCm !== undefined &&
         (!Number.isFinite(item.expectedEaseCm) || item.expectedEaseCm < 0)) return false;
     const firstPiece = pieceMap.get(first.pieceId);
     const secondPiece = pieceMap.get(second.pieceId);
-    return Boolean(
-      firstPiece?.segments.some(segment => segment.id === first.segmentId) &&
-      secondPiece?.segments.some(segment => segment.id === second.segmentId)
-    );
+    const firstSegment = firstPiece?.segments.find(segment => segment.id === first.segmentId);
+    const secondSegment = secondPiece?.segments.find(segment => segment.id === second.segmentId);
+    const firstKey = first.pieceId + '\\u0000' + first.segmentId;
+    const secondKey = second.pieceId + '\\u0000' + second.segmentId;
+    if (!firstSegment || !secondSegment ||
+        firstSegment.edgeType !== secondSegment.edgeType ||
+        usedEdges.has(firstKey) || usedEdges.has(secondKey)) return false;
+    pairIds.add(item.id);
+    usedEdges.add(firstKey);
+    usedEdges.add(secondKey);
+    return true;
   });
 }
 
