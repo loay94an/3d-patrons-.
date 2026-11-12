@@ -1,6 +1,6 @@
 # Anny HTTP API (experimental)
 
-This folder contains a CPU-oriented FastAPI wrapper around the Anny proof-of-concept generator. It is a separate service from the Vite frontend and is **not deployed by GitHub Pages**.
+This folder contains a CPU-oriented FastAPI wrapper around the Anny generator. Its Docker image fetches the same pinned official NAVER Anny source revision used by the static-site model build. It is a separate service from the Vite frontend and is **not deployed by GitHub Pages**.
 
 ## Endpoints
 
