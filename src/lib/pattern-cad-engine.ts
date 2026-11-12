@@ -94,6 +94,8 @@ export interface PatternByNumbersInput {
   thighCircumference: number;    // محيط الفخذ (سم)
   additionalEase: number;        // قيمة توافقية افتراضية عند غياب ملف الراحة المحلي
   easeProfile?: Partial<PatternEaseProfile>;
+  /** Optional dimensionless ease multipliers; explicit easeProfile centimetres override each matching value. */
+  easeScaleProfile?: Partial<PatternEaseScaleProfile>;
   seamAllowanceDefault: number;  // سماحة الخياطة الافتراضية (سم)
   hipDepth?: number;              // المسافة من الخصر إلى خط الورك (سم)
   waistToKnee?: number;           // المسافة من الخصر إلى الركبة (سم)
@@ -106,13 +108,49 @@ export interface PatternEaseProfile {
   upperArm: number;
 }
 
-export function resolvePatternEase(input: Pick<PatternByNumbersInput, 'additionalEase' | 'easeProfile'>): PatternEaseProfile {
+/** Dimensionless ease multipliers for quarter-circumference inputs in the 2D block generator. */
+export interface PatternEaseScaleProfile {
+  bust: number;
+  waist: number;
+  hip: number;
+  upperArm: number;
+}
+
+/** Applies a dimensionless ease multiplier to a positive reference length in centimetres. */
+export function applyEaseScale(referenceLengthCm: number, scale: number): number {
+  if (!Number.isFinite(referenceLengthCm) || referenceLengthCm <= 0) {
+    throw new Error('يجب أن يكون طول القياس المرجعي رقماً موجباً.');
+  }
+  if (!Number.isFinite(scale) || scale <= 0 || scale > 5) {
+    throw new Error('معامل سهولة القماش يجب أن يكون أكبر من صفر ولا يتجاوز 5.');
+  }
+  return referenceLengthCm * scale;
+}
+
+/**
+ * Resolves ease in centimetres. Explicit legacy easeProfile values take precedence;
+ * otherwise an easeScaleProfile is applied to the relevant quarter-body measurement.
+ * The fallback additionalEase remains for older saved projects.
+ */
+export function resolvePatternEase(input: Pick<
+  PatternByNumbersInput,
+  'additionalEase' | 'easeProfile' | 'easeScaleProfile' |
+  'bustCircumference' | 'waistCircumference' | 'hipCircumference' | 'upperArmCircumference'
+>): PatternEaseProfile {
   const fallback = input.additionalEase;
+  const scaledAllowance = (measurement: number | undefined, scale: number | undefined) => {
+    if (scale === undefined) return fallback;
+    if (!Number.isFinite(measurement) || (measurement ?? 0) <= 0) {
+      throw new Error('يلزم قياس جسم موجب لتطبيق معامل السهولة.');
+    }
+    const quarterMeasurement = (measurement as number) / 4;
+    return applyEaseScale(quarterMeasurement, scale) - quarterMeasurement;
+  };
   return {
-    bust: input.easeProfile?.bust ?? fallback,
-    waist: input.easeProfile?.waist ?? fallback,
-    hip: input.easeProfile?.hip ?? fallback,
-    upperArm: input.easeProfile?.upperArm ?? fallback
+    bust: input.easeProfile?.bust ?? scaledAllowance(input.bustCircumference, input.easeScaleProfile?.bust),
+    waist: input.easeProfile?.waist ?? scaledAllowance(input.waistCircumference, input.easeScaleProfile?.waist),
+    hip: input.easeProfile?.hip ?? scaledAllowance(input.hipCircumference, input.easeScaleProfile?.hip),
+    upperArm: input.easeProfile?.upperArm ?? scaledAllowance(input.upperArmCircumference, input.easeScaleProfile?.upperArm)
   };
 }
 
