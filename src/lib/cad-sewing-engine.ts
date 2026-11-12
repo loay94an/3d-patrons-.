@@ -71,6 +71,14 @@ interface ResolvedEdge {
 const DEFAULT_SAMPLE_STEPS = 48;
 const DEFAULT_TOLERANCE_CM = 0.35;
 
+function finiteSegment(segment: CadSegment): boolean {
+  const finite = (point: { x: number; y: number } | undefined) =>
+    Boolean(point && Number.isFinite(point.x) && Number.isFinite(point.y));
+  return finite(segment.p1) && finite(segment.p2) &&
+    (segment.cp1 === undefined || finite(segment.cp1)) &&
+    (segment.cp2 === undefined || finite(segment.cp2));
+}
+
 function pointAt(segment: CadSegment, t: number) {
   const oneMinus = 1 - t;
   if (segment.type === 'quad' && segment.cp1) {
@@ -102,8 +110,15 @@ export function measureCadSegmentLengthCm(
   segment: CadSegment,
   steps = DEFAULT_SAMPLE_STEPS
 ): number {
+  if (!segment || !finiteSegment(segment)) {
+    throw new Error('بيانات حافة CAD غير صالحة.');
+  }
   if (!Number.isInteger(steps) || steps < 2 || steps > 2048) {
     throw new Error('عدد عينات قياس الحافة غير صالح.');
+  }
+  if ((segment.type === 'quad' && !segment.cp1) ||
+      (segment.type === 'bezier' && (!segment.cp1 || !segment.cp2))) {
+    throw new Error('تفتقد الحافة المنحنية نقاط التحكم اللازمة لقياسها.');
   }
   let length = 0;
   let previous = pointAt(segment, 0);
@@ -120,8 +135,10 @@ function edgeIndex(pieces: CadPiece[]): Map<string, ResolvedEdge> {
   const index = new Map<string, ResolvedEdge>();
   for (const piece of pieces) {
     for (const segment of piece.segments) {
-      index.set(`${piece.id}\u0000${segment.id}`, {
-        reference: { pieceId: piece.id, segmentId: segment.id },
+      const key = `${piece.id}\u0000${segment.id}`;
+      if (index.has(key)) throw new Error('معرّف حافة CAD مكرر داخل القطعة.');
+      index.set(key, {
+        reference: { pieceId: piece.id, segmentId: segment.id },        reference: { pieceId: piece.id, segmentId: segment.id },
         pieceName: piece.nameAr || piece.name,
         garmentType: piece.garmentType,
         segment,
@@ -176,6 +193,12 @@ export function suggestCadStitchPairs(
   const maxDifferenceCm = options.maxDifferenceCm ?? 4;
   const maxDifferencePercent = options.maxDifferencePercent ?? 0.2;
   const maxSuggestions = options.maxSuggestions ?? 40;
+  if (!Number.isFinite(maxDifferenceCm) || maxDifferenceCm <= 0 ||
+      !Number.isFinite(maxDifferencePercent) || maxDifferencePercent <= 0 ||
+      !Number.isInteger(maxSuggestions) || maxSuggestions < 0 || maxSuggestions > 500) {
+    throw new Error('حدود اقتراح وصلات الخياطة غير صالحة.');
+  }
+  if (maxSuggestions === 0) return [];
   const excluded = new Set(options.excludedEdgeTypes ?? ['center', 'general', 'hem', 'waist', 'neckline']);
   const paired = new Set(existingPairs.flatMap(pair => [
     referenceKey(pair.first), referenceKey(pair.second)
@@ -270,6 +293,7 @@ export function auditCadSewing(
     if (!pair.id || duplicateId || !first || !second ||
         first.reference.pieceId === second.reference.pieceId ||
         !edgeIsSewable(first.segment) || !edgeIsSewable(second.segment) ||
+        first.segment.edgeType !== second.segment.edgeType ||
         !['plain', 'ease', 'gather'].includes(pair.mode) ||
         (pair.expectedEaseCm !== undefined &&
           (!Number.isFinite(pair.expectedEaseCm) || pair.expectedEaseCm < 0)) ||
@@ -336,6 +360,9 @@ export function createCadStitchPairFromSuggestion(
   suggestion: CadSeamSuggestion,
   easeThresholdCm = DEFAULT_TOLERANCE_CM
 ): CadStitchPair {
+  if (!Number.isFinite(easeThresholdCm) || easeThresholdCm < 0) {
+    throw new Error('حد التسهيل للخياطة غير صالح.');
+  }
   const differenceCm = Math.abs(suggestion.firstLengthCm - suggestion.secondLengthCm);
   const mode = differenceCm > easeThresholdCm ? 'ease' : 'plain';
   return {
