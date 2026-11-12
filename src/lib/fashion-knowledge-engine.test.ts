@@ -7,6 +7,7 @@ import {
   summarizeEaseField,
   type ProductionKnowledgeRecord
 } from './fashion-knowledge-engine';
+import { resolvePatternEase } from './pattern-cad-engine';
 
 const approvedSeamRule: ProductionKnowledgeRecord = {
   id: 'test-seam-rule',
@@ -82,4 +83,40 @@ test('production sewing adapter delegates to the existing CAD audit after approv
   const result = auditCadSewingWithKnowledge([], [], approvedSeamRule);
   assert.equal(result.enabled, true);
   if (result.enabled) assert.equal(result.audit.pairCount, 0);
+});
+
+test('parametric pattern generator consumes dimensionless ease scales', () => {
+  const resolved = resolvePatternEase({
+    bustCircumference: 88,
+    waistCircumference: 70,
+    hipCircumference: 96,
+    upperArmCircumference: 32,
+    additionalEase: 1.5,
+    easeScaleProfile: { bust: 1.1, waist: 0.9, hip: 1.05, upperArm: 1.2 }
+  });
+  assert.equal(resolved.bust, 2.2);
+  assert.equal(resolved.waist, -1.75);
+  assert.equal(resolved.hip, 1.2);
+  assert.equal(resolved.upperArm, 1.6);
+});
+
+test('explicit centimetre ease overrides the corresponding scale only', () => {
+  const resolved = resolvePatternEase({
+    bustCircumference: 88,
+    waistCircumference: 70,
+    hipCircumference: 96,
+    additionalEase: 1.5,
+    easeProfile: { bust: 3 },
+    easeScaleProfile: { bust: 1.1, waist: 1.1 }
+  });
+  assert.equal(resolved.bust, 3);
+  assert.equal(resolved.waist, 1.75);
+  assert.equal(resolved.hip, 1.5);
+});
+
+test('scale-based pattern ease requires the matching body measurement', () => {
+  assert.throws(() => resolvePatternEase({
+    additionalEase: 1.5,
+    easeScaleProfile: { bust: 1.1 }
+  } as never));
 });
