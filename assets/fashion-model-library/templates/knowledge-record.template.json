@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "replace-with-stable-id",
+  "domain": "pattern_geometry",
+  "recordType": "pattern_piece",
+  "status": "draft",
+  "statement": "Unreviewed extraction placeholder. Do not use in production generation.",
+  "payload": {
+    "garmentModelId": "replace-with-model-id",
+    "pieceId": "replace-with-piece-id",
+    "pieceName": "",
+    "pieceRole": "",
+    "geometry": {
+      "coordinateSystem": "local-2d",
+      "unit": "mm",
+      "outerContour": [],
+      "internalLines": [],
+      "notches": [],
+      "grainline": null
+    },
+    "seamEdges": [],
+    "seamAllowance": null,
+    "measurements": {}
+  },
+  "units": {
+    "length": "mm",
+    "angle": "deg"
+  },
+  "applicability": {
+    "garmentTypes": [],
+    "bodyRegions": [],
+    "fabricTypes": [],
+    "sizeSystems": [],
+    "conditions": []
+  },
+  "constraints": [],
+  "exceptions": [],
+  "confidence": 0,
+  "provenance": [
+    {
+      "sourceId": "replace-with-source-id",
+      "sourceType": "pdf_pattern",
+      "title": "Internal source title",
+      "locator": "Page/figure/section; internal only"
+    }
+  ],
+  "licensing": {
+    "status": "unverified",
+    "allowedUses": [],
+    "notes": "Do not publish source material or enable commercial runtime use until rights are checked."
+  },
+  "review": {
+    "state": "not_reviewed",
+    "testIds": []
+  }
+}
