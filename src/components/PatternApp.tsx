@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Moon, Sun, DraftingCompass, Info, Copy, Check, FileSpreadsheet, FolderOpen, ImagePlus,
-  FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box,
+  FileText, Shirt, Sparkles, Sliders, Palette, Layers, Box, Scissors,
   Ruler, Download, ArrowRight, UserCheck, ChevronLeft, ChevronRight, BookOpen, Code2, Home, MoreHorizontal
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
