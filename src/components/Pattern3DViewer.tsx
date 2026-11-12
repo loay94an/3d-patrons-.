@@ -226,6 +226,8 @@ export function Pattern3DViewer({
   const isDraggingRef = useRef(false);
   const isPanningRef = useRef(false);
   const prevMouseRef = useRef({ x: 0, y: 0 });
+  const activePointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const prevPinchDistRef = useRef<number | null>(null);
   const sphericalRef = useRef({ radius: 130, theta: Math.PI / 4, phi: Math.PI / 2.3 });
   const targetLookRef = useRef(new THREE.Vector3(0, 50, 0));
   const userMovedCameraRef = useRef(false);
@@ -401,15 +403,22 @@ export function Pattern3DViewer({
     scene.add(shadowPlane);
 
     // Resize Observer
-    const ro = new ResizeObserver(() => {
-      if (!container || !renderer || !camera) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+    const resizeRenderer = () => {
+      if (!container.isConnected || !renderer || !camera) return;
+      const w = Math.floor(container.clientWidth);
+      const h = Math.floor(container.clientHeight);
+      // Hidden or not-yet-laid-out tabs can report 0x0. Never feed that
+      // into the camera projection matrix: NaN aspect makes the canvas unusable.
+      if (w < 2 || h < 2) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(w, h, false);
       frameScene();
-    });      ro.observe(container);
+    };
+    const ro = new ResizeObserver(resizeRenderer);
+    ro.observe(container);
+    resizeRenderer();
 
     // Animation Loop
     const animate = () => {
@@ -603,83 +612,83 @@ export function Pattern3DViewer({
     if (cadPreviewGroupRef.current) cadPreviewGroupRef.current.visible = showCadPieces;
   }, [showCadPieces, cadPieceCount]);
 
-  // Handle Mouse / Touch Orbit Controls
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDraggingRef.current = true;
-    userMovedCameraRef.current = true;
-    isPanningRef.current = e.button === 2 || e.shiftKey;
-    prevMouseRef.current = { x: e.clientX, y: e.clientY };
+  // Pointer Events unify mouse, pen and Android/iOS touch input. Pointer
+  // capture keeps orbiting responsive even when a finger leaves the canvas.
+  const pointerDistance = (points: Map<number, { x: number; y: number }>) => {
+    const values = Array.from(points.values());
+    if (values.length < 2) return null;
+    return Math.hypot(values[1].x - values[0].x, values[1].y - values[0].y);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* capture may be unavailable in embedded browsers */ }
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    userMovedCameraRef.current = true;
+    if (activePointersRef.current.size === 1) {
+      isDraggingRef.current = true;
+      isPanningRef.current = e.button === 2 || e.shiftKey;
+      prevMouseRef.current = { x: e.clientX, y: e.clientY };
+    } else if (activePointersRef.current.size === 2) {
+      isDraggingRef.current = false;
+      prevPinchDistRef.current = pointerDistance(activePointersRef.current);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const points = activePointersRef.current;
+    if (!points.has(e.pointerId)) return;
+    e.preventDefault();
+    points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (points.size >= 2) {
+      const distance = pointerDistance(points);
+      if (distance !== null && prevPinchDistRef.current !== null) {
+        const delta = prevPinchDistRef.current - distance;
+        sphericalRef.current.radius = clampRadius(sphericalRef.current.radius + delta * 0.65);
+        updateCameraPosition();
+      }
+      prevPinchDistRef.current = distance;
+      return;
+    }
+
     if (!isDraggingRef.current) return;
     const dx = e.clientX - prevMouseRef.current.x;
     const dy = e.clientY - prevMouseRef.current.y;
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
 
     if (isPanningRef.current) {
-      // Pan target
       targetLookRef.current.y += dy * 0.15;
+      targetLookRef.current.x -= dx * 0.15;
     } else {
-      // Orbit
       sphericalRef.current.theta -= dx * 0.009;
       sphericalRef.current.phi = Math.max(0.1, Math.min(Math.PI - 0.1, sphericalRef.current.phi - dy * 0.009));
     }
     updateCameraPosition();
   };
 
-  // Touch Handlers for mobile phones & tablets
-  const prevPinchDistRef = useRef<number | null>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    userMovedCameraRef.current = true;
-    if (e.touches.length === 1) {
+  const handlePointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.delete(e.pointerId);
+    if (activePointersRef.current.size < 2) prevPinchDistRef.current = null;
+    if (activePointersRef.current.size === 1) {
+      const remaining = Array.from(activePointersRef.current.values())[0];
+      prevMouseRef.current = { ...remaining };
       isDraggingRef.current = true;
-      isPanningRef.current = false;
-      prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    } else if (e.touches.length === 2) {
+    } else {
       isDraggingRef.current = false;
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      prevPinchDistRef.current = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      isPanningRef.current = false;
     }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isDraggingRef.current) {
-      const dx = e.touches[0].clientX - prevMouseRef.current.x;
-      const dy = e.touches[0].clientY - prevMouseRef.current.y;
-      prevMouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
-      sphericalRef.current.theta -= dx * 0.012;
-      sphericalRef.current.phi = Math.max(0.1, Math.min(Math.PI - 0.1, sphericalRef.current.phi - dy * 0.012));
-      updateCameraPosition();
-    } else if (e.touches.length === 2 && prevPinchDistRef.current !== null) {
-      const t1 = e.touches[0];
-      const t2 = e.touches[1];
-      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      const delta = prevPinchDistRef.current - dist;
-      prevPinchDistRef.current = dist;
-
-      sphericalRef.current.radius = clampRadius(sphericalRef.current.radius + delta * 0.5);
-      updateCameraPosition();
-    }
-  };
-
-  const handleMouseUp = () => {
-    isDraggingRef.current = false;
-    isPanningRef.current = false;
-  };
-
-  const handleTouchEnd = () => {
-    isDraggingRef.current = false;
-    prevPinchDistRef.current = null;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch { /* pointer may already have been released by the browser */ }
   };
 
   const clampRadius = (r: number) =>
     Math.max(fitRadiusRef.current * 0.25, Math.min(fitRadiusRef.current * 2.2, r));
 
   const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
     userMovedCameraRef.current = true;
     sphericalRef.current.radius = clampRadius(sphericalRef.current.radius + e.deltaY * 0.1);
     updateCameraPosition();
@@ -1147,17 +1156,15 @@ export function Pattern3DViewer({
       {/* Main 3D Canvas */}
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onLostPointerCapture={handlePointerEnd}
         onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ touchAction: 'none' }}
-        className="w-full h-full cursor-grab active:cursor-grabbing select-none"
+        style={{ touchAction: 'none', width: '100%', height: '100%', minHeight: 0, display: 'block' }}
+        className="w-full h-full min-h-0 cursor-grab active:cursor-grabbing select-none overscroll-none"
       />
 
       <input ref={annyFileInputRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={handleAnnyFileChange} aria-label="تحميل مجسم Anny بصيغة GLB" />
