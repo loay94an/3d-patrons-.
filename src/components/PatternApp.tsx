@@ -150,8 +150,10 @@ export default function PatternApp() {
         next.customMeasurements = updates.customMeasurements ?? {};
         next.measurementProfile = updates.measurementProfile;
         next.useCustomMode = updates.useCustomMode ?? false;
-      } else if (updates.useCustomMode === false) {
+      } else if (updates.useCustomMode === false ||
+        (updates.customMeasurements && Object.keys(updates.customMeasurements).length === 0)) {
         next.measurementProfile = updates.measurementProfile;
+        if (updates.useCustomMode === undefined) next.useCustomMode = false;
       }
       return next;
     });
