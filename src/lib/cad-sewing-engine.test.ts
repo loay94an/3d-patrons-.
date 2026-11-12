@@ -49,11 +49,11 @@ describe('CAD sewing topology engine', () => {
       piece('front', [
         segment('front-shoulder', 'shoulder', { x: 0, y: 0 }, { x: 12, y: 0 }),
         segment('front-center', 'center', { x: 0, y: 0 }, { x: 40, y: 0 }),
-        segment('front-hem', 'hem', { x: 0, y: 0 }, { x: 10, y: 0 })
+        segment('front-side', 'side', { x: 0, y: 0 }, { x: 10, y: 0 })
       ]),
       piece('back', [
         segment('back-shoulder', 'shoulder', { x: 0, y: 0 }, { x: 12.2, y: 0 }),
-        segment('back-hem', 'hem', { x: 0, y: 0 }, { x: 10.2, y: 0 })
+        segment('back-side', 'side', { x: 0, y: 0 }, { x: 10.2, y: 0 })
       ]),
       piece('sleeve', [
         segment('sleeve-cap', 'shoulder', { x: 0, y: 0 }, { x: 28, y: 0 })
@@ -83,7 +83,10 @@ describe('CAD sewing topology engine', () => {
   it('classifies matching edges and seams that need easing', () => {
     const pieces = [
       piece('front', [segment('shoulder-front', 'shoulder', { x: 0, y: 0 }, { x: 10, y: 0 })]),
-      piece('back', [segment('shoulder-back', 'shoulder', { x: 0, y: 0 }, { x: 10.1, y: 0 })]),
+      piece('back', [
+        segment('shoulder-back', 'shoulder', { x: 0, y: 0 }, { x: 10.1, y: 0 }),
+        segment('armhole-back', 'armhole', { x: 0, y: 0 }, { x: 11.9, y: 0 })
+      ]),
       piece('sleeve', [segment('sleeve-cap', 'armhole', { x: 0, y: 0 }, { x: 12, y: 0 })])
     ];
     const pair = {
@@ -99,7 +102,7 @@ describe('CAD sewing topology engine', () => {
 
     const easePair = {
       id: 'sleeve-link',
-      first: { pieceId: 'back', segmentId: 'shoulder-back' },
+      first: { pieceId: 'back', segmentId: 'armhole-back' },
       second: { pieceId: 'sleeve', segmentId: 'sleeve-cap' },
       mode: 'plain' as const
     };
