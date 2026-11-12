@@ -156,11 +156,16 @@ export function prepareFashionPipeline(input: FashionPipelineInput): FashionPipe
 /** Releases the generated body geometry and materials when a session is replaced. */
 export function disposeFashionPipelineSession(session: FashionPipelineSession): void {
   session.mannequin.traverse(object => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh && !mesh.isLine) return;
-    mesh.geometry?.dispose();
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    materials.forEach(material => material?.dispose());
+    const renderable = object as unknown as {
+      geometry?: THREE.BufferGeometry;
+      material?: THREE.Material | THREE.Material[];
+    };
+    if (!renderable.geometry || !renderable.material) return;
+    renderable.geometry.dispose();
+    const materials = Array.isArray(renderable.material)
+      ? renderable.material
+      : [renderable.material];
+    materials.forEach(material => material.dispose());
   });
 }
 
