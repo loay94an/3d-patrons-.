@@ -63,7 +63,7 @@
     {
       "id": "a1b2b4ac922a",
       "title": "إنتاج الملابس ف1 ص11",
-      "author": null,
+      "author": "أديل سام النبر؛ مي عبدالرحمن الجيتاوي؛ إيمان حسن عيسى",
       "format": "pdf",
       "pages": 295,
       "category": "garment-construction",
@@ -79,12 +79,19 @@
       "publication_decision": "do_not_redistribute_without_permission_or_open-license-proof",
       "rights_basis": "Available catalog metadata does not establish a public-domain status or a redistribution license. This is a precautionary decision, not a verified identification of the rightsholder.",
       "rights_source": "https://www.wipo.int/wipolex/en/legislation/details/22010",
-      "reviewed_on": "2026-11-12"
+      "reviewed_on": "2026-11-12",
+      "publisher": "وزارة التربية والتعليم الأردنية – إدارة المناهج والكتب المدرسية",
+      "bibliographic_review": {
+        "status": "identified_from_matching_title_and_grade-level_catalogue",
+        "source": "https://schoolbooks.jo1jo.com/11M/إنتاج الملابس ف1 ص11.pdf",
+        "confidence": "high",
+        "note": "The matching Grade 11 first-semester clothing-production textbook credits these authors and the Jordanian Ministry of Education. This bibliographic identification does not establish a redistribution license."
+      }
     },
     {
       "id": "f1cd6c981577",
       "title": "إنتاج الملابس ف2 ص11",
-      "author": null,
+      "author": "أديل سالم النبر؛ نجاح منير عطوان؛ إيمان حسن عيسى؛ سحر محمد القطانى",
       "format": "pdf",
       "pages": 373,
       "category": "garment-construction",
@@ -100,7 +107,14 @@
       "publication_decision": "do_not_redistribute_without_permission_or_open-license-proof",
       "rights_basis": "Available catalog metadata does not establish a public-domain status or a redistribution license. This is a precautionary decision, not a verified identification of the rightsholder.",
       "rights_source": "https://www.wipo.int/wipolex/en/legislation/details/22010",
-      "reviewed_on": "2026-11-12"
+      "reviewed_on": "2026-11-12",
+      "publisher": "وزارة التربية والتعليم الأردنية – إدارة المناهج والكتب المدرسية",
+      "bibliographic_review": {
+        "status": "identified_from_matching_document_title_and_grade-level_catalogue",
+        "source": "https://schoolbooks.jo1jo.com/11M/إنتاج الملابس ف2 ص11.pdf",
+        "confidence": "high",
+        "note": "The matching Grade 11 second-semester clothing-production textbook credits these authors and the Jordanian Ministry of Education. This bibliographic identification does not establish a redistribution license."
+      }
     },
     {
       "id": "601d14d3a9ea",
@@ -673,7 +687,7 @@
   ],
   "rights_audit": {
     "reviewed_on": "2026-11-12",
-    "scope": "Public bibliographic metadata and publisher/legal sources; local PDF/EPUB title pages and embedded license statements were not inspected.",
+    "scope": "Public bibliographic metadata and publisher/legal sources; repository metadata and Git LFS pointer files were inspected, but the PDF/EPUB binary contents and embedded copyright/license pages were not inspected.",
     "legal_reference": "https://www.wipo.int/wipolex/en/legislation/details/22010",
     "summary": {
       "cc_by_4_0_verified": 1,
@@ -681,6 +695,6 @@
       "version_license_unverified": 1,
       "not_individually_verified_assume_protected": 20
     },
-    "note_ar": "هذا تدقيق أولي للمعلومات المتاحة وليس رأياً قانونياً. لا يُعد العثور على نسخة مجانية أو على منصة مشاركة دليلاً على الإذن بإعادة نشرها. يلزم فحص صفحة الحقوق في النسخة المحلية أو الحصول على إذن مكتوب قبل رفع أي ملف غير مصرح به."
+    "note_ar": "هذا تدقيق أولي للمعلومات المتاحة وليس رأياً قانونياً. تم التعرف ببليوغرافياً على كتابي إنتاج الملابس الأردنيين للصف الحادي عشر (الفصلان الأول والثاني)، لكن لم يُثبت ترخيص يسمح بإعادة توزيع ملفيهما. لا يُعد العثور على نسخة مجانية أو على منصة مشاركة دليلاً على الإذن بإعادة نشرها. يلزم فحص صفحة الحقوق في النسخة المحلية أو الحصول على إذن مكتوب قبل رفع أي ملف غير مصرح به."
   }
 }
