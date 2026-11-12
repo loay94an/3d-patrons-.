@@ -1278,6 +1278,31 @@ export function Pattern3DViewer({
         className="w-full h-full min-h-0 cursor-grab active:cursor-grabbing select-none overscroll-none"
       />
 
+      {!annyPreviewEnabled && !annyBundledBusy && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
+          <div dir="rtl" className="pointer-events-auto max-w-sm rounded-2xl border border-slate-700 bg-slate-950/90 p-4 text-center text-white shadow-2xl backdrop-blur">
+            <div className="text-sm font-bold">مساحة العرض ثلاثي الأبعاد جاهزة</div>
+            <p className="mt-2 text-xs leading-6 text-slate-300">
+              حمّل مجسم Anny عند الحاجة. تم تأجيل تحميله ومعايرته حتى لا يتوقف الموقع عند فتح هذا القسم على الهاتف.
+            </p>
+            <button
+              onClick={() => void handleLoadBundledAnny()}
+              className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600"
+            >
+              تحميل مجسم Anny
+            </button>
+          </div>
+        </div>
+      )}
+
+      {annyBundledBusy && (
+        <div role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
+          <div dir="rtl" className="rounded-xl border border-emerald-500/40 bg-slate-950/90 px-4 py-3 text-center text-xs text-emerald-100 shadow-xl">
+            جار تحميل مجسم Anny وتجهيزه...
+          </div>
+        </div>
+      )}
+
       <input ref={annyFileInputRef} type="file" accept=".glb,model/gltf-binary" className="hidden" onChange={handleAnnyFileChange} aria-label="تحميل مجسم Anny بصيغة GLB" />
 
       {annyApiPanelOpen && <section className="absolute top-16 right-3 z-30 w-[min(25rem,calc(100vw-1.5rem))] max-h-[68vh] overflow-y-auto rounded-2xl border border-cyan-500/40 bg-slate-950/95 p-3 text-right text-xs text-white shadow-2xl backdrop-blur-md" dir="rtl">
