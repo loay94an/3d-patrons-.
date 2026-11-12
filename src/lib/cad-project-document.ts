@@ -1,14 +1,17 @@
+import type { CadStitchPair } from './cad-sewing-engine';
 import type { CadPiece, PieceSpecSummary } from './pattern-cad-engine';
 
 export interface CadProjectDocument {
-  schemaVersion: 1;
+  schemaVersion: 2;
   projectId: string;
   updatedAt: string;
   pieces: CadPiece[];
   summaries: PieceSpecSummary[];
+  stitchPairs: CadStitchPair[];
 }
 
-const STORAGE_PREFIX = 'patron-studio.cad.v1.';
+const STORAGE_PREFIX = 'patron-studio.cad.v2.';
+const LEGACY_STORAGE_PREFIX = 'patron-studio.cad.v1.';
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 function finitePoint(value: unknown): boolean {
@@ -17,10 +20,34 @@ function finitePoint(value: unknown): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
+function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitchPair[] {
+  if (!Array.isArray(value) || value.length > 5000) return false;
+  const pieceMap = new Map(pieces.map(piece => [piece.id, piece]));
+  return value.every(pair => {
+    if (!pair || typeof pair !== 'object' || typeof pair.id !== 'string' || !pair.id.trim()) return false;
+    const item = pair as Partial<CadStitchPair>;
+    const first = item.first;
+    const second = item.second;
+    if (!first || !second || typeof first.pieceId !== 'string' || typeof first.segmentId !== 'string' ||
+        typeof second.pieceId !== 'string' || typeof second.segmentId !== 'string' ||
+        first.pieceId === second.pieceId ||
+        !['plain', 'ease', 'gather'].includes(item.mode ?? '')) return false;
+    if (item.expectedEaseCm !== undefined &&
+        (!Number.isFinite(item.expectedEaseCm) || item.expectedEaseCm < 0)) return false;
+    const firstPiece = pieceMap.get(first.pieceId);
+    const secondPiece = pieceMap.get(second.pieceId);
+    return Boolean(
+      firstPiece?.segments.some(segment => segment.id === first.segmentId) &&
+      secondPiece?.segments.some(segment => segment.id === second.segmentId)
+    );
+  });
+}
+
+/** Validates CAD documents and migrates legacy version-1 documents in memory. */
 export function validateCadProjectDocument(value: unknown, expectedProjectId?: string): CadProjectDocument {
   if (!value || typeof value !== 'object') throw new Error('ملف هندسة CAD غير صالح.');
-  const document = value as Partial<CadProjectDocument>;
-  if (document.schemaVersion !== 1 || typeof document.projectId !== 'string' ||
+  const document = value as Partial<CadProjectDocument> & { schemaVersion?: number; stitchPairs?: unknown };
+  if (![1, 2].includes(document.schemaVersion ?? 0) || typeof document.projectId !== 'string' ||
       (expectedProjectId && document.projectId !== expectedProjectId) ||
       !Array.isArray(document.pieces) || !Array.isArray(document.summaries)) {
     throw new Error('بنية ملف هندسة CAD غير مدعومة أو لا تخص هذا المشروع.');
@@ -53,7 +80,22 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
     typeof summary.notesAr === 'string'
   );
   if (!validPieces || !validSummaries) throw new Error('تحتوي وثيقة CAD على عناصر هندسية غير صالحة.');
-  return document as CadProjectDocument;
+
+  const stitchPairs = document.schemaVersion === 1
+    ? []
+    : document.stitchPairs;
+  if (!validStitchPairs(stitchPairs, document.pieces)) {
+    throw new Error('تحتوي وثيقة CAD على وصلات خياطة غير صالحة أو على مراجع حواف غير موجودة.');
+  }
+
+  return {
+    schemaVersion: 2,
+    projectId: document.projectId,
+    updatedAt: typeof document.updatedAt === 'string' ? document.updatedAt : new Date(0).toISOString(),
+    pieces: document.pieces,
+    summaries: document.summaries,
+    stitchPairs
+  };
 }
 
 export function loadCadProjectDocument(
@@ -62,7 +104,8 @@ export function loadCadProjectDocument(
 ): CadProjectDocument | null {
   if (!storage || !projectId) return null;
   try {
-    const raw = storage.getItem(STORAGE_PREFIX + projectId);
+    const raw = storage.getItem(STORAGE_PREFIX + projectId) ??
+      storage.getItem(LEGACY_STORAGE_PREFIX + projectId);
     if (!raw) return null;
     return clone(validateCadProjectDocument(JSON.parse(raw), projectId));
   } catch {
@@ -71,30 +114,36 @@ export function loadCadProjectDocument(
 }
 
 export function saveCadProjectDocument(
-  storage: Pick<Storage, 'setItem'> | null,
+  storage: (Pick<Storage, 'setItem'> & Partial<Pick<Storage, 'getItem' | 'removeItem'>>) | null,
   projectId: string,
   pieces: CadPiece[],
   summaries: PieceSpecSummary[],
-  now = new Date().toISOString()
+  now = new Date().toISOString(),
+  stitchPairs?: CadStitchPair[]
 ): boolean {
   if (!storage || !projectId) return false;
+  const previous = stitchPairs === undefined && storage.getItem
+    ? loadCadProjectDocument(storage as Pick<Storage, 'getItem'>, projectId)
+    : null;
   const document: CadProjectDocument = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     projectId,
     updatedAt: now,
     pieces: clone(pieces),
-    summaries: clone(summaries)
+    summaries: clone(summaries),
+    stitchPairs: clone(stitchPairs ?? previous?.stitchPairs ?? [])
   };
   try {
     validateCadProjectDocument(document, projectId);
     storage.setItem(STORAGE_PREFIX + projectId, JSON.stringify(document));
+    storage.removeItem?.(LEGACY_STORAGE_PREFIX + projectId);
     return true;
   } catch {
     return false;
   }
 }
 
-/** Removes the CAD document associated with a deleted project. */
+/** Removes both current and legacy CAD documents when their project is deleted. */
 export function deleteCadProjectDocument(
   storage: Pick<Storage, 'removeItem'> | null,
   projectId: string
@@ -102,6 +151,7 @@ export function deleteCadProjectDocument(
   if (!storage || !projectId) return false;
   try {
     storage.removeItem(STORAGE_PREFIX + projectId);
+    storage.removeItem(LEGACY_STORAGE_PREFIX + projectId);
     return true;
   } catch {
     return false;
