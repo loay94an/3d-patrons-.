@@ -51,6 +51,32 @@ const MIN_CLOTH_GAP = 0.6;
 const lerp = THREE.MathUtils.lerp;
 const clamp = THREE.MathUtils.clamp;
 
+/**
+ * Deterministic geometric drape approximation for the static preview.
+ * It creates gravity-oriented folds without pretending to be a cloth solver.
+ * Values are centimetres and remain bounded so the silhouette cannot collapse.
+ */
+export function calculateFabricDrapeFold(
+  angle: number,
+  dropProgress: number,
+  stiffness: number,
+  weightGsm: number,
+  circumferenceCm: number
+): number {
+  const progress = clamp(dropProgress, 0, 1);
+  const safeStiffness = clamp(stiffness, 0, 1);
+  const safeWeight = clamp(Number.isFinite(weightGsm) ? weightGsm : 180, 35, 500);
+  const safeCircumference = Math.max(1, Number.isFinite(circumferenceCm) ? circumferenceCm : 1);
+  const foldCount = clamp(Math.round(safeCircumference / 18), 4, 10);
+  const weightFactor = Math.sqrt(safeWeight / 180);
+  const amplitude = clamp((1.55 - safeStiffness * 1.05) * weightFactor, 0.2, 1.7);
+  const gravityEnvelope = Math.pow(progress, 1.35);
+  const phase = Math.sin(progress * Math.PI) * 0.42;
+  const primary = Math.sin(angle * foldCount + phase);
+  const secondary = 0.22 * Math.sin(angle * foldCount * 2 - progress * Math.PI * 0.65);
+  return (primary + secondary) * amplitude * gravityEnvelope;
+}
+
 /** Circumference ease required at a given body level (0 = hip, 1 = neck). */
 function easeAt(bodyV: number): number {
   if (bodyV >= 0.75) return EASE_SHOULDER;
@@ -229,8 +255,6 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   const centerBackSeam: THREE.Vector3[] = [];
   const hemLine: THREE.Vector3[] = [];
 
-  const waveCount = stiffness > 0.6 ? 5 : 9;
-  const foldStrength = (1 - stiffness * 0.7) * 0.55;
 
   for (let i = 0; i <= verticalSteps; i++) {
     const v = i / verticalSteps; // 0 = top, 1 = bottom
@@ -246,8 +270,9 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
       const u = j / radialSteps;
       const angle = u * Math.PI * 2;
 
-      // Fabric drape: small radial folds that grow towards the hem
-      const fold = Math.sin(angle * waveCount) * foldStrength * Math.sin(v * Math.PI) * (0.35 + flareT * 1.6);
+      // Gravity-led, fabric-aware folds: folds deepen toward the free hem and
+      // vary with fabric weight/stiffness instead of repeating one rigid sine ring.
+      const fold = calculateFabricDrapeFold(angle, flareT, stiffness, preset.weightGsm, env.perim);
 
       // The cloth is placed outside the body envelope in this exact direction,
       // so it can never sink into the body even where the chest is shaped.
@@ -433,7 +458,6 @@ function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
 
   const dirX = side * Math.sin(tilt);
   const dirY = -Math.cos(tilt);
-  const foldStrength = (1 - stiffness * 0.7) * 0.6;
 
   for (let i = 0; i <= vSteps; i++) {
     const v = i / vSteps;
@@ -451,7 +475,7 @@ function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
     for (let j = 0; j <= rSteps; j++) {
       const u = j / rSteps;
       const angle = u * Math.PI * 2;
-      const fold = Math.sin(angle * 6) * foldStrength * Math.sin(v * Math.PI);
+      const fold = calculateFabricDrapeFold(angle, v, stiffness, 180, Math.PI * radius * 2);
 
       positions.push(
         cx + (rad + fold) * Math.cos(angle),
