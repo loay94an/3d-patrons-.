@@ -1,0 +1,301 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "A source-backed catalog of garment archetypes to guide pattern-engine expansion. Entries are not production-ready patterns and contain no invented measurements or piece coordinates.",
+  "count": 11,
+  "status": "research_candidate",
+  "archetypes": [
+    {
+      "id": "garment-tank-top",
+      "name": "Tank top",
+      "nameAr": "قميص كت بدون أكمام",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "Cloth2Tex README example scale dictionary key 1_wy; category label is ambiguous, so retain as tank-top candidate only.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "confirm garment subtype from source image/data",
+        "define front/back bodice and strap geometry",
+        "extract armhole and neckline curves",
+        "record stretch and ease rules"
+      ]
+    },
+    {
+      "id": "garment-polo",
+      "name": "Polo shirt",
+      "nameAr": "قميص بولو",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 2_Polo.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "collar and collar stand",
+        "front placket",
+        "sleeve and cuff options",
+        "body ease and knit/woven variants"
+      ]
+    },
+    {
+      "id": "garment-tshirt",
+      "name": "T-shirt",
+      "nameAr": "تيشيرت",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 3_Tshirt.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back body",
+        "sleeve variants",
+        "neckband geometry",
+        "knit stretch and recovery"
+      ]
+    },
+    {
+      "id": "garment-shorts",
+      "name": "Shorts",
+      "nameAr": "شورت",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 4_shorts.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back crotch curves",
+        "waistband and closure",
+        "leg opening and hem",
+        "inseam/outseam matching"
+      ]
+    },
+    {
+      "id": "garment-trousers",
+      "name": "Trousers",
+      "nameAr": "بنطال",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 5_trousers.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back rise and crotch",
+        "waist and hip shaping",
+        "pockets and fly",
+        "grading and inseam/outseam validation"
+      ]
+    },
+    {
+      "id": "garment-zip-up",
+      "name": "Zip-up jacket",
+      "nameAr": "جاكيت بسحاب",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 6_zipup.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front split and zipper tape",
+        "collar/hood variants",
+        "sleeve and cuff",
+        "lining and seam assembly"
+      ]
+    },
+    {
+      "id": "garment-windcoat",
+      "name": "Windcoat",
+      "nameAr": "معطف واقٍ من الرياح",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 7_windcoat.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "hood/collar and closure",
+        "shell/lining relationship",
+        "ease and layering allowance",
+        "cuffs and hem adjustments"
+      ]
+    },
+    {
+      "id": "garment-jacket",
+      "name": "Jacket",
+      "nameAr": "جاكيت",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 9_jacket.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back panels",
+        "lapel/collar and facing",
+        "sleeve cap and armhole pairing",
+        "lining, darts and grading"
+      ]
+    },
+    {
+      "id": "garment-skirt",
+      "name": "Skirt",
+      "nameAr": "تنورة",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 11_skirt.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "waist/hip shaping",
+        "panel and flare geometry",
+        "waistband and closure",
+        "hem sweep and grainline"
+      ]
+    },
+    {
+      "id": "garment-aaron-shirt",
+      "name": "Aaron sleeveless shirt",
+      "nameAr": "قميص Aaron بلا أكمام",
+      "category": "upper_body",
+      "source": "costumy",
+      "evidence": "Inspected costumy/designs/aaron.py and docs/About/limitations.md. The source defines required measurements, bounded design options, default/croptop/sport styles, front/back panels and four seam pairings. These are source parameters, not extracted panel coordinates.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "source-design-needs-inspection",
+      "nextExtraction": [
+        "obtain the compatible FreeSewing Aaron source pattern",
+        "capture generated SVG for fixed reference measurements",
+        "normalize SVG mm/cm units and curve approximation policy",
+        "validate front/back edge pairings against the four source stitch pairs",
+        "compare the geometry against an independently drafted sleeveless shirt"
+      ],
+      "sourceCommit": "57e3ef889c00e365f5328efa8bb90c324507bd5f",
+      "sourceFile": "costumy/designs/aaron.py",
+      "requiredMeasurements": [
+        "biceps",
+        "chest",
+        "hips",
+        "hpsToWaistBack",
+        "neck",
+        "shoulderSlope",
+        "shoulderToShoulder",
+        "waistToHips",
+        "waistToArmpit"
+      ],
+      "optionalMeasurements": [
+        "highBust"
+      ],
+      "options": {
+        "hipsEase": {
+          "min": 0,
+          "default": 0.08,
+          "max": 0.2
+        },
+        "stretchFactor": {
+          "min": 0,
+          "default": 0.05,
+          "max": 0.15
+        },
+        "armholeDrop": {
+          "min": 0,
+          "default": 0.1,
+          "max": 0.75
+        },
+        "backlineBend": {
+          "min": 0.25,
+          "default": 0.5,
+          "max": 1
+        },
+        "chestEase": {
+          "min": 0,
+          "default": 0.075,
+          "max": 0.2
+        },
+        "lengthBonus": {
+          "min": -0.2,
+          "default": 0.1,
+          "max": 0.6
+        },
+        "necklineBend": {
+          "min": 0.4,
+          "default": 1,
+          "max": 1
+        },
+        "necklineDrop": {
+          "min": 0,
+          "default": 0.2,
+          "max": 0.35
+        },
+        "shoulderStrapPlacement": {
+          "min": 0.2,
+          "default": 0.4,
+          "max": 0.8
+        },
+        "shoulderStrapWidth": {
+          "min": 0.1,
+          "default": 0.15,
+          "max": 0.4
+        }
+      },
+      "styles": [
+        "default",
+        "croptop",
+        "sport"
+      ],
+      "panelNames": [
+        "front",
+        "back"
+      ],
+      "stitchPairs": 4,
+      "limitations": [
+        "Costumy documents Aaron as its only implemented design",
+        "Costumy pattern engine approximates cubic SVG curves to quadratic curves",
+        "sleeves wrapping around arms are not simulated correctly as a single flat panel",
+        "Costumy uses centimetres; FreeSewing input measurements are millimetres and external SVG exports need scale conversion"
+      ],
+      "licenseConstraint": "Costumy source is GPL-3.0; review copyleft obligations before incorporating or distributing derived implementation."
+    },
+    {
+      "id": "garment-neuralclothsim-tshirt",
+      "name": "SMPL T-shirt simulation reference",
+      "nameAr": "تيشيرت مرجعي لمحاكاة القماش",
+      "category": "3d_simulation_reference",
+      "source": "neuralclothsim",
+      "evidence": "The repository's ncs/configs/smpl.json uses garment.name=tshirt, SMPL female neutral body, 15 FPS, cloth stretch=10, shear=1, bending=2e-5 and collision threshold=0.004. These are simulation configuration values, not pattern measurements.",
+      "geometryStatus": "external-OBJ-required-not-in-catalog",
+      "patternPieces": null,
+      "measurements": null,
+      "simulationConfig": {
+        "bodyModel": "smpl_female_neutral",
+        "skeleton": "smpl",
+        "fps": 15,
+        "clothStretch": 10,
+        "clothShear": 1,
+        "bending": 0.00002,
+        "collisionWeight": 10,
+        "collisionThreshold": 0.004,
+        "density": 0.15,
+        "pinning": 100,
+        "gravity": "-Y"
+      },
+      "licenseConstraint": "NeuralClothSim license permits non-commercial scientific research, education and artistic projects only; not usable in the commercial site as licensed.",
+      "nextExtraction": [
+        "inspect the sample OBJ garment and topology",
+        "map cloth parameters to our fabric schema",
+        "test with a compatible body mesh and pose sequence",
+        "do not enable in commercial deployment without a separate license"
+      ]
+    }
+  ],
+  "validation": {
+    "sourceBackedArchetypes": 11,
+    "productionReady": 0,
+    "rule": "A category name or demo does not count as a digitized pattern. Promotion requires source geometry, units, measurements, seam metadata, license review and tests.",
+    "note": "Ten clothing categories plus one explicit T-shirt simulation reference; Aaron has source-derived design parameters, but none of these records is a complete production-ready 2D pattern."
+  }
+}

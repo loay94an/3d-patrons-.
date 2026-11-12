@@ -1,0 +1,205 @@
+{
+  "schemaVersion": "1.0.0",
+  "sourceArchive": {
+    "file": "أفرولات.zip",
+    "sha256": "b8cabe1962145d2b1199dcc9c61f70595a5b9ae166c00d3e4ccd6ae69cc30ce6",
+    "totalPdfFiles": 12,
+    "totalPages": 132,
+    "extraction": "image_only",
+    "textLayerPages": 0,
+    "digitizationStatus": "visual_inventory_only",
+    "note": "The PDFs contain rasterized pages. A visual contact-sheet review confirms garment photos, hand-drafted pattern diagrams and size/measurement tables in the sampled documents. No coordinates, dimensions or piece geometry have been digitized."
+  },
+  "deduplication": {
+    "exactDuplicateChecks": "Not yet run per extracted PDF; archive-level SHA-256 recorded.",
+    "candidateVariants": "Do not merge visually similar romper/jumpsuit styles without comparing piece outlines, size charts and construction details.",
+    "exactDuplicateFilesFoundWithinArchive": 0,
+    "uniquePdfSha256Count": 12,
+    "note": "Each of the 12 PDF entries was hashed individually; all 12 SHA-256 values are distinct."
+  },
+  "models": [
+    {
+      "id": "overall-tie-back-romper",
+      "file": "أفرولات_Macaquinho inteiro de amarrar nas costas_6d2def74.pdf",
+      "title": "Macaquinho inteiro de amarrar nas costas",
+      "titleEn": "Tie-back romper",
+      "category": "romper",
+      "designFeatures": [
+        "open/tie-back construction"
+      ],
+      "pages": 10,
+      "sourceLanguage": "Portuguese",
+      "sha256": "7d2be3c665dae6d9d68f7d68ba913dd1dba627d31af2a99a33dfebcb50f16e53"
+    },
+    {
+      "id": "overall-fitness-romper",
+      "file": "أفرولات_Macaquinho fitness para ginástica ou hidroginástic_fc8b8d7b.pdf",
+      "title": "Macaquinho fitness para ginástica ou hidroginástica",
+      "titleEn": "Fitness / swim-gym romper",
+      "category": "activewear_romper",
+      "fabricHint": "stretch knit; verify stretch percentages from the source chart before use",
+      "pages": 9,
+      "sourceLanguage": "Portuguese",
+      "sha256": "e18b143426953b06c785d117440206377e0ed0e098fe6395c869bf4806f2fe4b"
+    },
+    {
+      "id": "overall-v-neck-jumpsuit",
+      "file": "أفرولات_Macacao ou macaquinho inteiro decote V_372e3f2c.pdf",
+      "title": "Macacão ou macaquinho inteiro decote V",
+      "titleEn": "V-neck one-piece jumpsuit / romper",
+      "category": "jumpsuit_or_romper",
+      "designFeatures": [
+        "V neckline"
+      ],
+      "pages": 16,
+      "sourceLanguage": "Portuguese",
+      "sha256": "f10d5bb75939a354ba2fc986e98bca5f4a7dbe39e542edc5ae67ad2903af9d3b"
+    },
+    {
+      "id": "overall-halter-draped",
+      "file": "أفرولات_Macacao cava americana (halter) drapeado de amarra_914f6faf.pdf",
+      "title": "Macacão cava americana (halter) drapeado de amarração",
+      "titleEn": "Draped halter tie jumpsuit",
+      "category": "halter_jumpsuit",
+      "designFeatures": [
+        "halter neckline",
+        "draped/tied construction"
+      ],
+      "pages": 10,
+      "sourceLanguage": "Portuguese",
+      "sha256": "01b8f4420e77835ca1b77b4cae5f63cd102699400287f413c66494c769d34f75"
+    },
+    {
+      "id": "overall-pinafore-apron",
+      "file": "أفرولات_Avental jardineira salopete festa junina_2998edda.pdf",
+      "title": "Avental jardineira salopete festa junina",
+      "titleEn": "Pinafore / apron dress for Festa Junina",
+      "category": "pinafore_apron",
+      "designFeatures": [
+        "apron/pinafore construction"
+      ],
+      "pages": 9,
+      "sourceLanguage": "Portuguese",
+      "sha256": "3c312d8c6fc99e5d6496e7af8d02e44e9a7149629cc442a0967fc953801b2f9a"
+    },
+    {
+      "id": "overall-subscription-collection",
+      "file": "أفرولات_Macacões e macaquinhos – Assinatura_a106a60c.pdf",
+      "title": "Macacões e macaquinhos – Assinatura",
+      "titleEn": "Jumpsuit and romper subscription collection",
+      "category": "collection_landing_or_bundle",
+      "pages": 9,
+      "sourceLanguage": "Portuguese",
+      "excludeFromUniquePatternCount": true,
+      "note": "Visual sample includes promotional/collection content; count as a source document, not automatically as one unique pattern model.",
+      "sha256": "c155b95b270a4b1f1d86b0fa324b22903faad2a0f87e57767967b889e285017e"
+    },
+    {
+      "id": "overall-basic-jumpsuit",
+      "file": "أفرولات_Macacão básico_d4f50616.pdf",
+      "title": "Macacão básico",
+      "titleEn": "Basic jumpsuit",
+      "category": "jumpsuit",
+      "pages": 13,
+      "sourceLanguage": "Portuguese",
+      "sha256": "46e4bee8d86480abb2d58e9ca12f486cc917e1cfe3303ccbc35c782da50c65e3"
+    },
+    {
+      "id": "overall-elastic-waist-strap-romper",
+      "file": "أفرولات_Macaquinho de alcinha com elástico na cintura_ed70327e.pdf",
+      "title": "Macaquinho de alcinha com elástico na cintura",
+      "titleEn": "Spaghetti-strap elastic-waist romper",
+      "category": "romper",
+      "designFeatures": [
+        "thin straps",
+        "elasticated waist"
+      ],
+      "pages": 13,
+      "sourceLanguage": "Portuguese",
+      "sha256": "2901ecae5c5c81df97f58fb08a7c742c44157dd8455f99459fb41878b5a2c5e5"
+    },
+    {
+      "id": "overall-saruel-knit-jumpsuit",
+      "file": "أفرولات_Macacão saruel para malha de média e alta elastici_410f463a.pdf",
+      "title": "Macacão saruel para malha de média e alta elasticidade",
+      "titleEn": "Sarouel jumpsuit for medium/high-stretch knit",
+      "category": "sarouel_jumpsuit",
+      "fabricHint": "medium/high-stretch knit; exact fabric parameters not yet extracted",
+      "pages": 7,
+      "sourceLanguage": "Portuguese",
+      "sha256": "d79d86cdcdd21f11c5bdad81ddd954d4517d1faefdbddbf1cf2ee53536712940"
+    },
+    {
+      "id": "overall-one-shoulder-romper",
+      "file": "أفرولات_Macaquinho de um ombro só_68ea85cd.pdf",
+      "title": "Macaquinho de um ombro só",
+      "titleEn": "One-shoulder romper",
+      "category": "asymmetric_romper",
+      "designFeatures": [
+        "one-shoulder neckline"
+      ],
+      "pages": 12,
+      "sourceLanguage": "Portuguese",
+      "sha256": "415309efd795f8edf86151c018fce8040d4c11f3153398408aeb335ea0c9b04e"
+    },
+    {
+      "id": "overall-faux-collar-wrap-romper",
+      "file": "أفرولات_Macaquinho gola falsa com alcinha e transpasse_86c27747.pdf",
+      "title": "Macaquinho gola falsa com alcinha e transpasse",
+      "titleEn": "Mock-neck strap romper with wrap overlap",
+      "category": "wrap_romper",
+      "designFeatures": [
+        "mock collar",
+        "straps",
+        "wrap/overlap front"
+      ],
+      "pages": 12,
+      "sourceLanguage": "Portuguese",
+      "sha256": "bd01f02024c4178973ea1e367f4a6f78690a0e42d88a14326676e5a195da9447"
+    },
+    {
+      "id": "overall-pinafore-romper",
+      "file": "أفرولات_Macaquinho jardineira inteiro_a0295348.pdf",
+      "title": "Macaquinho jardineira inteiro",
+      "titleEn": "Pinafore-style romper",
+      "category": "pinafore_romper",
+      "designFeatures": [
+        "overall/pinafore bib construction"
+      ],
+      "pages": 12,
+      "sourceLanguage": "Portuguese",
+      "sha256": "a99b9a6206b97880e0a49761263229311799acfac0c17c9907bb7fb152591a11"
+    }
+  ],
+  "commonVisualEvidence": {
+    "pageTypeObservations": [
+      "garment reference photographs",
+      "hand-drafted pattern diagrams",
+      "measurement/size tables"
+    ],
+    "evidenceLevel": "visual_sampled",
+    "notYetExtracted": [
+      "piece boundary coordinates",
+      "piece names and cut quantities",
+      "size chart values",
+      "grainline vectors",
+      "seam allowance values",
+      "notch coordinates and semantics",
+      "fabric stretch percentages",
+      "construction sequence"
+    ],
+    "nextDigitizationProtocol": [
+      "select one canonical model and retain its original source file hash",
+      "transcribe its complete size chart with units and source-page references",
+      "identify each pattern piece, cut quantity, fold edge and grainline",
+      "trace closed cutting contours and curve control points in centimetres",
+      "record notches, darts, seam allowances and intended edge pairings",
+      "run contour closure, edge-length, notch-pair and size-grading tests",
+      "keep the record in draft until a human patternmaker validates it"
+    ]
+  },
+  "licensing": {
+    "status": "unverified",
+    "usage": "internal analysis only; no source-page display, redistribution or commercial reuse until rights are checked"
+  }
+}

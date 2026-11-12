@@ -1,0 +1,207 @@
+{
+  "schemaVersion": "1.0.0",
+  "scope": "Files currently visible in the user's ChatGPT Library and relevant to fashion pattern engineering. This is not the private GitHub repository inventory.",
+  "generatedAt": "2026-11-12",
+  "counts": {
+    "fashionReferenceDocuments": 11,
+    "pdfDocuments": 10,
+    "epubDocuments": 1,
+    "archives": 1,
+    "pdfsInsideOverallsArchive": 12,
+    "pdfPages": {
+      "annas-arch-08fef89ea543.pdf": 218,
+      "annas-arch-0ce10d79214c.pdf": 203,
+      "annas-arch-15282dff9fc4.pdf": 200,
+      "annas-arch-50a9c5318260.pdf": 152,
+      "annas-arch-c4811a21cf24.pdf": 184,
+      "Patternmaking for Fashion Design ( PDFDrive )_نسخة.pdf": 926,
+      "s40691-025-00419-w_نسخة.pdf": 17,
+      "2606.29419v1_نسخة.pdf": 14,
+      "كتاب البترون الايطالي كامل.pdf": 438,
+      "موسوعة الاجيال للتفصيل.pdf": 1286
+    }
+  },
+  "sources": [
+    {
+      "id": "src-aldrich-womens-5e",
+      "file": "annas-arch-08fef89ea543.pdf",
+      "type": "book_pdf",
+      "title": "Metric Pattern Cutting for Women's Wear",
+      "author": "Winifred Aldrich",
+      "edition": "Fifth Edition",
+      "pages": 218,
+      "sha256": "08e858cd69a83f715f30ce363f3dbbf0ed82a14dc1bed719839a21028b437dd1",
+      "textStatus": "extractable",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_text_sampling"
+    },
+    {
+      "id": "src-aldrich-metric-3e-a",
+      "file": "annas-arch-0ce10d79214c.pdf",
+      "type": "book_pdf",
+      "title": "Metric Pattern Cutting",
+      "author": "Winifred Aldrich",
+      "edition": "Third Edition (metadata/title page requires final confirmation)",
+      "pages": 203,
+      "sha256": "761668226945264e8600ff0e430420aa441475b0b81718260af74add82a7673f",
+      "textStatus": "extractable",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_text_sampling"
+    },
+    {
+      "id": "src-aldrich-metric-3e-b",
+      "file": "annas-arch-15282dff9fc4.pdf",
+      "type": "book_pdf",
+      "title": "Metric Pattern Cutting",
+      "author": "Winifred Aldrich",
+      "edition": "Third Edition (cover/title-page identification)",
+      "pages": 200,
+      "sha256": "4a6be6cf6446cd04bce2cdba8d8eebe893bd5eca562a9cb4bc3fbd15a894db69",
+      "textStatus": "mostly_scanned",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_cover_sampling"
+    },
+    {
+      "id": "src-aldrich-mens-2e",
+      "file": "annas-arch-50a9c5318260.pdf",
+      "type": "book_pdf",
+      "title": "Metric Pattern Cutting for Menswear: Including Unisex Casual Clothes and Computer Aided Design",
+      "author": "Winifred Aldrich",
+      "edition": "Second Edition",
+      "pages": 152,
+      "sha256": "6542779118a2f3e9d60bdac98265124b6ff27b2a4c8b6c982b4e8f98c998b16b",
+      "textStatus": "mostly_scanned",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_cover_sampling"
+    },
+    {
+      "id": "src-aldrich-mens-5e-pdf",
+      "file": "annas-arch-c4811a21cf24.pdf",
+      "type": "book_pdf",
+      "title": "Metric Pattern Cutting for Menswear: Including Unisex Clothes and Computer Aided Design",
+      "author": "Winifred Aldrich",
+      "pages": 184,
+      "sha256": "976b12635b6246b806d3c555e72f5b4c4d66f4d73640f93011d28723b73b7a46",
+      "textStatus": "scanned_with_partial_text",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_text_sampling"
+    },
+    {
+      "id": "src-aldrich-mens-5e-epub",
+      "file": "annas-arch-7d922e34ebbd.epub",
+      "type": "book_epub",
+      "title": "Metric Pattern Cutting for Menswear",
+      "author": "Winifred Aldrich",
+      "edition": "Fifth Edition",
+      "pages": null,
+      "sha256": "3cb7f609db9a5802fdb8c5133bbe895172bb271395e0fa348a4d2baf614eb80c",
+      "textStatus": "extractable",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_sampling"
+    },
+    {
+      "id": "src-armstrong-patternmaking-5e",
+      "file": "Patternmaking for Fashion Design ( PDFDrive )_نسخة.pdf",
+      "type": "book_pdf",
+      "title": "Patternmaking for Fashion Design",
+      "author": "Helen Joseph-Armstrong",
+      "edition": "Fifth Edition",
+      "pages": 926,
+      "sha256": "e3f66c90eedb11fa085d128c246dd04def686a73bc8cd51a6a754ed0cb631270",
+      "textStatus": "extractable",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_and_targeted_text_extraction"
+    },
+    {
+      "id": "src-parametric-jacket-2025",
+      "file": "s40691-025-00419-w_نسخة.pdf",
+      "type": "open_access_research_pdf",
+      "title": "Development of a parametric production jacket pattern for an automated pattern-making system",
+      "author": "Narae Kim",
+      "pages": 17,
+      "sha256": "4361ee7db2ecdc205789e284c16af18d51256846da81de7932638df4371cea09",
+      "textStatus": "extractable",
+      "licenseStatus": "CC-BY-4.0 (article; third-party figures/material require separate check)",
+      "reviewStatus": "targeted_text_extraction"
+    },
+    {
+      "id": "src-ease-parametric-2026",
+      "file": "2606.29419v1_نسخة.pdf",
+      "type": "research_preprint_pdf",
+      "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
+      "author": "Kristijan Bartol et al.",
+      "pages": 14,
+      "sha256": "6231a41e6c4c6c11009c603d6f617411cb03f52e96b525cecb766f8954df7c06",
+      "textStatus": "extractable",
+      "licenseStatus": "unverified",
+      "reviewStatus": "targeted_text_extraction"
+    },
+    {
+      "id": "src-italian-pattern-book",
+      "file": "كتاب البترون الايطالي كامل.pdf",
+      "type": "book_pdf",
+      "title": "Italian pattern book (title metadata unavailable)",
+      "author": null,
+      "pages": 438,
+      "sha256": "a5dae6c81fa1527291aebae8585dd0255159c03af385c810637f496b81830e45",
+      "textStatus": "image_only_or_near_image_only",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_only_requires_ocr"
+    },
+    {
+      "id": "src-alajyal-tailoring-encyclopedia",
+      "file": "موسوعة الاجيال للتفصيل.pdf",
+      "type": "book_pdf",
+      "title": "Al-Ajyal tailoring encyclopedia (title metadata unavailable)",
+      "author": null,
+      "pages": 1286,
+      "sha256": "dcc0bb313ce80d8107e6e46a6447aa4998e98e1b164906447d0caf2f0d54258d",
+      "textStatus": "image_only_or_near_image_only",
+      "licenseStatus": "unverified",
+      "reviewStatus": "metadata_only_requires_ocr"
+    },
+    {
+      "id": "src-overalls-archive",
+      "file": "أفرولات.zip",
+      "type": "pattern_archive",
+      "pages": 132,
+      "entryCount": 12,
+      "sha256": "b8cabe1962145d2b1199dcc9c61f70595a5b9ae166c00d3e4ccd6ae69cc30ce6",
+      "textStatus": "12_scanned_pdfs_cover_review_only",
+      "licenseStatus": "unverified",
+      "reviewStatus": "cover_only_catalog"
+    }
+  ],
+  "deduplication": {
+    "exactDuplicateFilesFoundAmongFashionDocuments": 0,
+    "candidateWorkLevelDuplicates": [
+      {
+        "group": "metric-pattern-cutting-third-edition",
+        "sources": [
+          "src-aldrich-metric-3e-a",
+          "src-aldrich-metric-3e-b"
+        ],
+        "assessment": "Probable same bibliographic work/edition; different file hashes and page counts (203 vs 200). Keep one canonical work record and retain both file variants until page-by-page verification."
+      },
+      {
+        "group": "metric-pattern-cutting-menswear",
+        "sources": [
+          "src-aldrich-mens-5e-pdf",
+          "src-aldrich-mens-5e-epub"
+        ],
+        "assessment": "Same apparent fifth-edition work in PDF and EPUB formats; verify edition and content before treating as duplicate assets. Keep both source-format records."
+      }
+    ],
+    "distinctEditionNotDuplicate": [
+      "src-aldrich-mens-2e"
+    ],
+    "note": "No byte-identical duplicate was found among the 11 fashion reference documents. Similar titles are not deleted; candidate duplicates are linked pending content-level verification."
+  },
+  "limitations": [
+    "The private GitHub repository 3d-patrons-library-private is still not available through the connected GitHub installation.",
+    "This manifest covers only relevant files visible in the ChatGPT Library, not the complete reported 30+ references / 680+ pattern corpus.",
+    "Italian pattern book and Al-Ajyal encyclopedia require OCR and visual page review.",
+    "The overalls archive contains 12 PDFs / 132 pages; no pattern pieces or technical measurements were digitized in this pass.",
+    "Copyright and commercial-use rights remain unverified for books and research preprint sources except the identified CC BY 4.0 article."
+  ]
+}

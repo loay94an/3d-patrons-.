@@ -1,0 +1,503 @@
+{
+  "schemaVersion": "1.0.0",
+  "records": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "ease.local-anisotropic-scale.v1",
+      "domain": "fit_ease",
+      "recordType": "fit_rule",
+      "status": "extracted",
+      "statement": "Represent local garment ease as a positive per-triangle scale field with independent weft and warp components; scale 1.0 is the reference fit, values above 1.0 add material allowance, and values below 1.0 create a tighter target.",
+      "payload": {
+        "representation": "per_triangle_directional_scale",
+        "baseline": {
+          "weft": 1,
+          "warp": 1
+        },
+        "scaleMeaning": {
+          "equalToOne": "reference_no_added_allowance",
+          "greaterThanOne": "positive_material_allowance",
+          "betweenZeroAndOne": "negative_ease_tighter_fit"
+        },
+        "designVariables": [
+          "global_length_parameters",
+          "local_weft_scale",
+          "seamline_keypoint_placement"
+        ],
+        "poseAdaptationMayIncreaseWarpScale": true,
+        "warning": "This representation is a design parameterization, not a direct fabric physical-property measurement."
+      },
+      "units": {
+        "scale": "dimensionless"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "parametric_garments"
+        ],
+        "bodyRegions": [
+          "body_surface"
+        ],
+        "fabricTypes": [
+          "woven",
+          "knit"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "requires_body_surface_correspondence",
+          "requires_declared_grain_directions"
+        ]
+      },
+      "constraints": [
+        "All scales must be finite and greater than zero.",
+        "Keep garment length as an explicit global parameter rather than silently mixing it with local weft ease.",
+        "Do not convert the scale to centimetres without a defined local reference length."
+      ],
+      "exceptions": [
+        "Pose adaptation may require warp scale above 1.0; this is distinct from the design-time baseline."
+      ],
+      "confidence": 0.84,
+      "provenance": [
+        {
+          "sourceId": "src-ease-parametric-2026",
+          "sourceType": "repository",
+          "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
+          "locator": "PDF pp. 4-6; sections Parametric ease and Stretch constraints"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "License of the uploaded preprint was not verified; keep extracted rule disabled for commercial runtime until rights review."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "ease-scale-positive",
+          "ease-scale-baseline",
+          "ease-scale-tight"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "sewing.corresponding-edge-length.v1",
+      "domain": "sewing_construction",
+      "recordType": "seam_rule",
+      "status": "extracted",
+      "statement": "A sewing seam should compare corresponding edge arc lengths; a mismatch must be represented explicitly as an approved ease or gather amount rather than silently accepted as a plain seam.",
+      "payload": {
+        "check": "absolute_arc_length_difference",
+        "plainSeamTargetCm": 0,
+        "easeAndGatherRequireDeclaredAmount": true,
+        "toleranceCm": "project_configured",
+        "geometrySource": "measured_curve_arc_length",
+        "additionalQualityTerms": [
+          "seamline_smoothness",
+          "corresponding_curvature_alignment"
+        ]
+      },
+      "units": {
+        "length": "cm"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "all"
+        ],
+        "bodyRegions": [
+          "all"
+        ],
+        "fabricTypes": [
+          "all"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "both_edges_have_valid_geometry",
+          "edge_pair_is_human_confirmed"
+        ]
+      },
+      "constraints": [
+        "Do not infer ease solely from a non-zero length difference.",
+        "Do not pair edges automatically without semantic and geometric checks.",
+        "Preserve edge identity and direction when assembling a panel."
+      ],
+      "exceptions": [
+        "Intentional gathers and eased seams need an explicit mode and declared allowance."
+      ],
+      "confidence": 0.91,
+      "provenance": [
+        {
+          "sourceId": "src-ease-parametric-2026",
+          "sourceType": "repository",
+          "title": "EASE: Parametric Garment Design with Explicit and Local Ease Control",
+          "locator": "PDF p. 6; Seamlines and cutting / Length compatibility and seam regularization"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "Rule is an extracted engineering principle; runtime use remains disabled pending source license review."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "seam-length-match",
+          "seam-explicit-ease",
+          "seam-unapproved-mismatch"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "grading.parametric-jacket-validation.v1",
+      "domain": "grading",
+      "recordType": "grading_rule",
+      "status": "draft",
+      "statement": "Parametric jacket drafting formulas derived from a limited set of sizes must be validated by size range and body region; front and back pattern regions may exhibit different errors.",
+      "payload": {
+        "sourceStudy": {
+          "garment": "women_jacket",
+          "primaryMeasurements": [
+            "bust_circumference",
+            "height"
+          ],
+          "validationSizeGroups": [
+            "82-150",
+            "85-155",
+            "88-160"
+          ]
+        },
+        "reportedRelativeErrorPercent": {
+          "frontPrincessDartPosition": [
+            5.88,
+            8.82,
+            14.71
+          ],
+          "frontDesignDartPosition": [
+            5.08,
+            8.47,
+            11.86
+          ],
+          "backPrincessDartPosition": [
+            0,
+            2.04,
+            0
+          ]
+        },
+        "productionUse": "not_approved",
+        "requiredValidation": [
+          "compare_pattern_overlays",
+          "measure_seamline_deviation",
+          "validate_multiple_body_shapes",
+          "review_front_curvature_sensitive_features"
+        ]
+      },
+      "units": {
+        "relativeError": "percent",
+        "measurements": "cm"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "women_jacket"
+        ],
+        "bodyRegions": [
+          "front_bodice",
+          "back_bodice"
+        ],
+        "fabricTypes": [],
+        "sizeSystems": [
+          "study_specific"
+        ],
+        "conditions": [
+          "must_not_generalize_to_other_garment_classes"
+        ]
+      },
+      "constraints": [
+        "Do not reuse the paper's coefficients as universal grading rules.",
+        "Require validation outside the study's tested size groups before expanding the size domain."
+      ],
+      "exceptions": [
+        "Back-panel results in the study were more consistent than front-panel dart placement; each region must retain separate validation metrics."
+      ],
+      "confidence": 0.86,
+      "provenance": [
+        {
+          "sourceId": "src-parametric-jacket-2025",
+          "sourceType": "book",
+          "title": "Development of a parametric production jacket pattern for an automated pattern-making system",
+          "locator": "PDF pp. 12-14; validation and Table 4"
+        }
+      ],
+      "licensing": {
+        "status": "verified",
+        "licenseId": "CC-BY-4.0",
+        "allowedUses": [
+          "internal_analysis",
+          "derived_facts",
+          "commercial_runtime"
+        ],
+        "notes": "Article is identified as CC BY 4.0; verify third-party figure/material exclusions and retain attribution where required."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "grading-region-error-separation",
+          "grading-size-range-gate"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "fabric.grainline-warp-weft-bias.v1",
+      "domain": "fabric_behavior",
+      "recordType": "fabric_profile",
+      "status": "extracted",
+      "statement": "Represent fabric orientation explicitly: warp runs parallel to the selvage and is generally the more stable direction; weft runs selvage-to-selvage and yields more readily; true bias is 45 degrees and has the greatest give in woven cloth.",
+      "payload": {
+        "grainAxes": {
+          "warp": {
+            "parallelTo": "selvage",
+            "relativeStability": "higher"
+          },
+          "weft": {
+            "orientation": "selvage_to_selvage",
+            "relativeGive": "higher"
+          },
+          "trueBias": {
+            "angleDeg": 45,
+            "relativeGive": "maximum"
+          }
+        },
+        "markerConstraints": {
+          "napOrDirectionalPrint": "one_way_placement",
+          "noNapOrDirectionalPrint": "either_direction_if_pattern_grain_allows"
+        },
+        "requiresMaterialTest": true
+      },
+      "units": {
+        "angle": "deg"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "all"
+        ],
+        "bodyRegions": [
+          "all"
+        ],
+        "fabricTypes": [
+          "woven"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "woven_fabric_orientation_known"
+        ]
+      },
+      "constraints": [
+        "Do not infer numeric stretch percentages from the qualitative terms stable or yields.",
+        "Knitted fabrics require their own wale/course direction metadata; do not assume woven warp/weft behavior."
+      ],
+      "exceptions": [
+        "Bias behavior and fabric distortion vary with weave, fiber, finish, and fabric construction."
+      ],
+      "confidence": 0.9,
+      "provenance": [
+        {
+          "sourceId": "src-armstrong-patternmaking-5e",
+          "sourceType": "book",
+          "title": "Patternmaking for Fashion Design",
+          "locator": "PDF pp. 14-15; Fabric Terms and Controlling the Grain"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "Book copyright and commercial derivative-use rights not verified; do not enable as production rule until reviewed."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "grain-warp-parallel-selvage",
+          "true-bias-angle"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "pattern.notch-assembly-semantics.v1",
+      "domain": "sewing_construction",
+      "recordType": "validation_rule",
+      "status": "extracted",
+      "statement": "Treat notches as semantic assembly markers that encode matching, alignment, easing/gather control and construction landmarks, not as decorative marks.",
+      "payload": {
+        "notchRoles": [
+          "matching_joining_edges",
+          "front_back_piece_identification",
+          "centerline_reference",
+          "ease_or_gather_control",
+          "dart_intake_reference",
+          "zipper_stop",
+          "hem_or_facing_fold",
+          "insert_placement",
+          "acute_curve_tension_release"
+        ],
+        "marker": {
+          "position": "on_pattern_edge_or_defined_landmark",
+          "mustReference": "piece_and_edge_identity"
+        },
+        "audit": {
+          "requireCompatibleNotchCountsAndOrder": true,
+          "allowExplicitlyMappedNotches": true
+        }
+      },
+      "units": {},
+      "applicability": {
+        "garmentTypes": [
+          "all"
+        ],
+        "bodyRegions": [
+          "all"
+        ],
+        "fabricTypes": [
+          "all"
+        ],
+        "sizeSystems": [],
+        "conditions": [
+          "notch_semantics_are_recorded"
+        ]
+      },
+      "constraints": [
+        "Never infer an unmarked notch from visual noise without review.",
+        "Do not assume every seam uses notches; the source notes exceptions for some overlocked and standard seam cases."
+      ],
+      "exceptions": [
+        "Notch placement conventions vary by manufacturer and seam type."
+      ],
+      "confidence": 0.88,
+      "provenance": [
+        {
+          "sourceId": "src-armstrong-patternmaking-5e",
+          "sourceType": "book",
+          "title": "Patternmaking for Fashion Design",
+          "locator": "PDF p. 11; Functions of Patternmaking Tools / Notch Tool"
+        }
+      ],
+      "licensing": {
+        "status": "unverified",
+        "allowedUses": [
+          "internal_analysis"
+        ],
+        "notes": "Book copyright and commercial derivative-use rights not verified; do not enable as production rule until reviewed."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "notch-role-enum",
+          "notch-edge-reference"
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "jacket.parametric-dart-placement.study.v1",
+      "domain": "design_template",
+      "recordType": "design_feature",
+      "status": "draft",
+      "statement": "The cited jacket study defines study-specific parametric locations for princess-line and design darts from armhole length and half-waist circumferences; these ratios are a dataset-specific candidate, not a universal drafting formula.",
+      "payload": {
+        "garment": "women_jacket",
+        "front": {
+          "princessDartIncision": {
+            "reference": "axilla_along_armhole",
+            "formula": "0.34 * armholeLengthCm"
+          },
+          "princessDartCenter": {
+            "reference": "lateralWaist",
+            "formula": "0.44 * (frontWaistCircumferenceCm / 2)"
+          },
+          "designDartCenter": {
+            "reference": "lateralWaist",
+            "formula": "0.59 * (frontWaistCircumferenceCm / 2)"
+          },
+          "designDartIntakeCm": 0.6,
+          "princessDartIntakeCm": 2.01
+        },
+        "back": {
+          "princessDartIncision": {
+            "reference": "axilla_along_armhole",
+            "formula": "0.49 * armholeLengthCm"
+          },
+          "princessDartCenter": {
+            "reference": "lateralWaist",
+            "formula": "0.44 * (backWaistCircumferenceCm / 2)"
+          },
+          "princessDartIntakeCm": 1.95
+        },
+        "studySizeGroups": [
+          "82-150",
+          "85-155",
+          "88-160"
+        ],
+        "knownValidationWarning": "Front dart-position errors in the study reached 5.08%-14.71%; do not enable without new fit and overlay validation."
+      },
+      "units": {
+        "length": "cm",
+        "ratio": "dimensionless"
+      },
+      "applicability": {
+        "garmentTypes": [
+          "women_jacket"
+        ],
+        "bodyRegions": [
+          "front_bodice",
+          "back_bodice"
+        ],
+        "fabricTypes": [],
+        "sizeSystems": [
+          "study_specific"
+        ],
+        "conditions": [
+          "only_for_matching_reference_measurement_definitions",
+          "must_be_revalidated_outside_study_sizes"
+        ]
+      },
+      "constraints": [
+        "Never apply to dresses, shirts, trousers, or other garment types without independent validation.",
+        "Require toile/fit validation and pattern-overlay error measurement for every supported size range."
+      ],
+      "exceptions": [
+        "Study reported greater variability for front dart positions than for back dart positions."
+      ],
+      "confidence": 0.78,
+      "provenance": [
+        {
+          "sourceId": "src-parametric-jacket-2025",
+          "sourceType": "repository",
+          "title": "Development of a parametric production jacket pattern for an automated pattern-making system",
+          "locator": "PDF pp. 9, 12-14; Table 3 and Table 4"
+        }
+      ],
+      "licensing": {
+        "status": "verified",
+        "licenseId": "CC-BY-4.0",
+        "allowedUses": [
+          "internal_analysis",
+          "derived_facts",
+          "commercial_runtime"
+        ],
+        "notes": "CC BY 4.0 article; attribute source and verify third-party exclusions. Rule remains draft due limited validation."
+      },
+      "review": {
+        "state": "machine_checked",
+        "testIds": [
+          "jacket-dart-ratio-input-validation",
+          "jacket-size-range-fit-overlay"
+        ]
+      }
+    }
+  ]
+}
