@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "1.1.0",
+  "library": "3D Patrons Fashion Model Library",
+  "category": "overalls",
+  "categoryLabelAr": "أفرولات وجمبسوت",
+  "source": {
+    "archive": "أفرولات.zip",
+    "archiveSizeBytes": 35889694,
+    "archiveSha256": "b8cabe1962145d2b1199dcc9c61f70595a5b9ae166c00d3e4ccd6ae69cc30ce6",
+    "archiveEntryCount": 12,
+    "sourceArchiveAvailableInChatLibrary": true,
+    "archiveCommittedToGit": false
+  },
+  "ingestion": {
+    "assetsUploadedToRepository": false,
+    "licenseStatus": "unverified",
+    "pdfType": "image_only_scan",
+    "selectableTextDetected": false,
+    "pageSize": "A4",
+    "coverReview": "visual review of page 1 only",
+    "patternPiecesDigitized": false,
+    "technicalMeasurementsExtracted": false
+  },
+  "items": [
+    {
+      "id": "overall-001",
+      "file": "أفرولات_Macaquinho inteiro de amarrar nas costas_6d2def74.pdf",
+      "format": "pdf",
+      "title": "Macaquinho inteiro de amarrar nas costas",
+      "titleAr": "جمبسوت قصير برباط خلفي",
+      "pageCount": 10,
+      "styleTags": [
+        "playsuit",
+        "back-tie",
+        "sleeveless"
+      ],
+      "visualSummaryAr": "جمبسوت قصير بحمالات رفيعة ورباط أو تفصيل مفتوح عند الظهر؛ الوصف مبني على صورة الغلاف فقط."
+    },
+    {
+      "id": "overall-002",
+      "file": "أفرولات_Macaquinho fitness para ginástica ou hidroginástic_fc8b8d7b.pdf",
+      "format": "pdf",
+      "title": "Macaquinho fitness para ginástica ou hidroginástica",
+      "titleAr": "جمبسوت رياضي قصير",
+      "pageCount": 9,
+      "styleTags": [
+        "fitness",
+        "unitard",
+        "stretchwear",
+        "short-leg"
+      ],
+      "visualSummaryAr": "قطعة رياضية ضيقة بلا أكمام وبساق قصيرة، مناسبة مبدئياً للأقمشة المطاطية؛ يلزم فحص صفحات الباترون لتأكيد تفاصيل التنفيذ."
+    },
+    {
+      "id": "overall-003",
+      "file": "أفرولات_Macacao ou macaquinho inteiro decote V_372e3f2c.pdf",
+      "format": "pdf",
+      "title": "Macacao ou macaquinho inteiro decote V",
+      "titleAr": "جمبسوت بياقة V",
+      "pageCount": 16,
+      "styleTags": [
+        "v-neck",
+        "jumpsuit",
+        "playsuit",
+        "multiple-length-variants"
+      ],
+      "visualSummaryAr": "تصاميم بياقة V تظهر بأطوال مختلفة بين الجمبسوت الطويل والقصير؛ يجب تحديد أي نسخة تخص كل قطعة باترون بعد مراجعة الصفحات."
+    },
+    {
+      "id": "overall-004",
+      "file": "أفرولات_Macacao cava americana (halter) drapeado de amarra_914f6faf.pdf",
+      "format": "pdf",
+      "title": "Macacao cava americana (halter) drapeado de amarra",
+      "titleAr": "جمبسوت هالتر واسع برباط",
+      "pageCount": 10,
+      "styleTags": [
+        "halter",
+        "draped-neckline",
+        "wide-leg",
+        "tie-detail"
+      ],
+      "visualSummaryAr": "جمبسوت طويل واسع الساقين بياقة هالتر وتفصيل منسدل مع رباط."
+    },
+    {
+      "id": "overall-005",
+      "file": "أفرولات_Avental jardineira salopete festa junina_2998edda.pdf",
+      "format": "pdf",
+      "title": "Avental jardineira salopete festa junina",
+      "titleAr": "سالوبت/مريلة فستان",
+      "pageCount": 9,
+      "styleTags": [
+        "salopette",
+        "pinafore",
+        "apron-dress",
+        "layered-pockets"
+      ],
+      "visualSummaryAr": "تصميم سالوبت شبيه بالمريلة مع واجهة وجيوب وتفاصيل زخرفية ظاهرة على الغلاف."
+    },
+    {
+      "id": "overall-006",
+      "file": "أفرولات_Macacões e macaquinhos – Assinatura_a106a60c.pdf",
+      "format": "pdf",
+      "title": "Macacões e macaquinhos – Assinatura",
+      "titleAr": "مجموعة موديلات أفرولات وجمبسوت",
+      "pageCount": 9,
+      "styleTags": [
+        "multi-style-collection",
+        "jumpsuit",
+        "playsuit"
+      ],
+      "visualSummaryAr": "مجموعة مرجعية تعرض أكثر من شكل للأفرولات والجمبسوت؛ لا تعامل كباترون منفرد قبل فصل الموديلات داخل الصفحات."
+    },
+    {
+      "id": "overall-007",
+      "file": "أفرولات_Macacão básico_d4f50616.pdf",
+      "format": "pdf",
+      "title": "Macacão básico",
+      "titleAr": "أفرول أساسي طويل",
+      "pageCount": 13,
+      "styleTags": [
+        "basic-jumpsuit",
+        "sleeveless",
+        "wide-leg",
+        "waist-detail"
+      ],
+      "visualSummaryAr": "أفرول طويل بلا أكمام وبساقين واسعتين مع تحديد للخصر؛ تفاصيل الجيوب والإغلاق تحتاج مراجعة صفحات الباترون."
+    },
+    {
+      "id": "overall-008",
+      "file": "أفرولات_Macaquinho de alcinha com elástico na cintura_ed70327e.pdf",
+      "format": "pdf",
+      "title": "Macaquinho de alcinha com elástico na cintura",
+      "titleAr": "جمبسوت قصير بحمالات وخصر مطاطي",
+      "pageCount": 13,
+      "styleTags": [
+        "playsuit",
+        "spaghetti-straps",
+        "elastic-waist"
+      ],
+      "visualSummaryAr": "جمبسوت قصير بحمالات رفيعة وخصر مجمّع أو مطاطي."
+    },
+    {
+      "id": "overall-009",
+      "file": "أفرولات_Macacão saruel para malha de média e alta elastici_410f463a.pdf",
+      "format": "pdf",
+      "title": "Macacão saruel para malha de média e alta elasticidade",
+      "titleAr": "أفرول سروال سارويل لقماش مطاطي",
+      "pageCount": 7,
+      "styleTags": [
+        "sarouel",
+        "dropped-crotch",
+        "knitwear",
+        "stretchwear"
+      ],
+      "visualSummaryAr": "أفرول بقَصّة سارويل وعمق حجر منخفض، مخصص بحسب العنوان لقماش محبوك متوسط إلى عالي المطاطية."
+    },
+    {
+      "id": "overall-010",
+      "file": "أفرولات_Macaquinho de um ombro só_68ea85cd.pdf",
+      "format": "pdf",
+      "title": "Macaquinho de um ombro só",
+      "titleAr": "جمبسوت قصير بكتف واحد",
+      "pageCount": 12,
+      "styleTags": [
+        "playsuit",
+        "one-shoulder",
+        "asymmetric-neckline"
+      ],
+      "visualSummaryAr": "جمبسوت قصير بفتحة كتف غير متماثلة وكتف واحد."
+    },
+    {
+      "id": "overall-011",
+      "file": "أفرولات_Macaquinho gola falsa com alcinha e transpasse_86c27747.pdf",
+      "format": "pdf",
+      "title": "Macaquinho gola falsa com alcinha e transpasse",
+      "titleAr": "جمبسوت قصير بياقة وهمية وحمالات وتداخل أمامي",
+      "pageCount": 12,
+      "styleTags": [
+        "playsuit",
+        "mock-neck-detail",
+        "straps",
+        "front-wrap"
+      ],
+      "visualSummaryAr": "جمبسوت قصير بتفصيل ياقة وهمية وحمالات وتداخل أمامي؛ يلزم التحقق من نوع الإغلاق من صفحات الباترون."
+    },
+    {
+      "id": "overall-012",
+      "file": "أفرولات_Macaquinho jardineira inteiro_a0295348.pdf",
+      "format": "pdf",
+      "title": "Macaquinho jardineira inteiro",
+      "titleAr": "جمبسوت قصير بتصميم سالوبت",
+      "pageCount": 12,
+      "styleTags": [
+        "playsuit",
+        "salopette",
+        "overall-style",
+        "front-closure"
+      ],
+      "visualSummaryAr": "جمبسوت قصير مستوحى من السالوبت/الأوفرول، مع واجهة أمامية وأشرطة كتف."
+    }
+  ]
+}
