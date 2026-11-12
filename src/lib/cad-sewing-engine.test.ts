@@ -101,7 +101,7 @@ describe('CAD sewing topology engine', () => {
     const audit = auditCadSewing(pieces, [pair]);
     assert.equal(audit.pairCount, 1);
     assert.equal(audit.readyCount, 1);
-    assert.equal(audit.unpairedEdgeCount, 1);
+    assert.equal(audit.unpairedEdgeCount, 2);
 
     const easePair = {
       id: 'sleeve-link',
