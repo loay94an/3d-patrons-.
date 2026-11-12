@@ -138,7 +138,7 @@ function edgeIndex(pieces: CadPiece[]): Map<string, ResolvedEdge> {
       const key = `${piece.id}\u0000${segment.id}`;
       if (index.has(key)) throw new Error('معرّف حافة CAD مكرر داخل القطعة.');
       index.set(key, {
-        reference: { pieceId: piece.id, segmentId: segment.id },        reference: { pieceId: piece.id, segmentId: segment.id },
+        reference: { pieceId: piece.id, segmentId: segment.id },
         pieceName: piece.nameAr || piece.name,
         garmentType: piece.garmentType,
         segment,
