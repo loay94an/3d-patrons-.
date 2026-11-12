@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ExternalLink, BookOpen, Scissors, Image as ImageIcon, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Search, ExternalLink, BookOpen, Scissors, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 
 type ReferenceRecord = {
   id: string; sourceId: string; title: string; category: string; categoryAr: string;
