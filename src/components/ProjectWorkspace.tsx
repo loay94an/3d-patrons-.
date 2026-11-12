@@ -74,7 +74,8 @@ export function ProjectWorkspace({ onOpenCad }: { onOpenCad: (project: ProjectSn
         if (project.cadDocument) {
           saveCadProjectDocument(
             typeof window === 'undefined' ? null : window.localStorage,
-            project.id, project.cadDocument.pieces, project.cadDocument.summaries, project.cadDocument.updatedAt
+            project.id, project.cadDocument.pieces, project.cadDocument.summaries, project.cadDocument.updatedAt,
+            project.cadDocument.stitchPairs
           );
         }
       });
