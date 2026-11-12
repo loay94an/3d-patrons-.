@@ -1201,9 +1201,6 @@ export function Pattern3DViewer({
         {cadPieceCount > 0 && <button onClick={() => setShowCadPieces(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${showCadPieces ? 'bg-amber-600/30 text-amber-100 border-amber-500/50' : 'text-amber-200 border-amber-700/40 hover:bg-amber-900/30'}`} title="عرض قطع CAD المحفوظة بالمقياس الهندسي في مساحة 3D؛ هذه معاينة مسطحة وليست محاكاة ارتداء">
           <Layers className="w-3.5 h-3.5" /><span>{showCadPieces ? 'إخفاء قطع CAD' : `قطع CAD (${cadPieceCount})`}</span>
         </button>}
-        <button onClick={() => setAnnyApiPanelOpen(value => !value)} className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium border ${annyApiPanelOpen ? 'bg-indigo-600/30 text-indigo-100 border-indigo-500/50' : 'text-indigo-200 hover:bg-indigo-900/40 border-indigo-700/40'}`} title="الاتصال بخدمة Anny وتوليد جسم مباشر">
-          <Activity className="w-3.5 h-3.5" /><span>Anny API</span>
-        </button>
         <button onClick={() => annyFileInputRef.current?.click()} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-200 hover:bg-cyan-900/40 border border-cyan-700/40" title="تحميل جسم Anny بصيغة GLB للمعاينة فقط">
           <Download className="w-3.5 h-3.5" /><span>تحميل Anny GLB</span>
         </button>
