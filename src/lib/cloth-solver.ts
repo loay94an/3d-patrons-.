@@ -504,3 +504,23 @@ export function analyzeClothBodyClearance(
         : 'لا يظهر تداخل أو تلامس ضمن هامش التحليل الحالي.'
   };
 }
+
+
+/** Copies simulated particle positions into the existing Three.js garment geometry. */
+export function updateClothBufferGeometry(
+  simulation: ClothSimulation,
+  geometry: THREE.BufferGeometry
+): void {
+  const position = geometry.getAttribute('position');
+  if (!position || position.count !== simulation.particles.length) {
+    throw new Error('عدد رؤوس شبكة العرض لا يطابق عدد جسيمات محاكاة القماش.');
+  }
+  for (let index = 0; index < simulation.particles.length; index++) {
+    const point = simulation.particles[index].position;
+    position.setXYZ(index, point.x, point.y, point.z);
+  }
+  position.needsUpdate = true;
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+}
