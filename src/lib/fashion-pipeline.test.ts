@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { prepareFashionPipeline, disposeFashionPipelineSession } from './fashion-pipeline';
+import { prepareFashionPipeline, disposeFashionPipelineSession, createFashionClothSimulation } from './fashion-pipeline';
 import type { CadPiece } from './pattern-cad-engine';
 import { DEFAULT_FABRIC_STATE } from './fabric-engine';
 
@@ -41,8 +41,11 @@ describe('unified fashion pipeline', () => {
     assert.equal(session.panels.length, 1);
     assert.equal(session.panels[0].pieceId, 'front-panel');
     assert.equal(session.fabric.id, DEFAULT_FABRIC_STATE.presetId);
-    assert.equal(session.readiness.physicalClothSimulation, 'adapter-required');
-    assert.equal(session.readiness.virtualTryOn, 'fit-analysis-required');
+    assert.equal(session.readiness.physicalClothSimulation, 'cpu-pbd-prototype');
+    assert.equal(session.readiness.virtualTryOn, 'clearance-analysis-available');
+    const cloth = createFashionClothSimulation(session);
+    assert.ok(cloth.triangles.length > 0);
+    assert.ok(cloth.constraints.length > 0);
     disposeFashionPipelineSession(session);
   });
 
