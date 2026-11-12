@@ -152,7 +152,6 @@ export function conformGarmentGroupToBody(
   });
   const totalVertices = reports.reduce((sum, report) => sum + report.totalVertices, 0);
   const fittedVertices = reports.reduce((sum, report) => sum + report.fittedVertices, 0);
-  const movedReports = reports.filter(report => report.fittedVertices > 0);
   const meanDisplacementCm = fittedVertices
     ? reports.reduce((sum, report) => sum + report.meanDisplacementCm * report.fittedVertices, 0) / fittedVertices
     : 0;
