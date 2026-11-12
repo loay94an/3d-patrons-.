@@ -22,9 +22,9 @@ function segment(
   };
 }
 
-function piece(id: string, segments: CadSegment[]): CadPiece {
+function piece(id: string, segments: CadSegment[], garmentType: CadPiece['garmentType'] = 'custom'): CadPiece {
   return {
-    id, name: id, nameAr: id, garmentType: 'custom',
+    id, name: id, nameAr: id, garmentType,
     segments, notches: [], grainlines: [], seamAllowanceCm: 1, notes: ''
   };
 }
@@ -59,8 +59,8 @@ describe('CAD sewing topology engine', () => {
         segment('back-side', 'side', { x: 0, y: 0 }, { x: 10.2, y: 0 })
       ]),
       piece('sleeve', [
-        segment('sleeve-cap', 'shoulder', { x: 0, y: 0 }, { x: 28, y: 0 })
-      ])
+        segment('sleeve-cap', 'armhole', { x: 0, y: 0 }, { x: 28, y: 0 })
+      ], 'sleeve')
     ];
     const suggestions = suggestCadStitchPairs(pieces);
     assert.equal(suggestions.length, 2);
