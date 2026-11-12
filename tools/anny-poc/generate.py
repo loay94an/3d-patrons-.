@@ -100,7 +100,8 @@ def measure_arm_pose(model: anny.Anny, output: dict) -> dict:
         if drops[side]["elbow_to_wrist_vertical"] < height * 0.01:
             raise RuntimeError(
                 f"Anny {side} forearm/hand is not directed downward from the elbow; "
-                "the relaxed arm pose failed wrist-drop validation"
+                f"vertical drops={drops[side]}, keypoints={{'shoulder': {by_label[f'{side}_shoulder']}, "
+                f"'elbow': {by_label[f'{side}_elbow']}, 'wrist': {by_label[f'{side}_wrist']}}}"
             )
         if drops[side]["shoulder_to_wrist_vertical"] < height * 0.015:
             raise RuntimeError(
