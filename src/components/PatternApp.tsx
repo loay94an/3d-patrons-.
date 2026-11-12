@@ -138,13 +138,11 @@ export default function PatternApp() {
   };
 
   const updateFabricState = (updates: Partial<FabricCustomState>) => {
-    setFabricState(prev => {
-      const next = { ...prev, ...updates };
-      if (activeProjectId && typeof window !== 'undefined') {
-        saveProjectFabric(window.localStorage, activeProjectId, next);
-      }
-      return next;
-    });
+    const next = { ...fabricState, ...updates };
+    setFabricState(next);
+    if (activeProjectId && typeof window !== 'undefined') {
+      saveProjectFabric(window.localStorage, activeProjectId, next);
+    }
   };
 
   // Keep the active project's measurement and ease snapshot aligned with every
