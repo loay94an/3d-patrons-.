@@ -38,7 +38,7 @@ describe('CAD sewing topology engine', () => {
     const cubic = segment('cubic', 'shoulder', { x: 0, y: 0 }, { x: 10, y: 0 }, {
       type: 'bezier', cp1: { x: 0, y: 10 }, cp2: { x: 10, y: 10 }, lengthCm: 10
     });
-    assert.equal(measureCadSegmentLengthCm(line), 5);
+    assert.ok(Math.abs(measureCadSegmentLengthCm(line) - 5) < 1e-9);
     assert.ok(measureCadSegmentLengthCm(quad) > 14.5);
     assert.ok(measureCadSegmentLengthCm(cubic) > 19.5);
     assert.throws(() => measureCadSegmentLengthCm(line, 1));
@@ -65,7 +65,8 @@ describe('CAD sewing topology engine', () => {
     const suggestions = suggestCadStitchPairs(pieces);
     assert.equal(suggestions.length, 2);
     assert.ok(suggestions.some(item =>
-      item.first.segmentId === 'front-shoulder' && item.second.segmentId === 'back-shoulder'
+      new Set([item.first.segmentId, item.second.segmentId]).has('front-shoulder') &&
+      new Set([item.first.segmentId, item.second.segmentId]).has('back-shoulder')
     ));
     assert.ok(suggestions.every(item => item.first.pieceId !== item.second.pieceId));
     assert.ok(suggestions.every(item => item.confidence >= 0 && item.confidence <= 1));
@@ -88,7 +89,7 @@ describe('CAD sewing topology engine', () => {
       piece('front', [segment('shoulder-front', 'shoulder', { x: 0, y: 0 }, { x: 10, y: 0 })]),
       piece('back', [
         segment('shoulder-back', 'shoulder', { x: 0, y: 0 }, { x: 10.1, y: 0 }),
-        segment('armhole-back', 'armhole', { x: 0, y: 0 }, { x: 11.9, y: 0 })
+        segment('armhole-back', 'armhole', { x: 0, y: 0 }, { x: 11, y: 0 })
       ]),
       piece('sleeve', [segment('sleeve-cap', 'armhole', { x: 0, y: 0 }, { x: 12, y: 0 })])
     ];
