@@ -27,7 +27,8 @@ import { ProjectWorkspace } from './ProjectWorkspace';
 import { createMeasurementProfile, validateStudioProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
-import { createStudioProject, loadProjects, persistProjects, type ProjectGarment, type ProjectMeasurements, type ProjectEase } from '../lib/project-store';
+import { createStudioProject, loadProjects, persistProjects, saveProject, type ProjectGarment, type ProjectMeasurements, type ProjectEase } from '../lib/project-store';
+import { loadProjectFabric, saveProjectFabric } from '../lib/project-fabric-store';
 
 export type MainViewTab = 'home' | 'encyclopedia' | 'catalog' | 'parametric' | 'cad2d' | 'view3d' | 'garment_image' | 'measurements' | 'fabrics' | 'export_guide' | 'projects';
 
@@ -137,8 +138,41 @@ export default function PatternApp() {
   };
 
   const updateFabricState = (updates: Partial<FabricCustomState>) => {
-    setFabricState(prev => ({ ...prev, ...updates }));
+    const next = { ...fabricState, ...updates };
+    setFabricState(next);
+    if (activeProjectId && typeof window !== 'undefined') {
+      saveProjectFabric(window.localStorage, activeProjectId, next);
+    }
   };
+
+  // Keep the active project's measurement and ease snapshot aligned with every
+  // shared-state edit, so CAD, 3D and project backups use the same inputs.
+  useEffect(() => {
+    if (!activeProjectId || typeof window === 'undefined') return;
+    const projects = loadProjects(window.localStorage);
+    const active = projects.find(project => project.id === activeProjectId);
+    if (!active) return;
+    const supportedGarments: ProjectGarment[] = ['blouse', 'dress', 'shirt', 'skirt', 'pants', 'tshirt', 'abaya', 'coat', 'hoodie', 'blazer'];
+    const garment = supportedGarments.includes(state.garment as ProjectGarment) ? state.garment as ProjectGarment : active.garment;
+    const measurements = {
+      ...active.measurements,
+      bust: state.customMeasurements.bust ?? state.customMeasurements.chest ?? active.measurements.bust,
+      waist: state.customMeasurements.waist ?? active.measurements.waist,
+      hip: state.customMeasurements.hip ?? active.measurements.hip,
+      backLength: state.customMeasurements.backLength ?? active.measurements.backLength,
+      sleeveLength: state.customMeasurements.sleeveLength ?? active.measurements.sleeveLength,
+      upperArm: state.customMeasurements.armCirc ?? active.measurements.upperArm
+    };
+    const ease = {
+      bust: state.customMeasurements.bustEase ?? active.ease.bust,
+      waist: state.customMeasurements.waistEase ?? active.ease.waist,
+      hip: state.customMeasurements.hipEase ?? active.ease.hip,
+      upperArm: state.customMeasurements.upperArmEase ?? active.ease.upperArm
+    };
+    const family = garment === 'pants' ? 'trousers' : garment === 'skirt' ? 'skirt' : garment === 'coat' || garment === 'blazer' ? 'jacket' : 'bodice';
+    const updated = saveProject(active, { garment, family, measurements, ease });
+    if (updated !== active) persistProjects(window.localStorage, projects.map(project => project.id === activeProjectId ? updated : project));
+  }, [state.garment, state.customMeasurements, activeProjectId]);
 
   const { values: patternValues, meas, ease, seam } = computePatternValues(state);
 
@@ -208,6 +242,7 @@ export default function PatternApp() {
     );
     const saved = typeof window !== 'undefined'
       && persistProjects(window.localStorage, [project, ...loadProjects(window.localStorage)]);
+    if (saved) saveProjectFabric(window.localStorage, project.id, fabricState);
     setActiveProjectId(saved ? project.id : null);
     if (!saved && typeof window !== 'undefined') {
       window.alert('تعذر حفظ المشروع محلياً؛ يمكنك متابعة الرسم لكن احفظ نسخة احتياطية قبل إغلاق الصفحة.');
@@ -456,6 +491,7 @@ export default function PatternApp() {
         )}
 
         {activeTab === 'projects' && <ProjectWorkspace onOpenCad={(project) => {
+          setFabricState(loadProjectFabric(typeof window !== 'undefined' ? window.localStorage : null, project.id) ?? DEFAULT_FABRIC_STATE);
           setActiveProjectId(project.id);
           setCadInitialDraft(null);
           const profile = createMeasurementProfile(project.measurements);
