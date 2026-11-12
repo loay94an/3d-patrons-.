@@ -19,6 +19,7 @@ import {
   createThreeMeshBodyCollider,
   type ClothFitAnalysis,
   type ClothSimulation,
+  type ClothPhysicalMaterial,
   type ClothSimulationBuildOptions
 } from './cloth-solver';
 
@@ -186,6 +187,18 @@ export function getFashionBodyMeasurements(session: FashionPipelineSession): Man
 
 
 /** Creates the CPU cloth simulation from the validated panels and confirmed seam pairs. */
+export function resolveClothPhysicalMaterial(fabric: FabricDefinition): ClothPhysicalMaterial {
+  const stretch = Math.max(0, Math.min(100, fabric.stretchPercent));
+  const stiffness = Math.max(0, Math.min(1, fabric.stiffness));
+  return {
+    arealDensityGPerCm2: fabric.weightGsm / 10000,
+    // Initial empirical mapping; material-coupon calibration is still required.
+    stretchStiffness: Math.max(0.45, Math.min(0.99, 0.99 - stretch * 0.004)),
+    shearStiffness: Math.max(0.35, Math.min(0.95, 0.88 - stretch * 0.003)),
+    bendStiffness: 0.04 + stiffness * 0.52
+  };
+}
+
 export function createFashionClothSimulation(
   session: FashionPipelineSession,
   options: ClothSimulationBuildOptions = {}
@@ -196,7 +209,10 @@ export function createFashionClothSimulation(
   return buildClothSimulation(
     session.panels.map(panel => panel.geometry),
     session.stitchPairs,
-    options
+    {
+      ...options,
+      material: options.material ?? resolveClothPhysicalMaterial(session.fabric)
+    }
   );
 }
 
