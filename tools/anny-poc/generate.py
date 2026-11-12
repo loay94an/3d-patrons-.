@@ -152,7 +152,7 @@ def main() -> None:
         "bounds_model_units": mesh.bounds.tolist(),
         "phenotype_parameters": phenotypes,
         "local_changes": {},
-        "pose": "symmetric-relaxed-arms-down",\n        "pose_parameterization": "world-orient",\n        "arm_pose_degrees": {"left_upper_arm": -90.0, "right_upper_arm": 90.0},
+        "pose": "symmetric-relaxed-arms-down",\n        "pose_parameterization": "world-orient",\n        "arm_pose_degrees": {"left_upper_arm": -90.0, "right_upper_arm": 90.0},\n        "arm_pose_bones": ["upperarm01.L", "upperarm02.L", "upperarm01.R", "upperarm02.R"],
         "elapsed_seconds_including_model_initialization": round(elapsed, 3),
         "output_file": str(output_path),
         "measurement_status": (
