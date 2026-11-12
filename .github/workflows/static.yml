@@ -54,7 +54,7 @@ jobs:
                   (Path("public/assets/engines") / name).write_bytes((source / name).read_bytes())
           env_file = Path(os.environ["GITHUB_ENV"])
           with env_file.open("a", encoding="utf-8") as stream:
-              stream.write(f"PYTHONPATH={source / 'src'}\\n")
+              stream.write(f"PYTHONPATH={source / 'src'}\n")
           print(f"Using official Anny source: {source}")
           PY
 
