@@ -68,9 +68,7 @@ The production Pages build generates `public/models/anny-neutral.glb` from the p
 4. GLB export is a transport format for the viewer; materials, skeleton/rig
    animation, and UV fidelity must be verified separately before production use.
 5. The source archive download is not a browser-executable engine. Live phenotype changes require a separately hosted, secured Python API.
-5. GitHub Pages is static hosting. Production inference requires a separately
-   deployed Python service (or pre-generated model assets); this repository
-   currently does not configure such a service.
+6. GitHub Pages is static hosting. This repository includes the API service and Docker configuration, but does not deploy that service or assign it a public URL.
 
 Do not use the optional `smplx` topology for commercial work without obtaining
 the separate SMPL-X license. The core Anny code is Apache-2.0; its README also
