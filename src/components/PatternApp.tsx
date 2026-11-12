@@ -101,7 +101,7 @@ export default function PatternApp() {
   const switchUserMode = (mode: 'beginner' | 'expert') => {
     setUserMode(mode);
     setShowMoreMenu(false);
-    if (mode === 'beginner' && ['garment_image', 'export_guide'].includes(activeTab)) {
+    if (mode === 'beginner' && activeTab === 'garment_image') {
       setActiveTab('home');
     }
   };
@@ -376,6 +376,17 @@ export default function PatternApp() {
     ? FABRIC_PRESETS
     : FABRIC_PRESETS.filter(f => f.category === selectedFabricCategory);
 
+  const journeySteps: { id: MainViewTab; title: string }[] = [
+    { id: 'catalog', title: 'الموديل' }, { id: 'measurements', title: 'القياسات' },
+    { id: 'parametric', title: 'التوليد' }, { id: 'cad2d', title: 'تعديل 2D' },
+    { id: 'view3d', title: 'معاينة 3D' }, { id: 'export_guide', title: 'التصدير' }
+  ];
+  const journeyIndex = journeySteps.findIndex(step => step.id === activeTab);
+  const goToJourneyStep = (index: number) => {
+    const step = journeySteps[index];
+    if (step) { setShowMoreMenu(false); setActiveTab(step.id); }
+  };
+
   return (
     <div className="app-shell h-screen w-screen overflow-hidden bg-slate-900 text-slate-100 flex flex-col font-['Cairo',sans-serif] select-none" dir="rtl">
       
@@ -451,13 +462,15 @@ export default function PatternApp() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">اختر نوع الملابس، أدخل المقاسات، أنشئ الباترون، ثم شاهد النتيجة. يمكنك تعديل أي خطوة في أي وقت.</p>
               <button onClick={() => setActiveTab('catalog')} className="mt-5 rounded-xl bg-indigo-500 px-5 py-3 text-sm font-extrabold text-white">ابدأ تصميمًا جديدًا <ArrowRight className="mr-1 inline h-4 w-4"/></button>
             </section>
-            <section className="space-y-3"><div><h2 className="text-lg font-extrabold text-white">رحلة التصميم</h2><p className="mt-1 text-xs text-slate-400">أربع خطوات واضحة من الفكرة إلى المعاينة</p></div>
+            <section className="space-y-3"><div><h2 className="text-lg font-extrabold text-white">رحلة التصميم</h2><p className="mt-1 text-xs text-slate-400">ست مراحل مترابطة من اختيار الموديل حتى تصدير الباترون</p></div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {[
-                  {id:'catalog',n:'١',title:'اختر نوع الملابس',desc:'بلوزة أو فستان أو تنورة أو بنطال.',icon:<Shirt className="h-5 w-5"/>},
-                  {id:'measurements',n:'٢',title:'أدخل المقاسات',desc:'استخدم المقاسات الأساسية أو عدّلها.',icon:<Ruler className="h-5 w-5"/>},
-                  {id:'parametric',n:'٣',title:'أنشئ الباترون',desc:'حوّل اختياراتك إلى قالب أولي.',icon:<Sparkles className="h-5 w-5"/>},
-                  {id:'view3d',n:'٤',title:'شاهد التصميم',desc:'عاين المجسم والخامة المتاحة.',icon:<Box className="h-5 w-5"/>}
+                  {id:'catalog',n:'١',title:'اختر فئة وموديل الملابس',desc:'استعرض الموديلات المتاحة فعلياً في المكتبة.',icon:<Shirt className="h-5 w-5"/>},
+                  {id:'measurements',n:'٢',title:'حدد الجسم والمقاسات',desc:'اختر الفئة العمرية والمقاس أو أدخل قياساتك.',icon:<Ruler className="h-5 w-5"/>},
+                  {id:'parametric',n:'٣',title:'ولّد الباترون',desc:'حوّل الموديل والقياسات إلى مسودة هندسية.',icon:<Sparkles className="h-5 w-5"/>},
+                  {id:'cad2d',n:'٤',title:'راجع وعدّل الباترون',desc:'افتح محرر CAD لمراجعة القطع وتعديلها.',icon:<DraftingCompass className="h-5 w-5"/>},
+                  {id:'view3d',n:'٥',title:'عاين ثلاثي الأبعاد',desc:'شاهد الجسم والخامة والنتيجة المتاحة.',icon:<Box className="h-5 w-5"/>},
+                  {id:'export_guide',n:'٦',title:'صدّر عملك',desc:'جهّز ملف PDF أو جدول القياسات Excel.',icon:<Download className="h-5 w-5"/>}
                 ].map(item=><button key={item.id} onClick={()=>setActiveTab(item.id as MainViewTab)} className="flex min-h-24 items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/80 p-4 text-right hover:border-indigo-500/60">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-sm font-black text-slate-200">{item.n}</span>
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-indigo-300">{item.icon}</span>
@@ -606,25 +619,11 @@ export default function PatternApp() {
         {activeTab === 'catalog' && (
           <div className="w-full h-full">
             <PatternCatalog onSelect={(garment, gender) => {
-              const selectedMeasurements = gender === state.gender
-                ? currentMeas
-                : getBaseMeasurements(gender, getSizeList(gender)[0]);
-              startProjectForCad(garment, {
-                bust: selectedMeasurements.bust ?? selectedMeasurements.chest ?? 88,
-                waist: selectedMeasurements.waist ?? 70,
-                hip: selectedMeasurements.hip ?? 94,
-                backLength: selectedMeasurements.backLength ?? 40,
-                sleeveLength: selectedMeasurements.sleeveLength ?? 58,
-                upperArm: selectedMeasurements.armCirc ?? selectedMeasurements.upperArm ?? 30
-              }, {
-                bust: state.customMeasurements.bustEase ?? 4,
-                waist: state.customMeasurements.waistEase ?? 2,
-                hip: state.customMeasurements.hipEase ?? 4,
-                upperArm: state.customMeasurements.upperArmEase ?? 3
-              });
+              // Preserve the selected model and body profile in shared app state.
+              // Measurement entry comes next; CAD project creation follows validation.
               setCadInitialDraft(null);
               updateState({ garment, gender });
-              setActiveTab('cad2d');
+              setActiveTab('measurements');
             }} />
           </div>
         )}
@@ -1032,6 +1031,30 @@ export default function PatternApp() {
           </div>
         )}
       </main>
+
+      {userMode === 'beginner' && journeyIndex >= 0 && (
+        <section aria-label="التقدم في رحلة التصميم" className="z-20 shrink-0 border-t border-slate-800 bg-slate-950 px-2 py-2 sm:px-4">
+          <div className="mx-auto flex max-w-5xl items-center gap-2">
+            <button type="button" onClick={() => goToJourneyStep(journeyIndex - 1)} disabled={journeyIndex === 0}
+              className="rounded-lg border border-slate-700 px-2.5 py-2 text-[11px] font-bold text-slate-200 disabled:cursor-not-allowed disabled:opacity-35">السابق</button>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center justify-between gap-2 text-[10px]">
+                <span className="font-bold text-slate-200">المرحلة {journeyIndex + 1} من 6 · {journeySteps[journeyIndex].title}</span>
+                <span className="text-slate-500">{Math.round(((journeyIndex + 1) / journeySteps.length) * 100)}٪</span>
+              </div>
+              <div className="flex gap-1" role="list" aria-label="مراحل التصميم">
+                {journeySteps.map((step, index) => (
+                  <button key={step.id} type="button" role="listitem" aria-label={`المرحلة ${index + 1}: ${step.title}`}
+                    aria-current={index === journeyIndex ? 'step' : undefined} onClick={() => goToJourneyStep(index)}
+                    className={cn("h-1.5 min-w-0 flex-1 rounded-full transition-colors", index <= journeyIndex ? "bg-indigo-500" : "bg-slate-700")} />
+                ))}
+              </div>
+            </div>
+            <button type="button" onClick={() => goToJourneyStep(journeyIndex + 1)} disabled={journeyIndex === journeySteps.length - 1}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-35">التالي</button>
+          </div>
+        </section>
+      )}
 
 {/* Primary navigation: five high-frequency destinations plus a compact tools menu. */}
       <nav aria-label="التنقل الرئيسي" className="relative z-30 flex h-16 shrink-0 items-center justify-around border-t border-slate-800/90 bg-slate-950 px-1 sm:px-3">
