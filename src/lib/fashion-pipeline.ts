@@ -13,6 +13,14 @@ import {
 import { buildCadPanelGeometry } from './cad-panel-geometry';
 import { auditCadSewing } from './cad-sewing-engine';
 import { FABRIC_PRESETS } from './fabric-engine';
+import {
+  analyzeClothBodyClearance,
+  buildClothSimulation,
+  createThreeMeshBodyCollider,
+  type ClothFitAnalysis,
+  type ClothSimulation,
+  type ClothSimulationBuildOptions
+} from './cloth-solver';
 
 /**
  * One versioned hand-off between anthropometry, 2D pattern CAD, sewing,
@@ -55,6 +63,7 @@ export interface FashionPipelineSession {
   sewing: CadSewingAudit;
   fabric: FabricDefinition;
   fabricState: FabricCustomState;
+  stitchPairs: CadStitchPair[];
   issues: FashionPipelineIssue[];
   readiness: {
     body: boolean;
@@ -62,8 +71,8 @@ export interface FashionPipelineSession {
     sewing: boolean;
     fabric: boolean;
     threePreview: boolean;
-    physicalClothSimulation: 'adapter-required';
-    virtualTryOn: 'fit-analysis-required';
+    physicalClothSimulation: 'cpu-pbd-prototype' | 'adapter-required';
+    virtualTryOn: 'clearance-analysis-available' | 'fit-analysis-required';
   };
 }
 
@@ -140,6 +149,7 @@ export function prepareFashionPipeline(input: FashionPipelineInput): FashionPipe
     sewing,
     fabric: fabric ?? FABRIC_PRESETS[0],
     fabricState: input.fabric,
+    stitchPairs: input.pattern.stitchPairs ?? [],
     issues,
     readiness: {
       body: true,
@@ -147,8 +157,8 @@ export function prepareFashionPipeline(input: FashionPipelineInput): FashionPipe
       sewing: sewingReady,
       fabric: fabricReady,
       threePreview: patternReady && fabricReady,
-      physicalClothSimulation: 'adapter-required',
-      virtualTryOn: 'fit-analysis-required'
+      physicalClothSimulation: patternReady ? 'cpu-pbd-prototype' : 'adapter-required',
+      virtualTryOn: patternReady ? 'clearance-analysis-available' : 'fit-analysis-required'
     }
   };
 }
@@ -172,4 +182,38 @@ export function disposeFashionPipelineSession(session: FashionPipelineSession): 
 /** Extracts the body-only measurements shared by pattern and garment engines. */
 export function getFashionBodyMeasurements(session: FashionPipelineSession): MannequinMeasurements {
   return { ...session.body.body };
+}
+
+
+/** Creates the CPU cloth simulation from the validated panels and confirmed seam pairs. */
+export function createFashionClothSimulation(
+  session: FashionPipelineSession,
+  options: ClothSimulationBuildOptions = {}
+): ClothSimulation {
+  if (!session.readiness.pattern) {
+    throw new Error('لا يمكن تشغيل محاكاة القماش قبل تجهيز جميع قطع الباترون.');
+  }
+  return buildClothSimulation(
+    session.panels.map(panel => panel.geometry),
+    session.stitchPairs,
+    options
+  );
+}
+
+/** Uses the session's parametric body as the shared collision surface. */
+export function createFashionBodyCollider(session: FashionPipelineSession) {
+  return createThreeMeshBodyCollider(session.mannequin);
+}
+
+/** Reports garment/body clearance and penetration for the current cloth state. */
+export function analyzeFashionFit(
+  session: FashionPipelineSession,
+  simulation: ClothSimulation
+): ClothFitAnalysis {
+  const collider = createFashionBodyCollider(session);
+  return analyzeClothBodyClearance(
+    simulation.particles.map(particle => particle.position),
+    collider,
+    simulation.options.collisionThickness
+  );
 }
