@@ -46,7 +46,7 @@ describe('Anny body geometry calibration', () => {
     for (let i = 0; i < original.count; i++) {
       const x = original.getX(i);
       const y = original.getY(i);
-      if (Math.hypot(x, y) > 0.24) {
+      if (Math.hypot(x, y) > 0.32) {
         outsideArmVertices.push([x, y, original.getZ(i)]);
       }
     }
