@@ -59,8 +59,8 @@ def build_relaxed_arm_pose(model: anny.Anny, device: str) -> torch.Tensor:
     rotations = {
         "upperarm01.L": (0.0, 0.0, -0.9),
         "upperarm01.R": (0.0, 0.0, 0.9),
-        "lowerarm01.L": (0.0, -1.1, 0.0),
-        "lowerarm01.R": (0.0, 1.1, 0.0),
+        "lowerarm01.L": (0.0, 1.1, 0.0),
+        "lowerarm01.R": (0.0, -1.1, 0.0),
     }
     for label, rotation_vector in rotations.items():
         index = labels.index(label)
@@ -200,8 +200,8 @@ def main() -> None:
         "arm_pose_rotvec_radians": {
             "upperarm01.L": [0.0, 0.0, -0.9],
             "upperarm01.R": [0.0, 0.0, 0.9],
-            "lowerarm01.L": [0.0, -1.1, 0.0],
-            "lowerarm01.R": [0.0, 1.1, 0.0]
+            "lowerarm01.L": [0.0, 1.1, 0.0],
+            "lowerarm01.R": [0.0, -1.1, 0.0]
         },
         "arm_pose_validation": arm_pose_report,
         "elapsed_seconds_including_model_initialization": round(elapsed, 3),
