@@ -79,9 +79,19 @@ export interface ClothPanelPlacement {
   pinnedVertices?: number[];
 }
 
+export interface ClothPhysicalMaterial {
+  /** Fabric areal density in grams per square centimetre. */
+  arealDensityGPerCm2: number;
+  stretchStiffness: number;
+  shearStiffness: number;
+  bendStiffness: number;
+}
+
 export interface ClothSimulationBuildOptions extends ClothSolverOptions {
   /** One placement per piece ID. CAD coordinates are centimetres. */
   placements?: Record<string, ClothPanelPlacement>;
+  /** Calibrated physical properties resolved from the selected fabric preset. */
+  material?: ClothPhysicalMaterial;
 }
 
 const DEFAULT_OPTIONS: Required<ClothSolverOptions> = {
@@ -120,8 +130,15 @@ export function buildClothSimulation(
   const options: Required<ClothSolverOptions> = {
     ...DEFAULT_OPTIONS,
     ...buildOptions,
+    stretchStiffness: buildOptions.material?.stretchStiffness ?? buildOptions.stretchStiffness ?? DEFAULT_OPTIONS.stretchStiffness,
+    shearStiffness: buildOptions.material?.shearStiffness ?? buildOptions.shearStiffness ?? DEFAULT_OPTIONS.shearStiffness,
+    bendStiffness: buildOptions.material?.bendStiffness ?? buildOptions.bendStiffness ?? DEFAULT_OPTIONS.bendStiffness,
     gravity: buildOptions.gravity?.clone() ?? DEFAULT_OPTIONS.gravity.clone()
   };
+  const arealDensity = buildOptions.material?.arealDensityGPerCm2 ?? 0.012;
+  if (!Number.isFinite(arealDensity) || arealDensity <= 0 || arealDensity > 1) {
+    throw new Error('كثافة القماش السطحية غير صالحة.');
+  }
   for (const [name, value] of [
     ['damping', options.damping],
     ['stretchStiffness', options.stretchStiffness],
@@ -173,6 +190,25 @@ export function buildClothSimulation(
       }
     }
   }
+
+  // Distribute fabric mass to vertices by triangle area. Inverse mass weights
+  // constraint corrections, while gravity remains acceleration-based.
+  const vertexMass = new Array<number>(particles.length).fill(0);
+  for (const triangle of triangles) {
+    const a = particles[triangle.a].position;
+    const b = particles[triangle.b].position;
+    const c = particles[triangle.c].position;
+    const area = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).length() / 2;
+    const massPerVertex = area * arealDensity / 3;
+    vertexMass[triangle.a] += massPerVertex;
+    vertexMass[triangle.b] += massPerVertex;
+    vertexMass[triangle.c] += massPerVertex;
+  }
+  particles.forEach((particle, index) => {
+    if (particle.inverseMass > 0) {
+      particle.inverseMass = 1 / Math.max(vertexMass[index], 1e-6);
+    }
+  });
 
   // Triangle edges provide membrane resistance; interior diagonals are treated
   // as shear constraints. Opposite vertices across shared edges provide bend resistance.
