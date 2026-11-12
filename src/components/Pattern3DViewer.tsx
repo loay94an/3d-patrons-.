@@ -530,26 +530,38 @@ export function Pattern3DViewer({
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    if (cadPreviewGroupRef.current) {
-      scene.remove(cadPreviewGroupRef.current);
-      disposeObjectResources(cadPreviewGroupRef.current);
-      cadPreviewGroupRef.current = null;
-    }
-    setCadPieceCount(0);
-    setShowCadPieces(false);
-    setSewingPanelOpen(false);
-    setCadDocument(null);
-    setCadSewingAudit(null);
-    if (!projectId || typeof window === 'undefined') return;
-    const document = loadCadProjectDocument(window.localStorage, projectId);
-    if (!document?.pieces.length) return;
-    const preview = buildCadPiecePreview(document.pieces);
-    preview.visible = false;
-    scene.add(preview);
-    cadPreviewGroupRef.current = preview;
-    setCadPieceCount(preview.children.length);
-    setCadDocument(document);
-    setCadSewingAudit(auditCadSewing(document.pieces, document.stitchPairs));
+
+    const refreshCadDocument = () => {
+      if (cadPreviewGroupRef.current) {
+        scene.remove(cadPreviewGroupRef.current);
+        disposeObjectResources(cadPreviewGroupRef.current);
+        cadPreviewGroupRef.current = null;
+      }
+      setCadPieceCount(0);
+      setShowCadPieces(false);
+      setCadDocument(null);
+      setCadSewingAudit(null);
+      if (!projectId || typeof window === 'undefined') return;
+
+      const document = loadCadProjectDocument(window.localStorage, projectId);
+      if (!document?.pieces.length) return;
+      const preview = buildCadPiecePreview(document.pieces);
+      preview.visible = false;
+      scene.add(preview);
+      cadPreviewGroupRef.current = preview;
+      setCadPieceCount(preview.children.length);
+      setCadDocument(document);
+      setCadSewingAudit(auditCadSewing(document.pieces, document.stitchPairs));
+    };
+
+    refreshCadDocument();
+    if (typeof window === 'undefined') return;
+    const handleCadDocumentChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (detail?.projectId === projectId) refreshCadDocument();
+    };
+    window.addEventListener('patron-studio:cad-document-updated', handleCadDocumentChanged);
+    return () => window.removeEventListener('patron-studio:cad-document-updated', handleCadDocumentChanged);
   }, [projectId]);
 
   const acceptCadSeamSuggestion = (suggestion: CadSeamSuggestion) => {
