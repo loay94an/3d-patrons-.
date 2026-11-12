@@ -1256,7 +1256,7 @@ export function Pattern3DViewer({
               <span>فرق {suggestion.differenceCm.toFixed(2)} سم</span>
             </div>
             <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[10px] text-cyan-200">ثقة المطابقة {(suggestion.confidence * 100).toFixed(0)}%</span>
+              <span className="text-[10px] text-cyan-200">مؤشر التوافق {(suggestion.confidence * 100).toFixed(0)}%</span>
               <button onClick={() => acceptCadSeamSuggestion(suggestion)} className="rounded-lg bg-cyan-700 px-3 py-1.5 font-semibold text-white hover:bg-cyan-600">اعتماد وصلة</button>
             </div>
           </div>)}
