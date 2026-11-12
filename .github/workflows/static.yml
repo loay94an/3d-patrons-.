@@ -25,6 +25,39 @@ jobs:
       - name: Validate Anny generator syntax
         run: python -m compileall -q tools/anny-poc
 
+      # Bundle the official Anny source archive for download and generate
+      # the site's default GLB from this pinned upstream source revision.
+      - name: Fetch pinned Anny source archive
+        if: github.event_name != 'pull_request'
+        run: |
+          mkdir -p public/assets/engines "$RUNNER_TEMP/anny-upstream"
+          curl --fail --location --retry 3 \
+            "https://github.com/naver/anny/archive/8f35dc2df1c4062fd2fae86734f9705de50c0c2b.zip" \
+            --output public/assets/engines/anny-source.zip
+          python - <<'PY'
+          import os
+          import zipfile
+          from pathlib import Path
+
+          archive = Path("public/assets/engines/anny-source.zip")
+          extract_root = Path(os.environ["RUNNER_TEMP"]) / "anny-upstream"
+          with zipfile.ZipFile(archive) as bundle:
+              roots = {name.split("/", 1)[0] for name in bundle.namelist() if "/" in name}
+              if len(roots) != 1:
+                  raise SystemExit(f"Unexpected Anny source archive roots: {sorted(roots)}")
+              bundle.extractall(extract_root)
+          source = extract_root / next(iter(roots))
+          if not (source / "src" / "anny" / "__init__.py").is_file():
+              raise SystemExit("Pinned Anny archive does not contain the expected Python package")
+          for name in ("LICENSE", "LICENSE_THINGS"):
+              if (source / name).is_file():
+                  (Path("public/assets/engines") / name).write_bytes((source / name).read_bytes())
+          env_file = Path(os.environ["GITHUB_ENV"])
+          with env_file.open("a", encoding="utf-8") as stream:
+              stream.write(f"PYTHONPATH={source / 'src'}\\n")
+          print(f"Using official Anny source: {source}")
+          PY
+
       # The static site cannot run PyTorch in the browser. Generate one
       # neutral Anny GLB during the Pages build and serve it as a static asset.
       - name: Install CPU PyTorch for the bundled Anny body
