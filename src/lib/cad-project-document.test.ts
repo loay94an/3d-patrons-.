@@ -5,13 +5,13 @@ import type { CadPiece, PieceSpecSummary } from './pattern-cad-engine';
 import type { CadStitchPair } from './cad-sewing-engine';
 
 const pieces: CadPiece[] = [{
-  id: 'piece-1', name: 'Front', nameAr: 'الأمام', garmentType: 'custom',
-  segments: [{ id: 's1', type: 'line', p1: { x: 0, y: 0 }, p2: { x: 10, y: 0 }, layer: 'cutting', lengthCm: 10 }],
+  id: 'piece-1', name: 'Front', nameAr: 'الأمام', garmentType: 'bodice',
+  segments: [{ id: 's1', type: 'line', p1: { x: 0, y: 0 }, p2: { x: 10, y: 0 }, layer: 'cutting', edgeType: 'shoulder', lengthCm: 10 }],
   notches: [], grainlines: [], seamAllowanceCm: 1.5, notes: 'اختبار'
 }];
 const backPieces: CadPiece[] = [{
   ...pieces[0], id: 'piece-2', name: 'Back', nameAr: 'الخلف',
-  segments: [{ id: 's2', type: 'line', p1: { x: 0, y: 0 }, p2: { x: 10, y: 0 }, layer: 'cutting', lengthCm: 10 }]
+  segments: [{ id: 's2', type: 'line', p1: { x: 0, y: 0 }, p2: { x: 10, y: 0 }, layer: 'cutting', edgeType: 'shoulder', lengthCm: 10 }]
 }];
 const stitchPairs: CadStitchPair[] = [{
   id: 'shoulder-link', first: { pieceId: 'piece-1', segmentId: 's1' },
@@ -102,6 +102,31 @@ describe('per-project CAD document storage', () => {
     assert.equal(saveCadProjectDocument(storage, 'project-a', [...pieces, ...backPieces], summaries, 'first', stitchPairs), true);
     assert.equal(saveCadProjectDocument(storage, 'project-a', [...pieces, ...backPieces], summaries, 'second'), true);
     assert.deepEqual(loadCadProjectDocument(storage, 'project-a')?.stitchPairs, stitchPairs);
+  });
+
+
+  it('rejects duplicate seam pairs and reused CAD edges before saving', () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); }
+    };
+    const duplicatePairs = [
+      ...stitchPairs,
+      { ...stitchPairs[0], id: 'second-link' }
+    ];
+    assert.equal(
+      saveCadProjectDocument(storage, 'project-a', [...pieces, ...backPieces], summaries, 'now', duplicatePairs),
+      false
+    );
+    const duplicateIds = [
+      stitchPairs[0],
+      { ...stitchPairs[0], id: stitchPairs[0].id }
+    ];
+    assert.equal(
+      saveCadProjectDocument(storage, 'project-a', [...pieces, ...backPieces], summaries, 'now', duplicateIds),
+      false
+    );
   });
 
 });
