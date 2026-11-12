@@ -1042,6 +1042,7 @@ export function Pattern3DViewer({
             object.receiveShadow = true;
           }
         });
+        setAnnyPreviewEnabled(false);
         if (annyGroupRef.current) annyGroupRef.current.visible = false;
         if (garmentResultRef.current) garmentResultRef.current.group.visible = false;
         scene.add(group);
@@ -1066,6 +1067,7 @@ export function Pattern3DViewer({
       referencePreviewGroupRef.current = null;
     }
     setReferencePreviewFile(null);
+    setAnnyPreviewEnabled(true);
     if (annyGroupRef.current) annyGroupRef.current.visible = true;
     if (garmentResultRef.current) garmentResultRef.current.group.visible = showGarmentOnAnny;
     requestAnimationFrame(() => frameScene(true));
