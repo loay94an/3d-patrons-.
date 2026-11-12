@@ -2,6 +2,10 @@ name: Anny runtime proof of concept
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tools/anny-poc/**'
+      - '.github/workflows/anny-runtime-poc.yml'
 
 permissions:
   contents: read
@@ -59,6 +63,11 @@ jobs:
           assert report["vertex_count"] > 0
           assert report["triangle_count"] > 0
           assert "Not calibrated" in report["measurement_status"]
+          arm_report = report["arm_pose_validation"]
+          assert arm_report["validation"] == "passed"
+          assert arm_report["left_right_symmetry_error_model_units"] >= 0
+          assert arm_report["vertical_drop_model_units"]["left"]["shoulder_to_wrist_vertical"] > 0
+          assert arm_report["vertical_drop_model_units"]["right"]["shoulder_to_wrist_vertical"] > 0
 
           scene = trimesh.load(glb, force="scene")
           meshes = [geometry for geometry in scene.geometry.values()
