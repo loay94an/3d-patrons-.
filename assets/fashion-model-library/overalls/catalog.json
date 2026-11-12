@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "1.0.0",
+  "library": "3D Patrons Fashion Model Library",
+  "category": "overalls",
+  "categoryLabelAr": "أفرولات",
+  "sourceArchive": "أفرولات.zip",
+  "sourceArchiveSizeBytes": 35889694,
+  "archiveEntryCount": 12,
+  "assetsUploadedToRepository": false,
+  "licenseStatus": "unverified",
+  "items": [
+    {
+      "id": "overall-001",
+      "file": "أفرولات_Macaquinho inteiro de amarrar nas costas_6d2def74.pdf",
+      "format": "pdf",
+      "title": "Macaquinho inteiro de amarrar nas costas",
+      "titleAr": "جمبسوت قصير برباط خلفي"
+    },
+    {
+      "id": "overall-002",
+      "file": "أفرولات_Macaquinho fitness para ginástica ou hidroginástic_fc8b8d7b.pdf",
+      "format": "pdf",
+      "title": "Macaquinho fitness para ginástica ou hidroginástica",
+      "titleAr": "جمبسوت رياضي"
+    },
+    {
+      "id": "overall-003",
+      "file": "أفرولات_Macacao ou macaquinho inteiro decote V_372e3f2c.pdf",
+      "format": "pdf",
+      "title": "Macacao ou macaquinho inteiro decote V",
+      "titleAr": "جمبسوت كامل بياقة V"
+    },
+    {
+      "id": "overall-004",
+      "file": "أفرولات_Macacao cava americana (halter) drapeado de amarra_914f6faf.pdf",
+      "format": "pdf",
+      "title": "Macacao cava americana (halter) drapeado de amarra",
+      "titleAr": "جمبسوت هالتر مكشكش برباط"
+    },
+    {
+      "id": "overall-005",
+      "file": "أفرولات_Avental jardineira salopete festa junina_2998edda.pdf",
+      "format": "pdf",
+      "title": "Avental jardineira salopete festa junina",
+      "titleAr": "سالوبت/مريلة"
+    },
+    {
+      "id": "overall-006",
+      "file": "أفرولات_Macacões e macaquinhos – Assinatura_a106a60c.pdf",
+      "format": "pdf",
+      "title": "Macacões e macaquinhos – Assinatura",
+      "titleAr": "مجموعة أفرولات وجمبسوت"
+    },
+    {
+      "id": "overall-007",
+      "file": "أفرولات_Macacão básico_d4f50616.pdf",
+      "format": "pdf",
+      "title": "Macacão básico",
+      "titleAr": "أفرول أساسي"
+    },
+    {
+      "id": "overall-008",
+      "file": "أفرولات_Macaquinho de alcinha com elástico na cintura_ed70327e.pdf",
+      "format": "pdf",
+      "title": "Macaquinho de alcinha com elástico na cintura",
+      "titleAr": "جمبسوت قصير بحمالات وخصر مطاطي"
+    },
+    {
+      "id": "overall-009",
+      "file": "أفرولات_Macacão saruel para malha de média e alta elastici_410f463a.pdf",
+      "format": "pdf",
+      "title": "Macacão saruel para malha de média e alta elasticidade",
+      "titleAr": "أفرول سروال واسع لقماش مطاطي"
+    },
+    {
+      "id": "overall-010",
+      "file": "أفرولات_Macaquinho de um ombro só_68ea85cd.pdf",
+      "format": "pdf",
+      "title": "Macaquinho de um ombro só",
+      "titleAr": "جمبسوت قصير بكتف واحد"
+    },
+    {
+      "id": "overall-011",
+      "file": "أفرولات_Macaquinho gola falsa com alcinha e transpasse_86c27747.pdf",
+      "format": "pdf",
+      "title": "Macaquinho gola falsa com alcinha e transpasse",
+      "titleAr": "جمبسوت قصير بياقة وهمية وحمالات متقاطعة"
+    },
+    {
+      "id": "overall-012",
+      "file": "أفرولات_Macaquinho jardineira inteiro_a0295348.pdf",
+      "format": "pdf",
+      "title": "Macaquinho jardineira inteiro",
+      "titleAr": "جمبسوت قصير بتصميم سالوبت"
+    }
+  ]
+}
