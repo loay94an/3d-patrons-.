@@ -94,10 +94,10 @@ test('parametric pattern generator consumes dimensionless ease scales', () => {
     additionalEase: 1.5,
     easeScaleProfile: { bust: 1.1, waist: 0.9, hip: 1.05, upperArm: 1.2 }
   });
-  assert.equal(resolved.bust, 2.2);
-  assert.equal(resolved.waist, -1.75);
-  assert.equal(resolved.hip, 1.2);
-  assert.equal(resolved.upperArm, 1.6);
+  assert.ok(Math.abs(resolved.bust - 2.2) < 1e-9);
+  assert.ok(Math.abs(resolved.waist - (-1.75)) < 1e-9);
+  assert.ok(Math.abs(resolved.hip - 1.2) < 1e-9);
+  assert.ok(Math.abs(resolved.upperArm - 1.6) < 1e-9);
 });
 
 test('explicit centimetre ease overrides the corresponding scale only', () => {
@@ -110,7 +110,7 @@ test('explicit centimetre ease overrides the corresponding scale only', () => {
     easeScaleProfile: { bust: 1.1, waist: 1.1 }
   });
   assert.equal(resolved.bust, 3);
-  assert.equal(resolved.waist, 1.75);
+  assert.ok(Math.abs(resolved.waist - 1.75) < 1e-9);
   assert.equal(resolved.hip, 1.5);
 });
 
