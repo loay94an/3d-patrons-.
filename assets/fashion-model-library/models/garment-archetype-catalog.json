@@ -1,0 +1,183 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "A source-backed catalog of garment archetypes to guide pattern-engine expansion. Entries are not production-ready patterns and contain no invented measurements or piece coordinates.",
+  "count": 10,
+  "status": "research_candidate",
+  "archetypes": [
+    {
+      "id": "garment-tank-top",
+      "name": "Tank top",
+      "nameAr": "قميص كت بدون أكمام",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "Cloth2Tex README example scale dictionary key 1_wy; category label is ambiguous, so retain as tank-top candidate only.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "confirm garment subtype from source image/data",
+        "define front/back bodice and strap geometry",
+        "extract armhole and neckline curves",
+        "record stretch and ease rules"
+      ]
+    },
+    {
+      "id": "garment-polo",
+      "name": "Polo shirt",
+      "nameAr": "قميص بولو",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 2_Polo.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "collar and collar stand",
+        "front placket",
+        "sleeve and cuff options",
+        "body ease and knit/woven variants"
+      ]
+    },
+    {
+      "id": "garment-tshirt",
+      "name": "T-shirt",
+      "nameAr": "تيشيرت",
+      "category": "upper_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 3_Tshirt.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back body",
+        "sleeve variants",
+        "neckband geometry",
+        "knit stretch and recovery"
+      ]
+    },
+    {
+      "id": "garment-shorts",
+      "name": "Shorts",
+      "nameAr": "شورت",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 4_shorts.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back crotch curves",
+        "waistband and closure",
+        "leg opening and hem",
+        "inseam/outseam matching"
+      ]
+    },
+    {
+      "id": "garment-trousers",
+      "name": "Trousers",
+      "nameAr": "بنطال",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 5_trousers.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back rise and crotch",
+        "waist and hip shaping",
+        "pockets and fly",
+        "grading and inseam/outseam validation"
+      ]
+    },
+    {
+      "id": "garment-zip-up",
+      "name": "Zip-up jacket",
+      "nameAr": "جاكيت بسحاب",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 6_zipup.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front split and zipper tape",
+        "collar/hood variants",
+        "sleeve and cuff",
+        "lining and seam assembly"
+      ]
+    },
+    {
+      "id": "garment-windcoat",
+      "name": "Windcoat",
+      "nameAr": "معطف واقٍ من الرياح",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 7_windcoat.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "hood/collar and closure",
+        "shell/lining relationship",
+        "ease and layering allowance",
+        "cuffs and hem adjustments"
+      ]
+    },
+    {
+      "id": "garment-jacket",
+      "name": "Jacket",
+      "nameAr": "جاكيت",
+      "category": "outerwear",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 9_jacket.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "front/back panels",
+        "lapel/collar and facing",
+        "sleeve cap and armhole pairing",
+        "lining, darts and grading"
+      ]
+    },
+    {
+      "id": "garment-skirt",
+      "name": "Skirt",
+      "nameAr": "تنورة",
+      "category": "lower_body",
+      "source": "cloth2tex",
+      "evidence": "README scale dictionary key 11_skirt.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "not_provided",
+      "nextExtraction": [
+        "waist/hip shaping",
+        "panel and flare geometry",
+        "waistband and closure",
+        "hem sweep and grainline"
+      ]
+    },
+    {
+      "id": "garment-aaron-shirt",
+      "name": "Aaron sleeveless shirt",
+      "nameAr": "قميص Aaron بلا أكمام",
+      "category": "upper_body",
+      "source": "costumy",
+      "evidence": "Costumy README example imports costumy.design.Aaron and creates a pattern from body measurements; do not infer exact pieces from the README alone.",
+      "patternPieces": null,
+      "measurements": null,
+      "geometryStatus": "source-design-needs-inspection",
+      "nextExtraction": [
+        "inspect actual Aaron design source",
+        "map measurement inputs to our body schema",
+        "export SVG/JSON pattern and verify units",
+        "validate seam metadata before 3D conversion"
+      ]
+    }
+  ],
+  "validation": {
+    "sourceBackedArchetypes": 10,
+    "productionReady": 0,
+    "rule": "A category name or demo does not count as a digitized pattern. Promotion requires source geometry, units, measurements, seam metadata, license review and tests."
+  }
+}
