@@ -205,6 +205,7 @@ export function Pattern3DViewer({
 }: Pattern3DViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const [rendererError, setRendererError] = useState('');
   const [presentationMode, setPresentationMode] = useState<'atelier' | 'luxury'>('atelier');
   const [referenceLibraryOpen, setReferenceLibraryOpen] = useState(false);
   const [referencePreviewFile, setReferencePreviewFile] = useState<string | null>(null);
@@ -330,7 +331,16 @@ export function Pattern3DViewer({
     // Renderer
     // Mobile GPUs can stall when this viewer renders at native 2x DPR with
     // large shadow maps. Keep a bounded render resolution for a responsive UI.
-    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    } catch {
+      sceneRef.current = null;
+      cameraRef.current = null;
+      setRendererError('تعذر تشغيل العرض ثلاثي الأبعاد على هذا المتصفح أو الجهاز. يمكنك متابعة أدوات القياس والرسم ثنائي الأبعاد دون فقدان بياناتك.');
+      return;
+    }
+    setRendererError('');
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     renderer.setSize(width, height, false);
     renderer.shadowMap.enabled = true;
@@ -1274,9 +1284,16 @@ export function Pattern3DViewer({
         onLostPointerCapture={handlePointerEnd}
         onWheel={handleWheel}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ touchAction: 'none', width: '100%', height: '100%', minHeight: 0, display: 'block' }}
+        style={{ touchAction: 'none', width: '100%', height: '100%', minHeight: 0, display: 'block', position: 'relative' }}
         className="w-full h-full min-h-0 cursor-grab active:cursor-grabbing select-none overscroll-none"
-      />
+      >
+        {rendererError && <div role="alert" className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950 p-6 text-center">
+          <div className="max-w-md rounded-2xl border border-amber-500/30 bg-slate-900 p-5 text-sm leading-7 text-amber-100">
+            <strong className="block text-base">العرض ثلاثي الأبعاد غير متاح</strong>
+            <p className="mt-2">{rendererError}</p>
+          </div>
+        </div>}
+      </div>
 
       {!annyPreviewEnabled && !annyBundledBusy && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
