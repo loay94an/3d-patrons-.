@@ -1121,7 +1121,8 @@ export function Pattern3DViewer({
         </div>
       </div>
 
-      {annyLoadError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{annyLoadError}</div>}
+      {/* Anny preview load messages are intentionally hidden; the model remains visible. */}
+      {false && annyLoadError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{annyLoadError}</div>}
       {glbExportError && <div role="status" className="absolute top-16 left-3 right-3 z-20 rounded-lg border border-rose-500/40 bg-rose-950/90 px-3 py-2 text-xs text-rose-100">{glbExportError}</div>}
 
       {/* Main 3D Canvas */}
@@ -1314,7 +1315,8 @@ export function Pattern3DViewer({
         </button>
       </div>
 
-      {annyPreviewEnabled && showAnnyPreviewInfo && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
+      {/* All Anny preview information, calibration summaries, and warnings are hidden by design. */}
+      {false && annyPreviewEnabled && showAnnyPreviewInfo && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold">معاينة جسم Anny والملابس</div>
