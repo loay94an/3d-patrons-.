@@ -90,7 +90,7 @@ describe('fabric-aware drape profile', () => {
   it('starts smoothly at the supported top edge and grows toward the free hem', () => {
     const top = calculateFabricDrapeFold(0.7, 0, 0.2, 75, 90);
     const lower = calculateFabricDrapeFold(0.7, 0.9, 0.2, 75, 90);
-    assert.equal(top, 0);
+    assert.equal(Math.abs(top), 0);
     assert.ok(Number.isFinite(lower));
     assert.ok(Math.abs(lower) > Math.abs(top));
   });
