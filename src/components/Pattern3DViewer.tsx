@@ -224,11 +224,15 @@ export function Pattern3DViewer({
 
   // Visual toggles
   const [annyPreviewEnabled, setAnnyPreviewEnabled] = useState(false);
+  const [showAnnyPreviewInfo, setShowAnnyPreviewInfo] = useState(true);
   const annyAutoLoadStartedRef = useRef(false);
   // Garment geometry is drafted from the project's tape measurements; keep this
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
   const [annyFileName, setAnnyFileName] = useState('');
+  useEffect(() => {
+    if (annyPreviewEnabled) setShowAnnyPreviewInfo(true);
+  }, [annyPreviewEnabled, annyFileName]);
   const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
   const [annyLoadError, setAnnyLoadError] = useState('');
   const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
@@ -1310,8 +1314,20 @@ export function Pattern3DViewer({
         </button>
       </div>
 
-      {annyPreviewEnabled && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
-        <div className="font-semibold">معاينة جسم Anny والملابس</div><div className="mt-1 text-slate-300">{annyFileName}</div>
+      {annyPreviewEnabled && showAnnyPreviewInfo && <div className="absolute bottom-16 right-3 z-10 max-w-[min(22rem,85vw)] rounded-xl border border-cyan-500/40 bg-slate-900/95 p-3 text-right text-xs text-cyan-100 shadow-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-semibold">معاينة جسم Anny والملابس</div>
+            <div className="mt-1 text-slate-300">{annyFileName}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAnnyPreviewInfo(false)}
+            aria-label="إغلاق نافذة معلومات وتحذيرات Anny"
+            title="إغلاق النافذة"
+            className="shrink-0 rounded-md px-2 py-0.5 text-lg leading-none text-slate-300 hover:bg-slate-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          >×</button>
+        </div>
         {annyGeometryError && <div role="status" className="mt-2 rounded-lg border border-rose-500/40 bg-rose-950/50 p-2 text-[10px] leading-4 text-rose-100">تعذر بناء سطح الملابس من جسم Anny: {annyGeometryError}. لم يتم الرجوع إلى هندسة المانيكان القديمة.</div>}
         {annyBodyProfileSummary && <div className="mt-2 rounded-lg border border-cyan-500/30 bg-cyan-950/30 p-2 text-[10px] leading-4">
           <div className="text-emerald-200">مصدر جسم القطعة الرئيسية: مقاطع Anny الفعلية ({annyBodyProfileSummary.sections} مقطعاً)</div>
