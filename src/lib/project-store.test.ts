@@ -48,7 +48,7 @@ describe('project workspace storage', () => {
   it('rejects malformed project history and duplicate project identifiers in imported archives', () => {
     const project = createProject('آمن');
     const malformed = { ...project, history: [{ version: 1, savedAt: project.createdAt, measurements: null, ease: project.ease, notes: '' }] };
-    assert.throws(() => importProjects(exportProjects([malformed as typeof project])));
+    assert.throws(() => importProjects(exportProjects([malformed as unknown as typeof project])));
     assert.throws(() => importProjects(exportProjects([project, project])));
   });
   it('ignores malformed and duplicate local projects instead of exposing unsafe records to the UI', () => {
