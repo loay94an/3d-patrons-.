@@ -18,6 +18,7 @@ import { buildAnnyBodyProfile } from '../lib/anny-body-profile';
 import { loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
 import { auditCadSewing, createCadStitchPairFromSuggestion, type CadSeamSuggestion, type CadSewingAudit } from '../lib/cad-sewing-engine';
 import type { CadPiece } from '../lib/pattern-cad-engine';
+import { buildCadPanelGeometry, type CadPanelGeometry } from '../lib/cad-panel-geometry';
 import type { AnnyCalibrationCandidate, AnnyProfileReport } from '../lib/anny-measurement-fit';
 
 /**
@@ -52,6 +53,40 @@ function disposeObjectResources(root: THREE.Object3D) {
 }
 
 
+function createCadPanelBufferGeometry(panel: CadPanelGeometry): THREE.BufferGeometry {
+  const positions = new Float32Array(panel.vertices.length * 3);
+  const uvs = new Float32Array(panel.vertices.length * 2);
+  const width = Math.max(panel.bounds.maxX - panel.bounds.minX, 1e-8);
+  const height = Math.max(panel.bounds.maxY - panel.bounds.minY, 1e-8);
+
+  panel.vertices.forEach((point, index) => {
+    positions[index * 3] = point.x;
+    positions[index * 3 + 1] = point.y;
+    positions[index * 3 + 2] = 0;
+    uvs[index * 2] = (point.x - panel.bounds.minX) / width;
+    uvs[index * 2 + 1] = (point.y - panel.bounds.minY) / height;
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geometry.setIndex(panel.triangleIndices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  // Keep CAD segment IDs and sampled boundary vertices alongside the render mesh.
+  // The same mapping will be used later to assemble sewn panels without re-identifying edges.
+  geometry.userData.cadPanel = {
+    pieceId: panel.pieceId,
+    garmentType: panel.garmentType,
+    unit: panel.unit,
+    seamAllowanceCm: panel.seamAllowanceCm,
+    areaCm2: panel.areaCm2,
+    boundaryEdges: panel.boundaryEdges
+  };
+  return geometry;
+}
+
 function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
   const root = new THREE.Group();
   root.name = 'saved-cad-piece-preview';
@@ -59,42 +94,14 @@ function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
   let cursorZ = 0;
   let rowDepth = 0;
   pieces.forEach((piece, index) => {
-    const contour = piece.segments.filter(segment => segment.layer === 'cutting');
-    if (contour.length < 3) return;
-    const first = contour[0];
-    const ordered: CadPiece['segments'] = [first];
-    const remaining = contour.slice(1);
-    let current = first.p2;
-    while (remaining.length) {
-      const nextIndex = remaining.findIndex(segment =>
-        Math.hypot(current.x - segment.p1.x, current.y - segment.p1.y) < 0.15 ||
-        Math.hypot(current.x - segment.p2.x, current.y - segment.p2.y) < 0.15
-      );
-      if (nextIndex < 0) break;
-      const next = remaining.splice(nextIndex, 1)[0];
-      if (Math.hypot(current.x - next.p2.x, current.y - next.p2.y) < 0.15) {
-        ordered.push({ ...next, p1: next.p2, p2: next.p1, cp1: next.cp2 ?? next.cp1, cp2: next.cp1 ?? next.cp2 });
-        current = next.p1;
-      } else {
-        ordered.push(next);
-        current = next.p2;
-      }
+    let panelData: CadPanelGeometry;
+    try {
+      panelData = buildCadPanelGeometry(piece);
+    } catch {
+      // Keep invalid/open CAD contours out of the 3D panel preview.
+      return;
     }
-    const closed = remaining.length === 0 && Math.hypot(current.x - first.p1.x, current.y - first.p1.y) < 0.15;
-    if (!closed) return;
-    const shape = new THREE.Shape();
-    shape.moveTo(first.p1.x, first.p1.y);
-    ordered.forEach(segment => {
-      if (segment.type === 'quad' && segment.cp1) {
-        shape.quadraticCurveTo(segment.cp1.x, segment.cp1.y, segment.p2.x, segment.p2.y);
-      } else if (segment.type === 'bezier' && segment.cp1 && segment.cp2) {
-        shape.bezierCurveTo(segment.cp1.x, segment.cp1.y, segment.cp2.x, segment.cp2.y, segment.p2.x, segment.p2.y);
-      } else {
-        shape.lineTo(segment.p2.x, segment.p2.y);
-      }
-    });
-    shape.closePath();
-    const geometry = new THREE.ShapeGeometry(shape, 12);
+    const geometry = createCadPanelBufferGeometry(panelData);
     geometry.computeBoundingBox();
     const bounds = geometry.boundingBox;
     if (!bounds) { geometry.dispose(); return; }
@@ -117,6 +124,7 @@ function buildCadPiecePreview(pieces: CadPiece[]): THREE.Group {
     });
     const panel = new THREE.Mesh(geometry, material);
     panel.name = piece.nameAr || piece.name;
+    panel.userData.cadPanel = geometry.userData.cadPanel;
     panel.castShadow = true;
     panel.receiveShadow = true;
     pieceGroup.add(panel);

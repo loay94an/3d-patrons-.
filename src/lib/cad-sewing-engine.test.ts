@@ -72,6 +72,18 @@ describe('CAD sewing topology engine', () => {
     assert.ok(suggestions.every(item => item.confidence >= 0 && item.confidence <= 1));
   });
 
+  it('matches a bodice armhole only to a sleeve cap, not to another bodice panel', () => {
+    const pieces = [
+      piece('front', [segment('front-armhole', 'armhole', { x: 0, y: 0 }, { x: 14, y: 0 })], 'bodice'),
+      piece('back', [segment('back-armhole', 'armhole', { x: 0, y: 0 }, { x: 14.1, y: 0 })], 'bodice'),
+      piece('sleeve', [segment('sleeve-cap', 'armhole', { x: 0, y: 0 }, { x: 14.05, y: 0 })], 'sleeve')
+    ];
+    const suggestions = suggestCadStitchPairs(pieces);
+    assert.equal(suggestions.length, 1);
+    assert.equal(suggestions[0].edgeType, 'armhole');
+    assert.ok([suggestions[0].first.pieceId, suggestions[0].second.pieceId].includes('sleeve'));
+  });
+
   it('does not suggest already-used edges or duplicate edge assignments', () => {
     const pieces = [
       piece('a', [segment('a-shoulder', 'shoulder', { x: 0, y: 0 }, { x: 10, y: 0 })]),
