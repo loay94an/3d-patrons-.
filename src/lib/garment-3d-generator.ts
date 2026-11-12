@@ -365,6 +365,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
         radius: armRadius,
         tilt,
         stiffness,
+        weightGsm: preset.weightGsm,
         material: finalMaterial
       });
       group.add(sleeve);
@@ -439,6 +440,7 @@ interface SleeveOptions {
   radius: number;
   tilt: number;
   stiffness: number;
+  weightGsm: number;
   material: THREE.Material;
 }
 
@@ -448,7 +450,7 @@ interface SleeveOptions {
  * rounded sleeve head.
  */
 function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
-  const { side, startX, startY, length, radius, tilt, stiffness, material } = opts;
+  const { side, startX, startY, length, radius, tilt, stiffness, weightGsm, material } = opts;
 
   const vSteps = 22;
   const rSteps = 24;
@@ -475,7 +477,7 @@ function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
     for (let j = 0; j <= rSteps; j++) {
       const u = j / rSteps;
       const angle = u * Math.PI * 2;
-      const fold = calculateFabricDrapeFold(angle, v, stiffness, 180, Math.PI * radius * 2);
+      const fold = calculateFabricDrapeFold(angle, v, stiffness, weightGsm, Math.PI * radius * 2);
 
       positions.push(
         cx + (rad + fold) * Math.cos(angle),
