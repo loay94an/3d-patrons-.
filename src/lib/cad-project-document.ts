@@ -53,16 +53,19 @@ function validStitchPairs(value: unknown, pieces: CadPiece[]): value is CadStitc
 /** Validates CAD documents and migrates legacy version-1 documents in memory. */
 export function validateCadProjectDocument(value: unknown, expectedProjectId?: string): CadProjectDocument {
   if (!value || typeof value !== 'object') throw new Error('ملف هندسة CAD غير صالح.');
-  const document = value as Partial<CadProjectDocument> & { schemaVersion?: number; stitchPairs?: unknown };
-  if (![1, 2].includes(document.schemaVersion ?? 0) || typeof document.projectId !== 'string' ||
+  const document = value as Record<string, unknown>;
+  const schemaVersion = document.schemaVersion;
+  if ((schemaVersion !== 1 && schemaVersion !== 2) || typeof document.projectId !== 'string' ||
       (expectedProjectId && document.projectId !== expectedProjectId) ||
       !Array.isArray(document.pieces) || !Array.isArray(document.summaries)) {
     throw new Error('بنية ملف هندسة CAD غير مدعومة أو لا تخص هذا المشروع.');
   }
-  if (document.pieces.length > 500 || document.summaries.length > 500) {
+  const pieces = document.pieces as CadPiece[];
+  const summaries = document.summaries as PieceSpecSummary[];
+  if (pieces.length > 500 || summaries.length > 500) {
     throw new Error('يتجاوز ملف CAD الحد المسموح به من القطع.');
   }
-  const validPieces = document.pieces.every(piece =>
+  const validPieces = pieces.every(piece =>
     piece && typeof piece.id === 'string' && typeof piece.name === 'string' &&
     typeof piece.nameAr === 'string' && Array.isArray(piece.segments) &&
     piece.segments.length <= 2000 && Array.isArray(piece.notches) &&
@@ -79,7 +82,7 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
       Number.isFinite(notch.angleDeg) && Number.isFinite(notch.depthCm)) &&
     piece.grainlines.every(line => line && finitePoint(line.p1) && finitePoint(line.p2))
   );
-  const validSummaries = document.summaries.every(summary =>
+  const validSummaries = summaries.every(summary =>
     summary && typeof summary.pieceId === 'string' &&
     typeof summary.nameAr === 'string' && typeof summary.nameEn === 'string' &&
     Number.isFinite(summary.lengthCm) && Number.isFinite(summary.widthCm) &&
@@ -88,10 +91,8 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
   );
   if (!validPieces || !validSummaries) throw new Error('تحتوي وثيقة CAD على عناصر هندسية غير صالحة.');
 
-  const stitchPairs = document.schemaVersion === 1
-    ? []
-    : document.stitchPairs;
-  if (!validStitchPairs(stitchPairs, document.pieces)) {
+  const stitchPairs = schemaVersion === 1 ? [] : document.stitchPairs;
+  if (!validStitchPairs(stitchPairs, pieces)) {
     throw new Error('تحتوي وثيقة CAD على وصلات خياطة غير صالحة أو على مراجع حواف غير موجودة.');
   }
 
@@ -99,8 +100,8 @@ export function validateCadProjectDocument(value: unknown, expectedProjectId?: s
     schemaVersion: 2,
     projectId: document.projectId,
     updatedAt: typeof document.updatedAt === 'string' ? document.updatedAt : new Date(0).toISOString(),
-    pieces: document.pieces,
-    summaries: document.summaries,
+    pieces,
+    summaries,
     stitchPairs
   };
 }
