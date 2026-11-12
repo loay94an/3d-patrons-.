@@ -60,9 +60,7 @@ The production Pages build generates `public/models/anny-neutral.glb` from the p
 
 ## Current limitations and next validation gate
 
-1. This experiment has not yet been executed in the project's GitHub Actions
-   environment or on the target Android device. A successful repository build
-   does not prove that Anny's PyTorch model runs on either environment.
+1. GitHub Actions runs the CPU model-generation and geometry-validation workflow on relevant pull requests and on production Pages builds. A successful CI run still does not prove identical performance on the target Android device.
 2. Mesh coordinates are not assumed to be centimetres. A scale/orientation
    calibration against known reference geometry is required.
 3. No circumference extraction, anthropometric fitting, measurement-error
