@@ -76,7 +76,7 @@ export function PatternByNumbersModal({
 
   const handleCopyPoint = (pt: ReferencePointInfo) => {
     const text = `${pt.nameAr} (${pt.name}): X=${pt.x} سم, Y=${pt.y} سم`;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopiedPointId(pt.id);
     setTimeout(() => setCopiedPointId(null), 1500);
   };

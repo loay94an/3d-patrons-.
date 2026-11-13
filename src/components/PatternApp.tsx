@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import {
   AppState, Gender, SizeSystem, Unit, GarmentType, School, FabricType, SleeveType,
   getSizeList, mapSizeBySystem, getMeasurements, computePatternValues, getGarmentLabel,
+  getGenderLabel, getSchoolLabel, getFabricLabel,
   getBaseMeasurements
 } from '../lib/pattern-logic';
 import { DEFAULT_MANNEQUIN_MEASUREMENTS } from '../lib/mannequin-builder';
@@ -25,6 +26,7 @@ import { GarmentImageWorkbench } from './GarmentImageWorkbench';
 import { PdfExportModal } from './PdfExportModal';
 import { PWAInstallButton } from './PWAInstallButton';
 import { ProjectWorkspace } from './ProjectWorkspace';
+import { PatternGuidancePanel } from './PatternGuidancePanel';
 import { createMeasurementProfile, validateStudioProfile } from '../lib/measurement-profile';
 import { cn } from '../lib/utils';
 import type { BasicSkirtDraftResult } from '../lib/basic-skirt-pattern';
@@ -168,8 +170,8 @@ export default function PatternApp() {
 
   const formatDim = (v: number | undefined) => {
     if (v === undefined || isNaN(v)) return '—';
-    let val = state.unit === 'in' ? v / 2.54 : v;
-    let unitSym = state.unit === 'cm' ? 'سم' : 'إنش';
+    const val = state.unit === 'in' ? v / 2.54 : v;
+    const unitSym = state.unit === 'cm' ? 'سم' : 'إنش';
     return val.toFixed(1) + ' ' + unitSym;
   };
 
@@ -241,6 +243,9 @@ export default function PatternApp() {
 
   const isWomen = state.gender === 'women';
   const isKids = state.gender === 'kids' || state.gender === 'infant';
+  const isInches = state.unit === 'in';
+  const toDisplayUnit = (cm: number) => (isInches ? cm / 2.54 : cm);
+  const fromDisplayUnit = (value: number) => (isInches ? value * 2.54 : value);
 
   const measurementFields = [
     {
@@ -463,7 +468,7 @@ export default function PatternApp() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">اختر نوع الملابس، أدخل المقاسات، أنشئ الباترون، ثم شاهد النتيجة. يمكنك تعديل أي خطوة في أي وقت.</p>
               <button onClick={() => setActiveTab('catalog')} className="mt-5 rounded-xl bg-indigo-500 px-5 py-3 text-sm font-extrabold text-white">ابدأ تصميمًا جديدًا <ArrowRight className="mr-1 inline h-4 w-4"/></button>
             </section>
-            <section className="space-y-3"><div><h2 className="text-lg font-extrabold text-white">رحلة التصميم</h2><p className="mt-1 text-xs text-slate-400">ست مراحل مترابطة من اختيار الموديل حتى تصدير الباترون</p></div>
+            <section className="space-y-3"><div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">رحلة التصميم</h2><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">ست مراحل مترابطة من اختيار الموديل حتى تصدير الباترون</p></div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {[
                   {id:'catalog',n:'١',title:'اختر فئة وموديل الملابس',desc:'استعرض الموديلات المتاحة فعلياً في المكتبة.',icon:<Shirt className="h-5 w-5"/>},
@@ -505,7 +510,7 @@ export default function PatternApp() {
                 </div>
               </section>
               <section className="space-y-3">
-                <div><h2 className="text-lg font-extrabold text-white">ابدأ من هنا</h2><p className="mt-1 text-xs text-slate-400">اختر المهمة التي تريد إنجازها</p></div>
+                <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">ابدأ من هنا</h2><p className="mt-1 text-xs text-slate-600 dark:text-slate-400">اختر المهمة التي تريد إنجازها</p></div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {[
                     { id: 'measurements', title: 'إعداد القياسات', desc: 'أدخل قياسات الجسم وراجعها قبل التصميم.', icon: <Ruler className="h-5 w-5" />, color: 'text-cyan-300' },
@@ -754,7 +759,10 @@ export default function PatternApp() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {measurementFields.map(f => {
                   const rawVal = currentMeas[f.key] ?? (f.key === 'frontLength' ? 62 : f.min);
-                  const displayVal = state.unit === 'in' ? rawVal / 2.54 : rawVal;
+                  const displayVal = toDisplayUnit(rawVal);
+                  const displayMin = toDisplayUnit(f.min);
+                  const displayMax = toDisplayUnit(f.max);
+                  const displayStep = isInches ? Math.round((f.step / 2.54) * 100) / 100 : f.step;
 
                   return (
                     <div key={f.key} className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1.5">
@@ -766,15 +774,15 @@ export default function PatternApp() {
                       </div>
                       <input
                         type="range"
-                        min={f.min}
-                        max={f.max}
-                        step={f.step}
-                        value={rawVal}
+                        min={Number(displayMin.toFixed(2))}
+                        max={Number(displayMax.toFixed(2))}
+                        step={displayStep}
+                        value={Number(displayVal.toFixed(2))}
                         onChange={(e) => updateState({
                           useCustomMode: true,
                           customMeasurements: {
                             ...state.customMeasurements,
-                            [f.key]: parseFloat(e.target.value)
+                            [f.key]: Math.round(fromDisplayUnit(parseFloat(e.target.value)) * 10) / 10
                           }
                         })}
                         className="w-full accent-indigo-500 cursor-pointer h-2 bg-slate-800 rounded-lg"
@@ -1037,6 +1045,29 @@ export default function PatternApp() {
                 <p><strong>حردة الرقبة:</strong> عرض = <span className="font-mono text-blue-400 font-bold">{formatDim(patternValues[5])}</span>، نزول أمامي = <span className="font-mono text-blue-400 font-bold">{formatDim(patternValues[7])}</span>، نزول خلفي = <span className="font-mono text-blue-400 font-bold">{formatDim(patternValues[8])}</span>.</p>
                 <p><strong>بدلات الخياطة:</strong> الجوانب {formatDim(seam.side)}، الأكتاف {formatDim(seam.shoulder)}، الرقبة {formatDim(seam.neckArmhole)}، الحاشية {formatDim(seam.hem)}.</p>
               </div>
+
+              <PatternGuidancePanel
+                request={{
+                  garment: getGarmentLabel(state.garment),
+                  gender: getGenderLabel(state.gender),
+                  school: getSchoolLabel(state.school),
+                  fabric: getFabricLabel(state.fabric),
+                  size: String(state.size),
+                  unit: state.unit,
+                  measurements: getDetailedValues()
+                    .map((value, index) => ({ label: detailedNames[index], value }))
+                    .filter(measure => Number.isFinite(measure.value)),
+                  patternValues: patternValues
+                    .map((value, index) => ({ label: patternNames[index] ?? `قيمة ${index + 1}`, value }))
+                    .filter(measure => Number.isFinite(measure.value)),
+                  seam: [
+                    { label: 'بدل الجوانب', value: seam.side },
+                    { label: 'بدل الأكتاف', value: seam.shoulder },
+                    { label: 'بدل الرقبة وحردة الإبط', value: seam.neckArmhole },
+                    { label: 'بدل الحاشية', value: seam.hem },
+                  ],
+                }}
+              />
             </div>
           </div>
         )}

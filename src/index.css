@@ -24,32 +24,21 @@ select option {
 
 /* Clean, consistent application shell */
 .app-shell {
-  background: #f5f7fb !important;
-  color: #182235 !important;
+  background: #f5f7fb;
+  color: #182235;
   font-family: "Cairo", system-ui, sans-serif;
 }
 .app-shell > header,
 .app-shell > nav {
-  background: rgba(255,255,255,.96) !important;
-  color: #182235 !important;
-  border-color: #e4e9f1 !important;
+  background: rgba(255,255,255,.96);
+  color: #182235;
+  border-color: #e4e9f1;
   box-shadow: 0 2px 12px rgba(20,35,60,.045);
 }
 .app-shell > header {
   min-height: 58px;
   padding-inline: clamp(12px, 2.4vw, 28px);
 }
-.app-shell > header .text-white,
-.app-shell > nav .text-white { color: #182235 !important; }
-.app-shell > header .bg-slate-800,
-.app-shell > header .bg-slate-900 {
-  background: #f1f4f9 !important;
-  color: #344258 !important;
-  border-color: #e2e8f0 !important;
-}
-.app-shell > header .border-slate-800,
-.app-shell > nav .border-slate-800,
-.app-shell > nav .border-slate-800\/90 { border-color: #e5eaf2 !important; }
 .app-shell > nav {
   min-height: 66px;
   padding: 6px max(8px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
@@ -59,32 +48,82 @@ select option {
   border-radius: 12px;
   transition: background .18s ease, color .18s ease;
 }
-.app-shell > nav button:hover { background: #f1f5fb; }
-.app-shell > nav button.text-blue-400 { background: #edf3ff; color: #2459c5 !important; }
-.app-shell > main {
-  background: #f5f7fb !important;
+.app-shell button, .app-shell select, .app-shell input { font-family: inherit; }
+.app-shell > main { background: #f5f7fb; }
+
+/* Light theme: the app markup uses dark palette utilities, so map them to the
+   light shell only where the panels were designed to be light. Headings and
+   muted copy that sit directly on the shell background are handled below. */
+html:not(.dark) .app-shell > header .text-white,
+html:not(.dark) .app-shell > nav .text-white { color: #182235; }
+html:not(.dark) .app-shell > header .bg-slate-800,
+html:not(.dark) .app-shell > header .bg-slate-900 {
+  background: #f1f4f9;
+  color: #344258;
+  border-color: #e2e8f0;
 }
-.app-shell > main > div[class*="max-w-"] {
+html:not(.dark) .app-shell > header .border-slate-800,
+html:not(.dark) .app-shell > header .border-slate-700,
+html:not(.dark) .app-shell > nav .border-slate-800,
+html:not(.dark) .app-shell > nav .border-slate-800\/90 { border-color: #e5eaf2; }
+html:not(.dark) .app-shell > nav button:hover { background: #f1f5fb; }
+html:not(.dark) .app-shell > nav button.text-blue-400 { background: #edf3ff; color: #2459c5 !important; }
+html:not(.dark) .app-shell > nav .text-slate-400 { color: #64748b; }
+
+/* Journey progress bar shares the shell surface in light mode. */
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] {
+  background: #fff;
+  border-color: #e4e9f1;
+}
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .text-slate-200 { color: #1f2b3f; }
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .text-slate-500 { color: #64748b; }
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .bg-slate-700 { background: #e2e8f0; }
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .border-slate-700,
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .border-slate-800 { border-color: #dbe3ee; }
+html:not(.dark) .app-shell > section[aria-label="التقدم في رحلة التصميم"] .text-slate-200:hover { background: #f1f5fb; }
+
+html:not(.dark) .app-shell > main > div[class*="max-w-"] {
   color: #243148;
   padding: clamp(16px, 3vw, 30px);
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
-.app-shell > main > div[class*="max-w-"] h2,
-.app-shell > main > div[class*="max-w-"] h3,
-.app-shell > main > div[class*="max-w-"] .text-white { color: #182235 !important; }
-.app-shell > main > div[class*="max-w-"] .text-slate-300 { color: #45546b !important; }
-.app-shell > main > div[class*="max-w-"] .text-slate-400 { color: #718096 !important; }
-.app-shell > main > div[class*="max-w-"] .bg-slate-900,
-.app-shell > main > div[class*="max-w-"] .bg-slate-950 {
+html:not(.dark) .app-shell > main > div[class*="max-w-"] h2,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] h3,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-white { color: #182235 !important; }
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-slate-50,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-slate-100,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-slate-200 { color: #1f2b3f !important; }
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-slate-300 { color: #45546b !important; }
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .text-slate-400 { color: #718096 !important; }
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .bg-slate-900,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .bg-slate-950 {
   background: #fff !important;
 }
-.app-shell > main > div[class*="max-w-"] .border-slate-800,
-.app-shell > main > div[class*="max-w-"] .border-slate-700 {
+/* Selected cards use a dark tint that disappears on the light shell. */
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .bg-indigo-950\/60 {
+  background: #eef2ff !important;
+}
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .border-slate-800,
+html:not(.dark) .app-shell > main > div[class*="max-w-"] .border-slate-700 {
   border-color: #e4e9f1 !important;
 }
-.app-shell > main > div[class*="max-w-"] input[type="range"] { accent-color: #3868d8; }
-.app-shell button, .app-shell select, .app-shell input { font-family: inherit; }
+html:not(.dark) .app-shell > main > div[class*="max-w-"] input[type="range"] { accent-color: #3868d8; }
+
+/* Dark theme: keep the original dark studio palette instead of forcing light. */
+html.dark .app-shell {
+  background: #020617;
+  color: #e2e8f0;
+}
+html.dark .app-shell > header,
+html.dark .app-shell > nav {
+  background: #020617;
+  color: #e2e8f0;
+  border-color: #1e293b;
+  box-shadow: none;
+}
+html.dark .app-shell > main { background: #020617; }
+
 @media (max-width: 640px) {
   .app-shell > header { min-height: 54px; padding-inline: 10px; }
   .app-shell > header select { max-width: 112px; }

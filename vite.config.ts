@@ -1,6 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 export default defineConfig(() => ({
@@ -10,10 +10,14 @@ export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': fileURLToPath(new URL('.', import.meta.url)),
     },
   },
   server: {
+    // The optional pattern-guidance API (npm run api) runs separately from Vite.
+    proxy: {
+      '/api': 'http://127.0.0.1:8787',
+    },
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // Do not modify—file watching is disabled to prevent flickering during agent edits.
     hmr: process.env.DISABLE_HMR !== 'true',

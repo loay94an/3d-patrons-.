@@ -21,6 +21,8 @@ export interface Garment3DOptions {
   height?: number;
   sleeveLength: number;
   totalLength: number;
+  /** Measured upper-arm circumference; falls back to a bust-derived estimate. */
+  armCircumference?: number;
   fabricState: FabricCustomState;
   showSeamLines?: boolean;
   showHeatmap?: boolean;
@@ -43,7 +45,7 @@ const EASE_BUST = 2.0;
 const EASE_SHOULDER = 2.4;
 
 /** Extra air between the body surface and the cloth, so nothing pokes through. */
-const SURFACE_CLEARANCE = 0.35;
+const SURFACE_CLEARANCE = 0.6;
 
 /** Hard minimum distance kept between the body surface and the fabric. */
 const MIN_CLOTH_GAP = 0.6;
@@ -215,9 +217,20 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   const CROTCH_V = 0.08;
 
   const waistY = annyBodyProfile?.waistY ?? (yOffset + torsoHeight * WAIST_V);
-  const crotchY = annyBodyProfile ? Math.max(annyBodyProfile.minY + annyBodyProfile.height * 0.36, annyBodyProfile.hipY - 7) : yOffset + torsoHeight * CROTCH_V;
+  // The crotch sits a few centimetres below the hip landmark. Deriving it from
+  // minY + a fraction of the torso span used to place it *above* the hip, which
+  // left the hips bare and started the trouser legs at waist height.
+  const crotchY = annyBodyProfile
+    ? Math.max(
+        annyBodyProfile.minY + 2,
+        annyBodyProfile.hipY - Math.max(6, (annyBodyProfile.neckY - annyBodyProfile.hipY) * 0.14)
+      )
+    : yOffset + torsoHeight * CROTCH_V;
 
+  // The neckline sits at the base of the neck, not in the middle of the neck,
+  // so the shoulders stay covered by fabric instead of by a bare tube rim.
   let topY = annyBodyProfile?.neckY ?? (yOffset + torsoHeight * NECK_V);
+  if (annyBodyProfile) topY = Math.max(annyBodyProfile.bustY + 2, topY - 1.5);
   let hemY = annyBodyProfile
     ? Math.max(annyBodyProfile.minY + annyBodyProfile.height * 0.2, annyBodyProfile.hipY - 5)
     : yOffset + torsoHeight * 0.05; // shirts / blouses finish just under the hip
@@ -238,8 +251,28 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     flare = 55;
   } else if (hasLegs) {
     topY = isOnePieceWithLegs ? topY : waistY;
-    hemY = crotchY;                        // the trousers continue as two legs
+    // Keep the hip block below the crotch so the seat and upper thighs stay
+    // covered; the two trouser legs continue from inside this block.
+    hemY = crotchY - Math.max(12, torsoHeight * 0.2);
   }
+
+  // Armhole level: the side of the torso shell drops to the underarm so the
+  // arms are free, while the front and back rise to the neckline over the
+  // shoulders. Without this the garment renders as a strapless tube.
+  const armholeY = annyBodyProfile
+    ? Math.min(topY - 1.5, Math.max(annyBodyProfile.bustY + 0.5, annyBodyProfile.bustY + torsoHeight * 0.03))
+    : yOffset + torsoHeight * 0.80;
+  const frontNeckDrop = Math.max(2.5, Math.abs(topY - hemY) * 0.06);
+  const hasNeckline = !hasLegs && !isSkirt && !isCape;
+  const topYAtAngle = (angle: number) => {
+    if (!hasNeckline) return topY;
+    // 1 at the sides (+/-X), 0 at centre front and centre back.
+    const sideFactor = Math.pow(Math.abs(Math.cos(angle)), 2.4);
+    let level = lerp(topY, armholeY, sideFactor);
+    // A slightly deeper front neckline than the back one.
+    if (Math.sin(angle) > 0) level -= frontNeckDrop * Math.pow(Math.sin(angle), 2) * (1 - sideFactor);
+    return level;
+  };
 
   // ---------------------------------------------------------------- body tube
   const verticalSteps = 44;
@@ -258,17 +291,17 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
 
   for (let i = 0; i <= verticalSteps; i++) {
     const v = i / verticalSteps; // 0 = top, 1 = bottom
-    const y = lerp(topY, hemY, v);
-    const bodyV = (y - yOffset) / torsoHeight;
-    const flareT = clamp((waistY - y) / Math.max(waistY - hemY, 0.001), 0, 1);
-    const localFlare = flare * Math.pow(flareT, 1.25);
-
-    const env = bodyEnvelope(bodyV);
-    const scale = (env.perim + easeAtLevel(bodyV) + localFlare) / env.perim;
 
     for (let j = 0; j <= radialSteps; j++) {
       const u = j / radialSteps;
       const angle = u * Math.PI * 2;
+      const y = lerp(topYAtAngle(angle), hemY, v);
+      const bodyV = (y - yOffset) / torsoHeight;
+      const flareT = clamp((waistY - y) / Math.max(waistY - hemY, 0.001), 0, 1);
+      const localFlare = flare * Math.pow(flareT, 1.25);
+
+      const env = bodyEnvelope(bodyV);
+      const scale = (env.perim + easeAtLevel(bodyV) + localFlare) / env.perim;
 
       // Gravity-led, fabric-aware folds: folds deepen toward the free hem and
       // vary with fabric weight/stiffness instead of repeating one rigid sine ring.
@@ -320,6 +353,25 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     }
   }
 
+  // Trousers need a closed crotch: an open tube end would expose the body
+  // between the legs. The two legs pierce this cap from above.
+  if (hasLegs) {
+    const ringStart = verticalSteps * (radialSteps + 1);
+    let centerXSum = 0;
+    let centerZSum = 0;
+    for (let j = 0; j <= radialSteps; j++) {
+      centerXSum += positions[(ringStart + j) * 3];
+      centerZSum += positions[(ringStart + j) * 3 + 2];
+    }
+    const centerIndex = positions.length / 3;
+    positions.push(centerXSum / (radialSteps + 1), hemY, centerZSum / (radialSteps + 1));
+    uvs.push(0.5, 1);
+    colors.push(1, 1, 1);
+    for (let j = 0; j < radialSteps; j++) {
+      indices.push(centerIndex, ringStart + j, ringStart + j + 1);
+    }
+  }
+
   const garmentGeom = new THREE.BufferGeometry();
   garmentGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   garmentGeom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
@@ -339,28 +391,33 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
 
   // ------------------------------------------------------------------- sleeves
   if (!sleeveless) {
-    const armholeV = 0.845;
-    let armholeX: number;
-    let armholeY: number;
+    // Start the sleeve on the shoulder joint so the sleeve head covers the
+    // armhole instead of hanging from a point inside the ribcage.
+    const shoulderLevel = annyBodyProfile
+      ? Math.max(armholeY + 1, topY - Math.max(2, torsoHeight * 0.035))
+      : yOffset + torsoHeight * 0.86;
+    let shoulderX: number;
     if (annyBodyProfile) {
-      const shoulderSlice = bodyEnvelope(armholeV);
-      armholeX = envelopeRadius(shoulderSlice, 0) * 0.82;
-      armholeY = shoulderSlice.y - 1.2;
+      const shoulderSlice = bodyEnvelope((shoulderLevel - yOffset) / torsoHeight);
+      shoulderX = envelopeRadius(shoulderSlice, 0) * 0.92;
     } else {
-      const shoulderSlice = getTorsoProfile(gender, bodyMeasurements, armholeV, 0);
-      armholeX = shoulderSlice.rx * 0.82;
-      armholeY = shoulderSlice.y - 1.2;
+      const shoulderProfile = getTorsoProfile(gender, bodyMeasurements, 0.86, 0);
+      shoulderX = shoulderProfile.rx * 0.92;
     }
-    const armCirc = Math.max(18, bust * 0.34);         // upper arm circumference
-    const armRadius = armCirc / (2 * Math.PI) + 1.6;
-    const tilt = (14 * Math.PI) / 180;                 // arms hang slightly away from the body
+    const armCirc = Math.max(18, options.armCircumference ?? bust * 0.34);
+    // A small wearing ease around the arm (about 2.5 cm of circumference), not
+    // a 1.5 cm radial gap that used to double the sleeve width.
+    const armRadius = armCirc / (2 * Math.PI) + 0.4;
+    // The relaxed arm drops almost vertically with a small outward drift; the
+    // sleeve must follow that axis or it floats away from the arm.
+    const tilt = (8 * Math.PI) / 180;
     const length = Math.max(6, sleeveLength || 58);
 
     [-1, 1].forEach(side => {
       const sleeve = build3DSleeve({
         side,
-        startX: side * armholeX,
-        startY: armholeY,
+        startX: side * shoulderX,
+        startY: shoulderLevel + 2,
         length,
         radius: armRadius,
         tilt,
@@ -378,6 +435,11 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     const crotchEnv = bodyEnvelope(crotchBodyV);
     const hipOuterX = envelopeRadius(crotchEnv, 0) * ((crotchEnv.perim + easeAtLevel(crotchBodyV) + 1.2) / crotchEnv.perim);
     const thighRadius = Math.max(3, hipOuterX * 0.46);
+    // Keep the leg tops slightly inside the hip shell so the two surfaces do
+    // not fight for the same pixels at the hip.
+    // Trouser legs start almost as wide as the hip block and taper to the hem,
+    // otherwise the seat and upper thighs show between the hip block and legs.
+    const legTopRadius = Math.max(thighRadius * 0.9, hipOuterX * 0.58);
     const ankleRadius = thighRadius * (garmentType === 'culottes' ? 0.85 : 0.6);
     const isShort = garmentType === 'shorts';
     const isWide = garmentType === 'culottes';
@@ -386,10 +448,10 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
     [-1, 1].forEach(side => {
       const leg = build3DPantsLeg({
         side,
-        topY: crotchY + 5, // start inside the hip section so no gap shows
+        topY: crotchY + 8, // start inside the hip section so no gap shows
         endY: legEndY,
-        centerX: thighRadius * 0.9, // magnitude, the side is applied inside
-        topRadius: thighRadius,
+        centerX: Math.max(legTopRadius * 0.94, hipOuterX * 0.54), // magnitude, the side is applied inside
+        topRadius: legTopRadius,
         endRadius: ankleRadius,
         flare: isWide ? thighRadius * 1.3 : 0,
         material: finalMaterial
@@ -469,9 +531,11 @@ function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
     // Fuller sleeve head, slight narrowing at the elbow, taper at the wrist
     let rad: number;
     if (v < 0.18) {
-      rad = lerp(radius * 1.22, radius * 1.02, v / 0.18);
+      // The first ring is small and buried in the shoulder, so the sleeve head
+      // closes itself instead of showing an open tube mouth.
+      rad = lerp(radius * 0.6, radius * 1.0, v / 0.18);
     } else {
-      rad = lerp(radius * 1.04, radius * 0.82, (v - 0.18) / 0.82);
+      rad = lerp(radius * 1.02, radius * 0.84, (v - 0.18) / 0.82);
     }
 
     for (let j = 0; j <= rSteps; j++) {
@@ -510,14 +574,6 @@ function build3DSleeve(opts: SleeveOptions): THREE.Mesh {
   mesh.name = `Sleeve_${side > 0 ? 'Right' : 'Left'}`;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-
-  // Rounded sleeve head so the shoulder is closed and looks sewn on
-  const headGeom = new THREE.SphereGeometry(radius * 1.15, 20, 16);
-  const head = new THREE.Mesh(headGeom, material);
-  head.scale.set(1.05, 0.92, 1.05);
-  head.position.set(startX + dirX * radius * 0.5, startY + dirY * radius * 0.5, 0);
-  head.castShadow = true;
-  mesh.add(head);
 
   return mesh;
 }

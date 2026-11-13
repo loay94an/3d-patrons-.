@@ -11,10 +11,10 @@ import { AppState, Gender } from '../lib/pattern-logic';
 import { FabricCustomState, createFabricThreeMaterial, FABRIC_PRESETS } from '../lib/fabric-engine';
 import { resolve3DMeasurements } from '../lib/mannequin-builder';
 import { generate3DGarmentMesh, Garment3DResult } from '../lib/garment-3d-generator';
-import { conformGarmentGroupToBody } from '../lib/garment-anny-fit';
+import { buildGarmentBodyEnvelope, conformGarmentShellToBodyEnvelope, type GarmentBodyEnvelope } from '../lib/garment-anny-fit';
 import { buildAnnyCalibrationCandidates, getAnnyHeightScale, resolveAnnyTargetHeightCm } from '../lib/anny-measurement-fit';
 import { calibrateAnnyBodyGeometry, type AnnyBodyCalibrationResult } from '../lib/anny-body-calibration';
-import { buildAnnyBodyProfile } from '../lib/anny-body-profile';
+import { buildAnnyBodyProfile, type AnnyBodyProfile } from '../lib/anny-body-profile';
 import { loadCadProjectDocument, saveCadProjectDocument, type CadProjectDocument } from '../lib/cad-project-document';
 import { auditCadSewing, createCadStitchPairFromSuggestion, type CadSeamSuggestion, type CadSewingAudit } from '../lib/cad-sewing-engine';
 import type { CadPiece } from '../lib/pattern-cad-engine';
@@ -41,6 +41,8 @@ function disposeObjectResources(root: THREE.Object3D) {
       : [object.material];
 
     objectMaterials.forEach((material) => {
+      // Cached materials (reused across garment rebuilds) must survive disposal.
+      if (material.userData?.keepAlive) return;
       materials.add(material);
       Object.values(material).forEach((value) => {
         if (value instanceof THREE.Texture) textures.add(value);
@@ -219,6 +221,13 @@ export function Pattern3DViewer({
   const [annyCalibrationSummary, setAnnyCalibrationSummary] = useState<Omit<AnnyBodyCalibrationResult, 'geometry'> | null>(null);
   const annyFileInputRef = useRef<HTMLInputElement>(null);
   const garmentResultRef = useRef<Garment3DResult | null>(null);
+  // Extracting Anny's cross-sections walks the whole body mesh; cache it until
+  // the body or its calibration transform actually changes.
+  const annyProfileCacheRef = useRef<{ key: string; profile: AnnyBodyProfile } | null>(null);
+  const annyEnvelopeCacheRef = useRef<{ key: string; envelope: GarmentBodyEnvelope } | null>(null);
+  // Reusing the fabric material avoids recompiling its shaders (and rebuilding
+  // its canvas textures) on every garment, fabric or measurement change.
+  const fabricMaterialRef = useRef<{ key: string; material: THREE.Material } | null>(null);
   const cadPreviewGroupRef = useRef<THREE.Group | null>(null);
   const [showCadPieces, setShowCadPieces] = useState(false);
   const [cadPieceCount, setCadPieceCount] = useState(0);
@@ -244,6 +253,9 @@ export function Pattern3DViewer({
   // optional when previewing Anny because Anny phenotypes are not cm-calibrated.
   const [showGarmentOnAnny, setShowGarmentOnAnny] = useState(true);
   const [annyBundledBusy, setAnnyBundledBusy] = useState(false);
+  // A failed load used to be silent (console only), which made the empty stage
+  // look like a frozen section.
+  const [annyLoadMessage, setAnnyLoadMessage] = useState('');
   const [annyApiUrl, setAnnyApiUrl] = useState(import.meta.env.VITE_ANNY_API_URL ?? '');
   const [annyApiPanelOpen, setAnnyApiPanelOpen] = useState(false);
   const [annyApiBusy, setAnnyApiBusy] = useState(false);
@@ -525,37 +537,82 @@ export function Pattern3DViewer({
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // Anny is the sole body model. Resolve measurements for garment geometry.
-    const meas = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
-    const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
-    const currentMeasurements = resolvedMeasurements.body;
-
-    // Remove the previous garment before rebuilding it from the current Anny mesh.
-    if (garmentResultRef.current) {
+    const removeGarment = () => {
+      if (!garmentResultRef.current) return;
       scene.remove(garmentResultRef.current.group);
       disposeObjectResources(garmentResultRef.current.group);
       garmentResultRef.current = null;
-    }
+    };
+
     if (!annyPreviewEnabled || !annyBodyMeshRef.current) {
+      removeGarment();
       return;
     }
 
-    let annyBodyProfile;
-    try {
-      annyGroupRef.current?.updateMatrixWorld(true);
-      annyBodyProfile = buildAnnyBodyProfile(annyBodyMeshRef.current, {
-        landmarks: (annyCalibrationSummary?.landmarks ?? []).map(item => ({
+    // Rebuilding and conforming the garment is CPU heavy. Coalesce rapid
+    // measurement, fabric and toggle changes so dragging a slider cannot lock
+    // the main thread, and let the browser paint the new control state first.
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      rebuildGarment();
+    }, 140);
+
+    function rebuildGarment() {
+      const bodyMesh = annyBodyMeshRef.current;
+      if (!bodyMesh || !scene) return;
+
+      // Anny is the sole body model. Resolve measurements for garment geometry.
+      const meas = { ...(state.measurementProfile?.values ?? {}), ...state.customMeasurements };
+      const resolvedMeasurements = resolve3DMeasurements(state.gender, state.size, meas);
+      const currentMeasurements = resolvedMeasurements.body;
+
+      removeGarment();
+
+      let annyBodyProfile: AnnyBodyProfile;
+      let bodyKey: string;
+      try {
+        annyGroupRef.current?.updateMatrixWorld(true);
+        bodyMesh.updateWorldMatrix(true, false);
+        const landmarks = (annyCalibrationSummary?.landmarks ?? []).map(item => ({
           zone: item.zone,
           heightFraction: item.heightFraction
-        }))
-      });
+        }));
+        bodyKey = [
+          bodyMesh.uuid,
+          ...bodyMesh.matrixWorld.elements.map(value => value.toFixed(3)),
+          ...landmarks.map(item => `${item.zone}:${item.heightFraction.toFixed(4)}`)
+        ].join('|');
+        if (annyProfileCacheRef.current?.key === bodyKey) {
+          annyBodyProfile = annyProfileCacheRef.current.profile;
+        } else {
+          annyBodyProfile = buildAnnyBodyProfile(bodyMesh, { landmarks });
+          annyProfileCacheRef.current = { key: bodyKey, profile: annyBodyProfile };
+        }
+      } catch (error) {
+        console.error('Unable to extract Anny body profile', error);
+        return;
+      }
 
-    } catch (error) {
-      console.error('Unable to extract Anny body profile', error);
-      return;
-    }
-
-    const fabricMat = createFabricThreeMaterial(fabricState);
+      // Reuse the fabric material so its shaders and canvas textures are only
+      // compiled once instead of on every garment rebuild.
+      const fabricSignature = JSON.stringify(fabricState);
+      let fabricMat = fabricMaterialRef.current?.key === fabricSignature
+        ? fabricMaterialRef.current.material
+        : null;
+      if (!fabricMat) {
+        const previousMaterial = fabricMaterialRef.current?.material;
+        fabricMat = createFabricThreeMaterial(fabricState);
+        fabricMat.userData = { ...(fabricMat.userData ?? {}), keepAlive: true };
+        fabricMaterialRef.current = { key: fabricSignature, material: fabricMat };
+        if (previousMaterial) {
+          previousMaterial.userData = { ...(previousMaterial.userData ?? {}), keepAlive: false };
+          Object.values(previousMaterial).forEach(value => {
+            if (value instanceof THREE.Texture) value.dispose();
+          });
+          previousMaterial.dispose();
+        }
+      }
 
     const garmentResult = generate3DGarmentMesh(
       {
@@ -569,6 +626,7 @@ export function Pattern3DViewer({
         height: currentMeasurements.height,
         sleeveLength: resolvedMeasurements.sleeveLength,
         totalLength: resolvedMeasurements.totalLength,
+        armCircumference: currentMeasurements.armCircumference,
         fabricState,
         showHeatmap,
         annyBodyProfile
@@ -576,22 +634,36 @@ export function Pattern3DViewer({
       fabricMat
     );
 
-    // Keep the designed wearing ease, correcting only true body intersections.
-    // Apply this to torso, sleeves and trouser legs, not just the torso shell.
-    annyBodyMeshRef.current.updateWorldMatrix(true, false);
-    garmentResult.group.updateWorldMatrix(true, true);
-    const fitReport = conformGarmentGroupToBody(garmentResult.group, annyBodyMeshRef.current, 0.6);
-    if (fitReport.status === 'partial') {
-      console.warn('Garment fit correction was partial; inspect garment/body intersections.', fitReport);
+      // Keep the designed wearing ease, correcting only true body intersections.
+      // Apply this to torso, sleeves and trouser legs, not just the torso shell.
+      bodyMesh.updateWorldMatrix(true, false);
+      garmentResult.group.updateWorldMatrix(true, true);
+      let bodyEnvelope = annyEnvelopeCacheRef.current?.key === bodyKey
+        ? annyEnvelopeCacheRef.current.envelope
+        : undefined;
+      if (!bodyEnvelope) {
+        bodyEnvelope = buildGarmentBodyEnvelope(bodyMesh);
+        annyEnvelopeCacheRef.current = { key: bodyKey, envelope: bodyEnvelope };
+      }
+      const fitReport = conformGarmentShellToBodyEnvelope(garmentResult.group, bodyMesh, 1, bodyEnvelope);
+      if (fitReport.status === 'partial') {
+        console.warn('Garment fit correction was partial; inspect garment/body intersections.', fitReport);
+      }
+
+      if (cancelled) return;
+      garmentResult.seamLinesGroup.visible = showSeams;
+      garmentResult.group.visible = showGarmentOnAnny;
+      scene.add(garmentResult.group);
+      garmentResultRef.current = garmentResult;
+
+      // Re-frame only while the user has not taken control of the camera.
+      frameScene();
     }
 
-    garmentResult.seamLinesGroup.visible = showSeams;
-    garmentResult.group.visible = showGarmentOnAnny;
-    scene.add(garmentResult.group);
-    garmentResultRef.current = garmentResult;
-
-    // Re-frame only while the user has not taken control of the camera.
-    frameScene();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [state.gender, state.size, state.garment, state.customMeasurements, state.measurementProfile, fabricState, showHeatmap, showSeams, annyPreviewEnabled, annyCalibrationSummary, showGarmentOnAnny, frameScene]);
 
   useEffect(() => {
@@ -890,6 +962,7 @@ export function Pattern3DViewer({
 
   const handleLoadBundledAnny = async () => {
     setAnnyBundledBusy(true);
+    setAnnyLoadMessage('');
 
     try {
       const modelUrl = `${import.meta.env.BASE_URL}models/anny-neutral.glb`;
@@ -899,11 +972,25 @@ export function Pattern3DViewer({
       }
       const buffer = await response.arrayBuffer();
       if (buffer.byteLength < 1000) throw new Error('ملف Anny الأساسي غير مكتمل.');
+      // A missing static file can still answer 200 with the HTML shell on some
+      // hosts/dev servers; reject anything that is not a real binary GLB.
+      const glbMagic = new DataView(buffer).getUint32(0, true);
+      if (glbMagic !== 0x46546c67) {
+        throw new Error('لم يُنشر نموذج Anny الأساسي بعد على هذا الموقع. ارفع ملف GLB من زر «تحميل Anny GLB» أو أعد المحاولة بعد اكتمال النشر.');
+      }
       const gltf = await new GLTFLoader().parseAsync(buffer, '');
+      // Give React a frame to paint the busy overlay before the synchronous
+      // calibration, profile extraction and garment build take over.
+      await new Promise((resolve) => window.setTimeout(resolve, 40));
       installAnnyScene(gltf.scene);
 
     } catch (error) {
       console.error('Unable to load the bundled Anny base model', error);
+      setAnnyLoadMessage(
+        error instanceof Error && error.message
+          ? error.message
+          : 'تعذر تحميل مجسم Anny. تحقق من الاتصال ثم أعد المحاولة أو ارفع ملف GLB بنفسك.'
+      );
     } finally {
       setAnnyBundledBusy(false);
     }
@@ -1018,22 +1105,29 @@ export function Pattern3DViewer({
   const handleAnnyFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = '';
 
     const objectUrl = URL.createObjectURL(file);
     const loader = new GLTFLoader();
+    // Show the busy state before the (blocking) mesh work starts, otherwise the
+    // section looks frozen for the whole parse and calibration.
+    setAnnyBundledBusy(true);
     loader.load(objectUrl, (gltf) => {
       URL.revokeObjectURL(objectUrl);
-      try {
-        installAnnyScene(gltf.scene);
-
-      } catch (error) {
-        console.error('The selected GLB does not contain a valid Anny body mesh', error);
-      }
+      window.setTimeout(() => {
+        try {
+          installAnnyScene(gltf.scene);
+        } catch (error) {
+          console.error('The selected GLB does not contain a valid Anny body mesh', error);
+        } finally {
+          setAnnyBundledBusy(false);
+        }
+      }, 40);
     }, undefined, () => {
       URL.revokeObjectURL(objectUrl);
+      setAnnyBundledBusy(false);
       console.error('Unable to open the selected Anny GLB file');
     });
-    event.target.value = '';
   };
 
   // Load an existing repository GLB as a neutral visual reference.
@@ -1302,6 +1396,11 @@ export function Pattern3DViewer({
             <p className="mt-2 text-xs leading-6 text-slate-300">
               حمّل مجسم Anny عند الحاجة. تم تأجيل تحميله ومعايرته حتى لا يتوقف الموقع عند فتح هذا القسم على الهاتف.
             </p>
+            {annyLoadMessage && (
+              <p role="alert" className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] leading-5 text-amber-200">
+                {annyLoadMessage}
+              </p>
+            )}
             <button
               onClick={() => void handleLoadBundledAnny()}
               className="mt-3 rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-600"
@@ -1313,9 +1412,10 @@ export function Pattern3DViewer({
       )}
 
       {annyBundledBusy && (
-        <div role="status" className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5">
-          <div dir="rtl" className="rounded-xl border border-emerald-500/40 bg-slate-950/90 px-4 py-3 text-center text-xs text-emerald-100 shadow-xl">
-            جار تحميل مجسم Anny وتجهيزه...
+        <div role="status" aria-live="polite" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-slate-950/45 px-5 backdrop-blur-[1px]">
+          <div dir="rtl" className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-slate-950/95 px-4 py-3 text-center text-xs text-emerald-100 shadow-xl">
+            <span aria-hidden="true" className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+            <span>جار تحميل مجسم Anny وتجهيزه... قد تستغرق المعالجة لحظات على الأجهزة الضعيفة.</span>
           </div>
         </div>
       )}
