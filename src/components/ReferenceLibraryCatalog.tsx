@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search, ExternalLink, BookOpen, Scissors, Image as ImageIcon, AlertTriangle, Ruler, Sparkles } from 'lucide-react';
 
 type ReferenceRecord = {
@@ -21,6 +21,7 @@ type ReferenceRecord = {
   rightsStatus: string;
   originalIllustration: boolean;
   sourceUrl: string;
+  searchIndex?: string;
 };
 type Catalog = {
   totalRecords: number;
@@ -38,7 +39,7 @@ const categoryNames: Record<string,string> = {
   'ملابس_داخلية':'ملابس داخلية','أنماط_أخرى':'متنوعات وتقنيات'
 };
 
-function GarmentIllustration({item}:{item:ReferenceRecord}) {
+const GarmentIllustration = React.memo(function GarmentIllustration({item}:{item:ReferenceRecord}) {
   const stroke = { fill: 'none', stroke: '#c7d2fe', strokeWidth: 2.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   const tags = item.featureTagsAr.join(' ');
   const sleeveless = /بلا أكمام|حمالات/.test(tags);
@@ -95,12 +96,13 @@ function GarmentIllustration({item}:{item:ReferenceRecord}) {
     </svg>
     <span className="absolute bottom-2 left-2 rounded-md border border-indigo-400/20 bg-slate-950/75 px-2 py-1 text-[9px] text-indigo-200">رسم تصوري أصلي</span>
   </div>;
-}
+});
 
 export function ReferenceLibraryCatalog({mode}:Props) {
   const [catalog,setCatalog] = useState<Catalog|null>(null);
   const [error,setError] = useState('');
   const [query,setQuery] = useState('');
+  const deferredQuery = useDeferredValue(query);
   const [category,setCategory] = useState('all');
   const [kind,setKind] = useState('all');
   const [page,setPage] = useState(1);
@@ -110,25 +112,26 @@ export function ReferenceLibraryCatalog({mode}:Props) {
     let active = true;
     fetch(`${import.meta.env.BASE_URL}data/reference-garment-catalog.json`)
       .then(response => { if (!response.ok) throw new Error('تعذر تحميل فهرس المراجع'); return response.json(); })
-      .then((value:Catalog) => { if (active) setCatalog(value); })
+      .then((value:Catalog) => { if (active) setCatalog({...value, records:value.records.map(item => ({...item, searchIndex:[item.displayTitleAr,item.categoryAr,item.sourceTitle,item.contentGroupAr,...item.featureTagsAr,...item.extractedTagsAr,...item.designDetailsAr].join(' ').toLocaleLowerCase('ar')}))}); })
       .catch((reason:unknown) => { if (active) setError(reason instanceof Error ? reason.message : 'تعذر تحميل الفهرس'); });
     return () => { active = false; };
   }, []);
 
   const records = useMemo(() => {
     if (!catalog) return [];
+    const normalizedQuery = deferredQuery.trim().toLocaleLowerCase('ar');
     return catalog.records.filter(item => {
       const isPattern = item.contentGroup === 'pattern_reference' || item.contentGroup === 'tutorial_pattern';
       if (mode === 'patterns' && !isPattern) return false;
       if (mode === 'models' && item.contentGroup !== 'design_candidate' && item.contentGroup !== 'technique') return false;
       if (category !== 'all' && item.categoryId !== category) return false;
       if (kind !== 'all' && item.contentGroup !== kind) return false;
-      const haystack = [item.displayTitleAr,item.categoryAr,item.sourceTitle,item.contentGroupAr,...item.featureTagsAr,...item.extractedTagsAr,...item.designDetailsAr].join(' ').toLowerCase();
-      return haystack.includes(query.trim().toLowerCase());
+      const haystack = item.searchIndex ?? [item.displayTitleAr,item.categoryAr,item.sourceTitle,item.contentGroupAr,...item.featureTagsAr,...item.extractedTagsAr,...item.designDetailsAr].join(' ').toLocaleLowerCase('ar');
+      return !normalizedQuery || haystack.includes(normalizedQuery);
     });
-  },[catalog,mode,category,kind,query]);
+  },[catalog,mode,category,kind,deferredQuery]);
 
-  useEffect(() => { setPage(1); },[mode,category,kind,query]);
+  useEffect(() => { setPage(1); },[mode,category,kind,deferredQuery]);
   const pageCount = Math.max(1,Math.ceil(records.length/pageSize));
   const visible = records.slice((page-1)*pageSize,page*pageSize);
   const patternCount = catalog ? (catalog.summary.pattern_reference||0)+(catalog.summary.tutorial_pattern||0) : 0;
@@ -171,7 +174,7 @@ export function ReferenceLibraryCatalog({mode}:Props) {
       {catalog&&visible.length===0&&<p className="rounded-xl border border-dashed border-slate-700 p-10 text-center text-sm text-slate-400">لا توجد نتائج مطابقة.</p>}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {visible.map(item=><article key={item.id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
+        {visible.map(item=><article key={item.id} style={{contentVisibility:'auto',containIntrinsicSize:'360px'}} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-3">
           <GarmentIllustration item={item}/>
           <div className="mt-3 flex items-start justify-between gap-2"><div className="min-w-0"><h2 className="line-clamp-2 text-sm font-extrabold leading-6">{item.displayTitleAr}</h2><p className="mt-1 text-[10px] text-indigo-300">{item.categoryAr}</p></div><span className="shrink-0 rounded-md bg-slate-800 px-2 py-1 text-[9px] text-slate-300">{item.sourcePageCount?item.sourcePageCount+' صفحة':'مرجع'}</span></div>
           {item.featureTagsAr.length>0&&<p className="mt-2 text-[10px] text-slate-300">سمات التصميم: {item.featureTagsAr.join('، ')}</p>}
