@@ -229,7 +229,9 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
 
   // The neckline sits at the base of the neck, not in the middle of the neck,
   // so the shoulders stay covered by fabric instead of by a bare tube rim.
-  let topY = annyBodyProfile?.neckY ?? (yOffset + torsoHeight * NECK_V);
+  // Sit the neckline at the base of the neck. Using neckY directly put the top
+  // edge halfway up the neck, which rendered as a stand-up collar.
+  let topY = (annyBodyProfile?.neckY ?? (yOffset + torsoHeight * NECK_V)) - torsoHeight * 0.06;
   if (annyBodyProfile) topY = Math.max(annyBodyProfile.bustY + 2, topY - 1.5);
   let hemY = annyBodyProfile
     ? Math.max(annyBodyProfile.minY + annyBodyProfile.height * 0.2, annyBodyProfile.hipY - 5)
@@ -262,7 +264,7 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
   const armholeY = annyBodyProfile
     ? Math.min(topY - 1.5, Math.max(annyBodyProfile.bustY + 0.5, annyBodyProfile.bustY + torsoHeight * 0.03))
     : yOffset + torsoHeight * 0.80;
-  const frontNeckDrop = Math.max(2.5, Math.abs(topY - hemY) * 0.06);
+  const frontNeckDrop = Math.max(3, Math.abs(topY - hemY) * 0.09);
   const hasNeckline = !hasLegs && !isSkirt && !isCape;
   const topYAtAngle = (angle: number) => {
     if (!hasNeckline) return topY;
@@ -301,7 +303,11 @@ export function generate3DGarmentMesh(options: Garment3DOptions, fabricMaterial:
       const localFlare = flare * Math.pow(flareT, 1.25);
 
       const env = bodyEnvelope(bodyV);
-      const scale = (env.perim + easeAtLevel(bodyV) + localFlare) / env.perim;
+      // The collar row must sit on the neck, not stand off it like a cowl: the
+      // applied ease tapers away over the first few rows below the neckline.
+      const collarTaper = Math.sqrt(clamp(v / 0.09, 0, 1));
+      const appliedEase = (easeAtLevel(bodyV) + localFlare) * lerp(0.35, 1, collarTaper);
+      const scale = (env.perim + appliedEase) / env.perim;
 
       // Gravity-led, fabric-aware folds: folds deepen toward the free hem and
       // vary with fabric weight/stiffness instead of repeating one rigid sine ring.

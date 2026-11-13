@@ -270,6 +270,22 @@ export function conformGarmentMeshToBody(
  * Sleeves and trouser legs are generated around their own measured
  * circumferences and must not be clamped against the torso envelope.
  */
+/** One-ring vertex neighbours, used to relax the corrected shell surface. */
+function buildVertexNeighbours(index: THREE.BufferAttribute | null, count: number): Int32Array[] {
+  const neighbours: number[][] = Array.from({ length: count }, () => []);
+  if (index) {
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i);
+      const b = index.getX(i + 1);
+      const c = index.getX(i + 2);
+      neighbours[a].push(b, c);
+      neighbours[b].push(a, c);
+      neighbours[c].push(a, b);
+    }
+  }
+  return neighbours.map(list => Int32Array.from(list));
+}
+
 export function conformGarmentShellToBodyEnvelope(
   garmentGroup: THREE.Group,
   bodyMesh: THREE.Mesh,
@@ -292,6 +308,7 @@ export function conformGarmentShellToBodyEnvelope(
   const toWorld = shell.matrixWorld;
   const toLocal = shell.matrixWorld.clone().invert();
   const vertex = new THREE.Vector3();
+  const moved = new Uint8Array(position.count);
   let fittedVertices = 0;
   let totalDisplacement = 0;
   let maxDisplacementCm = 0;
@@ -314,10 +331,59 @@ export function conformGarmentShellToBodyEnvelope(
     maxDisplacementCm = Math.max(maxDisplacementCm, displacement);
     vertex.applyMatrix4(toLocal);
     position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    moved[i] = 1;
     fittedVertices++;
   }
 
   if (fittedVertices > 0) {
+    // Pushing single vertices out of the body leaves steps between corrected
+    // and untouched neighbours, which reads as crumpled fabric with hard
+    // facets. Relax the corrected vertices over their one-ring neighbours and
+    // then restore body clearance, so the shell stays smooth and still clear.
+    const neighbours = buildVertexNeighbours(geometry.getIndex(), position.count);
+    const snapshot = new Float32Array((position.array as Float32Array).subarray(0, position.count * 3));
+    for (let pass = 0; pass < 2; pass++) {
+      const previous = Float32Array.from(snapshot);
+      for (let i = 0; i < position.count; i++) {
+        if (!moved[i]) continue;
+        const list = neighbours[i];
+        if (!list.length) continue;
+        let sx = 0;
+        let sy = 0;
+        let sz = 0;
+        for (let n = 0; n < list.length; n++) {
+          const base = list[n] * 3;
+          sx += previous[base];
+          sy += previous[base + 1];
+          sz += previous[base + 2];
+        }
+        const inverse = 1 / list.length;
+        position.setXYZ(
+          i,
+          previous[i * 3] * 0.5 + sx * inverse * 0.5,
+          previous[i * 3 + 1] * 0.5 + sy * inverse * 0.5,
+          previous[i * 3 + 2] * 0.5 + sz * inverse * 0.5
+        );
+      }
+      snapshot.set((position.array as Float32Array).subarray(0, position.count * 3));
+    }
+    for (let i = 0; i < position.count; i++) {
+      if (!moved[i]) continue;
+      vertex.fromBufferAttribute(position, i).applyMatrix4(toWorld);
+      const dx = vertex.x - envelope.centerX;
+      const dz = vertex.z - envelope.centerZ;
+      const radius = Math.hypot(dx, dz);
+      if (radius < 1e-6) continue;
+      const bodyRadius = envelopeRadiusAt(envelope, vertex.x, vertex.y, vertex.z);
+      if (bodyRadius <= 0) continue;
+      const target = bodyRadius + clearanceCm;
+      if (radius >= target) continue;
+      const factor = target / radius;
+      vertex.x = envelope.centerX + dx * factor;
+      vertex.z = envelope.centerZ + dz * factor;
+      vertex.applyMatrix4(toLocal);
+      position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+    }
     position.needsUpdate = true;
     geometry.computeVertexNormals();
     geometry.computeBoundingBox();
