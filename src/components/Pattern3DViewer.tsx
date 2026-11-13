@@ -1,6 +1,16 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+
+// Many reference scans ship with EXT_meshopt_compression or quantized attributes.
+// Without the decoder those files fail to parse and the model silently never
+// appears, so every loader in this viewer registers it up front.
+function createGltfLoader() {
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  return loader;
+}
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import {
   RotateCcw, Eye, EyeOff, Camera, Layers,
@@ -978,7 +988,7 @@ export function Pattern3DViewer({
       if (glbMagic !== 0x46546c67) {
         throw new Error('لم يُنشر نموذج Anny الأساسي بعد على هذا الموقع. ارفع ملف GLB من زر «تحميل Anny GLB» أو أعد المحاولة بعد اكتمال النشر.');
       }
-      const gltf = await new GLTFLoader().parseAsync(buffer, '');
+      const gltf = await createGltfLoader().parseAsync(buffer, '');
       // Give React a frame to paint the busy overlay before the synchronous
       // calibration, profile extraction and garment build take over.
       await new Promise((resolve) => window.setTimeout(resolve, 40));
@@ -1107,8 +1117,9 @@ export function Pattern3DViewer({
     if (!file) return;
     event.target.value = '';
 
+    setAnnyLoadMessage('');
     const objectUrl = URL.createObjectURL(file);
-    const loader = new GLTFLoader();
+    const loader = createGltfLoader();
     // Show the busy state before the (blocking) mesh work starts, otherwise the
     // section looks frozen for the whole parse and calibration.
     setAnnyBundledBusy(true);
@@ -1127,6 +1138,7 @@ export function Pattern3DViewer({
       URL.revokeObjectURL(objectUrl);
       setAnnyBundledBusy(false);
       console.error('Unable to open the selected Anny GLB file');
+      setAnnyLoadMessage('تعذر فتح ملف GLB. تأكد أنه ملف ثنائي صالح (.glb) وغير محمي بكلمة مرور، ثم أعد المحاولة.');
     });
   };
 
@@ -1136,7 +1148,7 @@ export function Pattern3DViewer({
     const scene = sceneRef.current;
     if (!scene) return;
     const url = `https://raw.githubusercontent.com/loay94an/3d-patrons-./main/${file.split('/').map(encodeURIComponent).join('/')}`;
-    const loader = new GLTFLoader();
+    const loader = createGltfLoader();
     setGlbExportError('');
     loader.load(url, (gltf) => {
       try {
