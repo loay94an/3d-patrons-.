@@ -51,6 +51,10 @@ function buildBodyRadialEnvelope(bodyMesh: THREE.Mesh, bodyBounds: THREE.Box3): 
   const position = bodyMesh.geometry.getAttribute('position');
   if (!position) return { minY, maxY: bodyBounds.max.y, centerX: center.x, centerZ: center.z, bands, directions, radii };
 
+  // The body surface in a sector is taken from a high quantile of the sampled
+  // radii, not the maximum. Arms and hands sweep the same height bands as the
+  // torso, and a maximum made the garment balloon sideways around them.
+  const buckets: number[][] = Array.from({ length: bands * directions }, () => []);
   const vertex = new THREE.Vector3();
   for (let i = 0; i < position.count; i++) {
     vertex.fromBufferAttribute(position, i).applyMatrix4(bodyMesh.matrixWorld);
@@ -59,11 +63,34 @@ function buildBodyRadialEnvelope(bodyMesh: THREE.Mesh, bodyBounds: THREE.Box3): 
     const dz = vertex.z - center.z;
     const angle = Math.atan2(dz, dx);
     const sector = Math.min(directions - 1, Math.max(0, Math.floor(((angle + Math.PI) / (Math.PI * 2)) * directions)));
-    const radius = Math.hypot(dx, dz);
-    const index = band * directions + sector;
-    if (radius > radii[index]) radii[index] = radius;
+    buckets[band * directions + sector].push(Math.hypot(dx, dz));
   }
+  for (let index = 0; index < buckets.length; index++) {
+    const values = buckets[index];
+    if (!values.length) continue;
+    values.sort((a, b) => a - b);
+    radii[index] = values[Math.min(values.length - 1, Math.floor(values.length * 0.75))];
+  }
+  smoothRadii(radii, bands, directions);
   return { minY, maxY: bodyBounds.max.y, centerX: center.x, centerZ: center.z, bands, directions, radii };
+}
+
+/**
+ * A handful of outlier vertices (hands, hair, accessories) otherwise produce
+ * one-sector spikes that the garment shadows as hard creases.
+ */
+function smoothRadii(radii: Float32Array, bands: number, directions: number) {
+  const copy = Float32Array.from(radii);
+  for (let band = 0; band < bands; band++) {
+    for (let sector = 0; sector < directions; sector++) {
+      const left = copy[band * directions + ((sector - 1 + directions) % directions)];
+      const center = copy[band * directions + sector];
+      const right = copy[band * directions + ((sector + 1) % directions)];
+      const up = copy[Math.min(bands - 1, band + 1) * directions + sector];
+      const down = copy[Math.max(0, band - 1) * directions + sector];
+      radii[band * directions + sector] = (center * 4 + left + right + up + down) / 8;
+    }
+  }
 }
 
 function envelopeRadiusAt(
@@ -73,10 +100,27 @@ function envelopeRadiusAt(
   z: number
 ): number {
   if (y < envelope.minY || y > envelope.maxY) return 0;
-  const band = Math.min(envelope.bands - 1, Math.max(0, Math.floor(((y - envelope.minY) / (envelope.maxY - envelope.minY)) * envelope.bands)));
+  const { bands, directions, radii } = envelope;
+  // Nearest-band/nearest-sector sampling made adjacent garment vertices jump
+  // between neighbouring body radii, which read as crumpled fabric. Interpolate
+  // between the four surrounding samples instead so the shell follows the body
+  // smoothly.
+  const bandPosition = Math.min(bands - 1, Math.max(0, ((y - envelope.minY) / (envelope.maxY - envelope.minY)) * bands - 0.5));
+  const bandLow = Math.floor(bandPosition);
+  const bandHigh = Math.min(bands - 1, bandLow + 1);
+  const bandMix = bandPosition - bandLow;
+
   const angle = Math.atan2(z - envelope.centerZ, x - envelope.centerX);
-  const sector = Math.min(envelope.directions - 1, Math.max(0, Math.floor(((angle + Math.PI) / (Math.PI * 2)) * envelope.directions)));
-  return envelope.radii[band * envelope.directions + sector];
+  const sectorPosition = ((angle + Math.PI) / (Math.PI * 2)) * directions - 0.5;
+  const sectorLowRaw = Math.floor(sectorPosition);
+  const sectorMix = sectorPosition - sectorLowRaw;
+  const sectorLow = ((sectorLowRaw % directions) + directions) % directions;
+  const sectorHigh = (sectorLow + 1) % directions;
+
+  const sample = (band: number, sector: number) => radii[band * directions + sector];
+  const low = sample(bandLow, sectorLow) * (1 - sectorMix) + sample(bandLow, sectorHigh) * sectorMix;
+  const high = sample(bandHigh, sectorLow) * (1 - sectorMix) + sample(bandHigh, sectorHigh) * sectorMix;
+  return low * (1 - bandMix) + high * bandMix;
 }
 
 export function conformGarmentMeshToBody(
@@ -121,6 +165,7 @@ export function conformGarmentMeshToBody(
   const fittedPosition = fittedGeometry.getAttribute('position') as THREE.BufferAttribute;
   let fittedVertices = 0;
   let bodyIntersections = 0;
+  let envelopeClearedVertices = 0;
   let totalDisplacement = 0;
   let maxDisplacementCm = 0;
 
@@ -132,7 +177,10 @@ export function conformGarmentMeshToBody(
     // Skip the raycast when the vertex lies beyond the body's widest surface in
     // that direction: it cannot be inside the body there.
     const envelopeRadius = envelopeRadiusAt(radialEnvelope, worldVertex.x, worldVertex.y, worldVertex.z);
-    if (envelopeRadius > 0 && Math.hypot(direction.x, direction.z) > envelopeRadius + clearanceCm + 0.2) continue;
+    if (envelopeRadius > 0 && Math.hypot(direction.x, direction.z) > envelopeRadius + clearanceCm + 0.2) {
+      envelopeClearedVertices++;
+      continue;
+    }
     direction.normalize();
 
     rayOrigin.set(
@@ -186,7 +234,9 @@ export function conformGarmentMeshToBody(
     return {
       totalVertices: position.count, fittedVertices: 0, fitRatio: 0,
       meanDisplacementCm: 0, maxDisplacementCm: 0,
-      status: bodyIntersections > 0 ? 'already-clear' : 'no-intersections'
+      // Vertices skipped by the envelope test were proven to sit outside the
+      // body surface, so the garment is clear of it rather than unexamined.
+      status: bodyIntersections > 0 || envelopeClearedVertices > 0 ? 'already-clear' : 'no-intersections'
     };
   }
 
